@@ -10,7 +10,7 @@ cards:
 
       Let \(\!n \in \mathbb{N}\!\) be a fixed positive integer (the **modulus**).
 
-      For any two integers \(\!a, b \in \mathbb{Z}\!\), we say that  
+      For any two integers \(\!a, b \in \mathbb{Z}\!\), we say that
       **\(\!a\!\) is congruent to \(\!b\!\) modulo \(\!n\!\)** if their difference \(\!(a-b)\!\) is a multiple of \(\!n\!\).
     Back: |
       \[
@@ -22,7 +22,7 @@ cards:
   - id: cloze-congruence
     model: Cloze
     Text: |
-      We say that two integers \(\!a,b \in \mathbb{Z}\!\) are **{{c1::congruent modulo}}**  
+      We say that two integers \(\!a,b \in \mathbb{Z}\!\) are **{{c1::congruent modulo}}**
       **{{c2::\(n\)}}** if **{{c3::their difference \((a-b)\) is a multiple of \(n\)}}**.
     Extra: |
       \[
@@ -37,7 +37,6 @@ cards:
 >
 > For any two integers \(a, b \in \mathbb{Z}\), we say that **\(a\) is congruent to \(b\) modulo \(n\)** if their difference \((a - b)\) is a multiple of \(n\).
 >
-> We write this relationship using the notation:  
+> We write this relationship using the notation:
 > \[
 >
-

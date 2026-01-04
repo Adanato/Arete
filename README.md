@@ -55,4 +55,4 @@ MIT
 ## Roadmap
 - [ ] **Community Plugin**: Submit `ObsiAnki` to the official Obsidian Community Plugins list.
 - [ ] **PyPI Release**: Publish `obsianki` package to PyPI (`uv publish`).
-
+- [ ] **Markdown Docs**: Setup comprehensive markdown documentation (e.g. MkDocs).

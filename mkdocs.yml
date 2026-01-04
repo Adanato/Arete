@@ -1,0 +1,55 @@
+site_name: ObsiAnki (o2a)
+site_description: "Pro-grade synchronization from Obsidian to Anki."
+site_author: "Adam Nguyen"
+site_url: "https://adanato.github.io/obsidian_2_anki/"
+
+repo_name: "Adanato/obsidian_2_anki"
+repo_url: "https://github.com/Adanato/obsidian_2_anki"
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: lime
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - User Guide:
+    - CLI Usage: cli_guide.md
+    - Obsidian Plugin: plugin_guide.md
+  - Development:
+    - Contributing: CONTRIBUTING.md
+    - Architecture: ARCHITECTURE.md
+    - Publishing: publishing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
