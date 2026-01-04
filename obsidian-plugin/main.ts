@@ -521,7 +521,7 @@ class O2ASettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}),
 			);
-		
+
 		new Setting(containerEl)
 			.setName('Anki Backend')
 			.setDesc('Manual override for the Anki sync driver.')
@@ -539,7 +539,9 @@ class O2ASettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Parallel Workers')
-			.setDesc('Number of parallel sync workers. Higher is faster but may stress AnkiConnect.')
+			.setDesc(
+				'Number of parallel sync workers. Higher is faster but may stress AnkiConnect.',
+			)
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 16, 1)

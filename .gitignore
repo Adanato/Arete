@@ -46,3 +46,5 @@ obsidian-plugin/main.js
 docker/anki_data/
 apy/
 *.log
+obsidian-plugin/main.js
+obsidian-plugin/styles.css
