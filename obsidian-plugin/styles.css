@@ -2,117 +2,117 @@
 
 /* Modal Container */
 .o2a-modal {
-    padding: 1rem;
+	padding: 1rem;
 }
 
 .o2a-modal h2 {
-    border-bottom: 2px solid var(--background-modifier-border);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+	border-bottom: 2px solid var(--background-modifier-border);
+	padding-bottom: 0.5rem;
+	margin-bottom: 1rem;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 }
 
 /* File Name Display */
 .o2a-filename {
-    background-color: var(--background-primary-alt);
-    padding: 0.2rem 0.6rem;
-    border-radius: 4px;
-    font-family: var(--font-monospace);
-    font-size: 0.9em;
-    color: var(--text-muted);
+	background-color: var(--background-primary-alt);
+	padding: 0.2rem 0.6rem;
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-muted);
 }
 
 /* Success State */
 .o2a-success {
-    color: var(--color-green);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    font-size: 1.2em;
+	color: var(--color-green);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	font-size: 1.2em;
 }
 
 .o2a-stats {
-    background-color: var(--background-primary-alt);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    padding: 1rem;
-    list-style: none;
-    margin: 0;
+	background-color: var(--background-primary-alt);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 1rem;
+	list-style: none;
+	margin: 0;
 }
 
 .o2a-stats li {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--background-modifier-border);
+	display: flex;
+	justify-content: space-between;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .o2a-stats li:last-child {
-    border-bottom: none;
+	border-bottom: none;
 }
 
 .o2a-stats-label {
-    color: var(--text-muted);
+	color: var(--text-muted);
 }
 .o2a-stats-val {
-    font-weight: bold;
+	font-weight: bold;
 }
 
 /* Error State */
 .o2a-error {
-    color: var(--color-red);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    font-size: 1.2em;
+	color: var(--color-red);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	font-size: 1.2em;
 }
 
 .o2a-error-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-    background-color: var(--background-primary-alt);
-    border-radius: 8px;
-    overflow: hidden;
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 1rem;
+	font-size: 0.9rem;
+	background-color: var(--background-primary-alt);
+	border-radius: 8px;
+	overflow: hidden;
 }
 
 .o2a-error-table th {
-    text-align: left;
-    padding: 0.8rem;
-    background-color: var(--background-secondary-alt);
-    color: var(--text-muted);
-    font-weight: 600;
+	text-align: left;
+	padding: 0.8rem;
+	background-color: var(--background-secondary-alt);
+	color: var(--text-muted);
+	font-weight: 600;
 }
 
 .o2a-error-table td {
-    padding: 0.8rem;
-    border-top: 1px solid var(--background-modifier-border);
-    vertical-align: top;
+	padding: 0.8rem;
+	border-top: 1px solid var(--background-modifier-border);
+	vertical-align: top;
 }
 
 .o2a-error-line {
-    font-family: var(--font-monospace);
-    color: var(--text-accent);
-    font-weight: bold;
-    width: 60px;
+	font-family: var(--font-monospace);
+	color: var(--text-accent);
+	font-weight: bold;
+	width: 60px;
 }
 
 .o2a-err-msg {
-    color: var(--text-error);
-    line-height: 1.4;
+	color: var(--text-error);
+	line-height: 1.4;
 }
 
 .o2a-hint {
-    margin-top: 1rem;
-    padding: 0.8rem;
-    background-color: var(--background-secondary);
-    border-left: 4px solid var(--text-accent);
-    color: var(--text-muted);
-    font-style: italic;
-    font-size: 0.9rem;
+	margin-top: 1rem;
+	padding: 0.8rem;
+	background-color: var(--background-secondary);
+	border-left: 4px solid var(--text-accent);
+	color: var(--text-muted);
+	font-style: italic;
+	font-size: 0.9rem;
 }

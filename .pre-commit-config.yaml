@@ -13,3 +13,12 @@ repos:
       - id: ruff
         args: [ --fix ]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: ts-lint
+        name: TypeScript Lint
+        entry: bash -c 'cd obsidian-plugin && npm run lint'
+        language: system
+        files: ^obsidian-plugin/
+        pass_filenames: false
