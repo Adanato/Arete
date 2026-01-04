@@ -234,17 +234,33 @@ export default class O2APlugin extends Plugin {
 			const packageRoot = path.dirname(scriptDir);
 			log(`Trace: Derived package root (PYTHONPATH): ${packageRoot}`);
 			env['PYTHONPATH'] = packageRoot;
+
 			args.push('-m');
 			args.push('o2a');
+
+			if (this.settings.debugMode) {
+				args.push('--verbose');
+			}
+
 			args.push('sync');
 		} else if (scriptPath) {
 			log(`Trace: Using custom script/binary: ${scriptPath}`);
 			args.push(scriptPath);
+
+			if (this.settings.debugMode) {
+				args.push('--verbose');
+			}
+
 			args.push('sync');
 		} else {
 			log(`Trace: No script path provided. Defaulting to 'python -m o2a'`);
 			args.push('-m');
 			args.push('o2a');
+
+			if (this.settings.debugMode) {
+				args.push('--verbose');
+			}
+
 			args.push('sync');
 		}
 
@@ -254,10 +270,6 @@ export default class O2APlugin extends Plugin {
 
 		if (force) {
 			args.push('--force');
-		}
-
-		if (this.settings.debugMode) {
-			args.push('--verbose');
 		}
 
 		if (this.settings.backend && this.settings.backend !== 'auto') {
@@ -509,7 +521,7 @@ class O2ASettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}),
 			);
-
+		
 		new Setting(containerEl)
 			.setName('Anki Backend')
 			.setDesc('Manual override for the Anki sync driver.')
@@ -527,9 +539,7 @@ class O2ASettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Parallel Workers')
-			.setDesc(
-				'Number of parallel sync workers. Higher is faster but may stress AnkiConnect.',
-			)
+			.setDesc('Number of parallel sync workers. Higher is faster but may stress AnkiConnect.')
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 16, 1)

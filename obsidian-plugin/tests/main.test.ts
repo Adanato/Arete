@@ -66,6 +66,8 @@ describe('O2APlugin', () => {
 			pythonPath: 'python3',
 			o2aScriptPath: '',
 			debugMode: false,
+			backend: 'auto',
+			workers: 4,
 		};
 	});
 
@@ -83,7 +85,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '/mock/vault/path'],
+			['-m', 'o2a', 'sync', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({ cwd: '/mock/vault/path' }),
 		);
 	});
@@ -98,7 +100,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '--prune', '/mock/vault/path'],
+			['-m', 'o2a', 'sync', '--prune', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({ cwd: '/mock/vault/path' }),
 		);
 	});
@@ -115,7 +117,7 @@ describe('O2APlugin', () => {
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
 			// Note: --force is added, and target path is specific file
-			['-m', 'o2a', 'sync', '--force', '/mock/vault/path/Note.md'],
+			['-m', 'o2a', 'sync', '--force', '--workers', '4', '/mock/vault/path/Note.md'],
 			expect.objectContaining({ cwd: '/mock/vault/path' }),
 		);
 	});
@@ -132,7 +134,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '--verbose', '/mock/vault/path'],
+			['-m', 'o2a', 'sync', '--verbose', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({ cwd: '/mock/vault/path' }),
 		);
 	});
@@ -150,7 +152,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'/usr/bin/python3',
-			['-m', 'o2a', 'sync', '/mock/vault/path'],
+			['-m', 'o2a', 'sync', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({
 				cwd: '/mock/vault/path',
 				env: expect.objectContaining({

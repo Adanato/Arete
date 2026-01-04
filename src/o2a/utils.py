@@ -27,6 +27,14 @@ def detect_anki_paths() -> tuple[Path | None, Path]:
 
     if system == "Windows":
         base = Path.home() / "AppData/Roaming/Anki2"
+        # Try to find a profile
+        if base.exists():
+            profiles = [
+                p for p in base.iterdir() if p.is_dir() and (p / "collection.anki2").exists()
+            ]
+            if profiles:
+                # Pick the first one (usually User 1 or the main one)
+                return (base, profiles[0] / "collection.media")
         return (base, base / "User 1/collection.media")
 
     if system == "Linux":
