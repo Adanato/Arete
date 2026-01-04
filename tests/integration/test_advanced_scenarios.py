@@ -172,9 +172,9 @@ cards:
         anki_url,
         json={"action": "retrieveMediaFile", "version": 6, "params": {"filename": "test_img.png"}},
     )
-    assert resp_media.json().get("result") is not False, (
-        "Image was not uploaded to Anki media store"
-    )
+    assert (
+        resp_media.json().get("result") is not False
+    ), "Image was not uploaded to Anki media store"
 
 
 # @pytest.mark.xfail(reason="Flaky in CI: deleteNotes succeeds but note persists")

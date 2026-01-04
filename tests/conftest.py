@@ -15,10 +15,6 @@ def mock_home(tmp_path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()
 
-    # We need to monkeypatch Path.home.
-    # Since Path.home() is a method, we patch it on Path class or instance?
-    # Actually it's a class method.
-    # Monkeypatching built-ins is tricky.
-    # Better to rely on env var HOME if pathlib uses it?
+    # Mocking HOME to a temp directory to isolate config/logs
     monkeypatch.setenv("HOME", str(home))
     return home

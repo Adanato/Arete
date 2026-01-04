@@ -1,9 +1,8 @@
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from o2a.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -39,6 +38,6 @@ def test_mock_vault_scenarios(filename, expected_msg):
     assert result.exit_code == 1, f"{filename} should have failed validation but passed."
 
     # Assert specific error message
-    assert expected_msg in result.stdout, (
-        f"{filename} failed but message was wrong.\nGot: {result.stdout}"
-    )
+    assert (
+        expected_msg in result.stdout
+    ), f"{filename} failed but message was wrong.\nGot: {result.stdout}"

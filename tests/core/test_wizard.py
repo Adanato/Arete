@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from o2a.core.wizard import run_init_wizard
 
 

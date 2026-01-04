@@ -278,7 +278,9 @@ def check_file(
                         result["errors"].append(
                             {
                                 "line": 1,
-                                # TODO: improve if possible, but for now 1 is frontmatter start
+                                # note: e.problem_mark.line is not available for individual
+                                # list items in the parsed structure, effectively limiting
+                                # us to line 1 or a broad "somewhere in the list" pointer.
                                 "message": (
                                     f"Card #{i + 1} is invalid. "
                                     f"Expected a dictionary (key: value), "

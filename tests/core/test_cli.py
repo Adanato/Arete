@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
-
 from o2a.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -21,13 +20,22 @@ def test_cli_help():
     assert "config" in result.stdout
 
 
+import re
+
+def strip_ansi(text):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
+
 def test_sync_command_help():
     """Test sync command help text."""
     result = runner.invoke(app, ["sync", "--help"])
     assert result.exit_code == 0
-    assert "Sync your Obsidian notes to Anki" in result.stdout
-    assert "--prune" in result.stdout
-    assert "--backend" in result.stdout
+    # Strip ANSI codes (e.g. from Rich) before asserting text content
+    output = strip_ansi(result.stdout)
+    assert "Sync your Obsidian notes to Anki" in output
+    assert "--prune" in output
+    assert "--backend" in output
 
 
 @patch("asyncio.run")

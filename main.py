@@ -7,9 +7,10 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Iterable, Tuple, Optional
+from typing import Any
 
 try:
     import yaml
@@ -26,7 +27,8 @@ CURRENT_TEMPLATE_VERSION = 1
 
 # ---------- Logging ----------
 
-def setup_logging(log_dir: Path) -> Tuple[logging.Logger, Path, str]:
+
+def setup_logging(log_dir: Path) -> tuple[logging.Logger, Path, str]:
     log_dir.mkdir(parents=True, exist_ok=True)
     run_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{uuid.uuid4().hex[:8]}"
     log_path = log_dir / f"run_{run_id}.log"
@@ -50,9 +52,11 @@ def setup_logging(log_dir: Path) -> Tuple[logging.Logger, Path, str]:
 
     return logger, log_path, run_id
 
+
 # ---------- Helpers ----------
 
-def parse_frontmatter(md_text: str) -> Tuple[Dict[str, Any], str]:
+
+def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
     m = FRONTMATTER_RE.match(md_text)
     if not m:
         return {}, md_text
@@ -61,20 +65,23 @@ def parse_frontmatter(md_text: str) -> Tuple[Dict[str, Any], str]:
     except Exception as e:
         # YAML parse error
         return {"__yaml_error__": str(e)}, md_text
-    rest = md_text[m.end():]
+    rest = md_text[m.end() :]
     return meta, rest
 
-def to_list(x) -> List[str]:
+
+def to_list(x) -> list[str]:
     if x is None:
         return []
     if isinstance(x, list):
         return [str(i) for i in x]
     return [str(x)]
 
+
 def sanitize(v) -> str:
     return "" if v is None else str(v).rstrip()
 
-def make_editor_note(model: str, deck: str, tags: List[str], fields: Dict[str, str]) -> str:
+
+def make_editor_note(model: str, deck: str, tags: list[str], fields: dict[str, str]) -> str:
     tag_line = " ".join(tags) if tags else ""
     lines = [
         f"model: {model}",
@@ -110,6 +117,7 @@ def make_editor_note(model: str, deck: str, tags: List[str], fields: Dict[str, s
             lines += [f"## {k}", sanitize(v), ""]
     return "\n".join(lines)
 
+
 def write_temp(content: str, model: str, base_hint: str = "") -> Path:
     # temp file name hint helps when scanning /tmp
     hint = f"_{model.replace(' ', '_')}"
@@ -120,12 +128,12 @@ def write_temp(content: str, model: str, base_hint: str = "") -> Path:
         f.write(content)
     return Path(path)
 
+
 def run_apy_add_from_file(apy_bin: str, path: Path, logger: logging.Logger) -> int:
     logger.info(f"[apy] {apy_bin} add-from-file {path}")
     proc = subprocess.run(
         [apy_bin, "add-from-file", str(path)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if proc.stdout.strip():
@@ -133,6 +141,7 @@ def run_apy_add_from_file(apy_bin: str, path: Path, logger: logging.Logger) -> i
     if proc.stderr.strip():
         logger.warning(proc.stderr.rstrip())
     return proc.returncode
+
 
 def iter_markdown_files(root: Path) -> Iterable[Path]:
     """Yield *.md in root (file or directory). Skips hidden dirs and .obsidian."""
@@ -149,7 +158,8 @@ def iter_markdown_files(root: Path) -> Iterable[Path]:
             continue
         yield p
 
-def get_declared_template_version(meta: Dict[str, Any]) -> Optional[int]:
+
+def get_declared_template_version(meta: dict[str, Any]) -> int | None:
     v = meta.get("anki_template_version")
     if v is None:
         return None
@@ -158,7 +168,9 @@ def get_declared_template_version(meta: Dict[str, Any]) -> Optional[int]:
     except Exception:
         return None
 
+
 # ---- UUID helpers ----
+
 
 def is_valid_uuid(s: str) -> bool:
     try:
@@ -167,7 +179,8 @@ def is_valid_uuid(s: str) -> bool:
     except Exception:
         return False
 
-def get_card_uuid(card: Dict[str, Any], logger: logging.Logger, md_path: Path, idx: int) -> str:
+
+def get_card_uuid(card: dict[str, Any], logger: logging.Logger, md_path: Path, idx: int) -> str:
     """
     Ensure each card has a UUID in 'id'.
     - If 'id' exists and is a valid UUID, use it.
@@ -184,7 +197,9 @@ def get_card_uuid(card: Dict[str, Any], logger: logging.Logger, md_path: Path, i
     # Note: we don't write back to file; 'card' is transient here.
     return new_id
 
+
 # ---------- Core ----------
+
 
 def process_markdown_file(
     md_path: Path,
@@ -193,7 +208,7 @@ def process_markdown_file(
     keep_going: bool,
     logger: logging.Logger,
     seen_ids: set,  # track UUIDs across the run
-) -> Tuple[int, int, int, int]:
+) -> tuple[int, int, int, int]:
     """
     Returns (generated_files, imported_ok, skipped, errors)
     """
@@ -219,7 +234,10 @@ def process_markdown_file(
         logger.info(f"[skip] {md_path}: missing required key 'anki_template_version'")
         return (0, 0, 1, 0)
     if declared_version != CURRENT_TEMPLATE_VERSION:
-        logger.info(f"[skip] {md_path}: unsupported anki_template_version={declared_version} (required: {CURRENT_TEMPLATE_VERSION})")
+        logger.info(
+            f"[skip] {md_path}: unsupported anki_template_version={declared_version} "
+            f"(required: {CURRENT_TEMPLATE_VERSION})"
+        )
         return (0, 0, 1, 0)
     # ---------------------------------------
 
@@ -235,14 +253,21 @@ def process_markdown_file(
         logger.info(f"[skip] {md_path}: no 'cards:' list to process")
         return (0, 0, 1, 0)
 
-    logger.info(f"[scan] {md_path}: deck='{deck}', default_model='{default_model}', tags={base_tags or '[]'}, cards={len(cards)}")
+    logger.info(
+        f"[scan] {md_path}: deck='{deck}', "
+        f"default_model='{default_model}', "
+        f"tags={base_tags or '[]'}, "
+        f"cards={len(cards)}"
+    )
 
     for idx, card in enumerate(cards, start=1):
         try:
             # --- ensure a UUID id and add src:<uuid> tag ---
             cid = get_card_uuid(card, logger, md_path, idx)
             if cid in seen_ids:
-                logger.warning(f"[skip] {md_path} card#{idx}: duplicate UUID id '{cid}' in this run")
+                logger.warning(
+                    f"[skip] {md_path} card#{idx}: duplicate UUID id '{cid}' in this run"
+                )
                 skipped += 1
                 continue
             seen_ids.add(cid)
@@ -264,7 +289,8 @@ def process_markdown_file(
             elif mlow == "cloze":
                 fields = {
                     "Text": sanitize(card.get("Text", "")),
-                    "Back Extra": sanitize(card.get("Back Extra", "")) or sanitize(card.get("Extra", "")),
+                    "Back Extra": sanitize(card.get("Back Extra", ""))
+                    or sanitize(card.get("Extra", "")),
                 }
                 if not fields["Text"]:
                     logger.info(f"[skip] {md_path} card#{idx}: Cloze requires Text")
@@ -274,7 +300,9 @@ def process_markdown_file(
                 # custom model: include all non-meta keys
                 fields = {k: v for k, v in card.items() if k not in {"id", "model"}}
                 if not fields:
-                    logger.info(f"[skip] {md_path} card#{idx}: custom model '{model}' has no fields")
+                    logger.info(
+                        f"[skip] {md_path} card#{idx}: " f"custom model '{model}' has no fields"
+                    )
                     skipped += 1
                     continue
 
@@ -302,22 +330,41 @@ def process_markdown_file(
 
     return (generated, imported, skipped, errors)
 
+
 # ---------- CLI ----------
+
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Scan Obsidian vault or file, generate apy editor-style notes, and (optionally) import via apy."
+        description=(
+            "Scan Obsidian vault or file, generate apy editor-style notes, "
+            "and (optionally) import via apy."
+        )
     )
     ap.add_argument("path", help="Path to an Obsidian vault directory or a single Markdown file")
-    ap.add_argument("--run", action="store_true", help="Call `apy add-from-file` for each generated temp file")
-    ap.add_argument("--keep-going", action="store_true", help="Continue on errors instead of stopping")
-    ap.add_argument("--apy-bin", default="apy", help="Path/name of the apy executable (default: apy)")
+    ap.add_argument(
+        "--run",
+        action="store_true",
+        help="Call `apy add-from-file` for each generated temp file",
+    )
+    ap.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="Continue on errors instead of stopping",
+    )
+    ap.add_argument(
+        "--apy-bin",
+        default="apy",
+        help="Path/name of the apy executable (default: apy)",
+    )
     ap.add_argument("--log-dir", default="./logs", help="Directory for run logs (default: ./logs)")
     args = ap.parse_args()
 
     logger, log_path, run_id = setup_logging(Path(args.log_dir))
     logger.info(f"=== obsidian → apy run_id={run_id} ===")
-    logger.info(f"path={args.path}  run={args.run}  keep_going={args.keep_going}  apy_bin={args.apy_bin}")
+    logger.info(
+        f"path={args.path}  run={args.run}  keep_going={args.keep_going}  apy_bin={args.apy_bin}"
+    )
     logger.info(f"log file: {log_path}")
 
     root = Path(args.path)
@@ -351,6 +398,6 @@ def main():
     if total_errors:
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
-
