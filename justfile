@@ -64,3 +64,7 @@ check:
     @echo "--- 🟦 TypeScript: Testing ---"
     cd obsidian-plugin && npm test
     @echo "✅ All Checks Passed!"
+
+# Deploy documentation to GitHub Pages
+deploy-docs:
+    uv run mkdocs gh-deploy --force

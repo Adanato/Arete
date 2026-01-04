@@ -62,6 +62,36 @@ jobs:
     - name: Type Check
       run: uv run just check-types
 
+  plugin:
+    name: Obsidian Plugin (Build & Test)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      run: |
+        cd obsidian-plugin
+        npm ci
+
+    - name: Lint
+      run: |
+        cd obsidian-plugin
+        npm run lint
+
+    - name: Test
+      run: |
+        cd obsidian-plugin
+        npm test
+
+    - name: Build
+      run: |
+        cd obsidian-plugin
+        npm run build
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
