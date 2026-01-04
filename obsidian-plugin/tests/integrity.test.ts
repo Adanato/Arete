@@ -34,13 +34,15 @@ describe('O2APlugin Integrity Check', () => {
 			return null;
 		});
 
-		const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+		const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {
+			/* no-op */
+		});
 
 		await plugin.checkVaultIntegrity();
 
 		expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Bad.md'));
 		expect(mockConsoleError).not.toHaveBeenCalledWith(expect.stringContaining('Good.md'));
-		
+
 		mockConsoleError.mockRestore();
 	});
 });

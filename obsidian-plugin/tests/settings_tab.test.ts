@@ -19,7 +19,7 @@ describe('O2ASettingTab Interaction Tests', () => {
 			workers: 4,
 		} as any;
 		plugin.saveSettings = jest.fn().mockResolvedValue(undefined);
-        plugin.testConfig = jest.fn().mockResolvedValue(undefined);
+		plugin.testConfig = jest.fn().mockResolvedValue(undefined);
 		settingTab = new O2ASettingTab(app, plugin);
 
 		(app as any).setting = {
@@ -27,16 +27,18 @@ describe('O2ASettingTab Interaction Tests', () => {
 			activeTab: {
 				searchComponent: { setValue: jest.fn() },
 				updateHotkeyVisibility: jest.fn(),
-			}
+			},
 		};
-        (app as any).commands = {
-            listCommands: jest.fn().mockReturnValue([]),
-            findCommand: jest.fn().mockReturnValue({ hotkeys: [] }),
-        };
+		(app as any).commands = {
+			listCommands: jest.fn().mockReturnValue([]),
+			findCommand: jest.fn().mockReturnValue({ hotkeys: [] }),
+		};
 	});
 
 	const findSettingByName = (name: string) => {
-		return (Setting as jest.Mock).mock.results.map(r => r.value).find(s => s.setName.mock.calls.some((c: any) => c[0] === name));
+		return (Setting as jest.Mock).mock.results
+			.map((r) => r.value)
+			.find((s) => s.setName.mock.calls.some((c: any) => c[0] === name));
 	};
 
 	test('Python Executable setting updates correctly', async () => {
@@ -92,12 +94,12 @@ describe('O2ASettingTab Interaction Tests', () => {
 	test('Hotkey Configure button opens correct tab', async () => {
 		// Mock a command for the hotkey button
 		((app as any).commands.listCommands as jest.Mock).mockReturnValue([
-			{ id: 'o2a-sync', name: 'Sync' }
+			{ id: 'o2a-sync', name: 'Sync' },
 		]);
-        ((app as any).commands.findCommand as jest.Mock).mockReturnValue({
-            name: 'Sync',
-            hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'S' }]
-        });
+		((app as any).commands.findCommand as jest.Mock).mockReturnValue({
+			name: 'Sync',
+			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'S' }],
+		});
 
 		settingTab.display();
 		const syncSetting = findSettingByName('Sync');
@@ -108,21 +110,21 @@ describe('O2ASettingTab Interaction Tests', () => {
 		expect((app as any).setting.activeTab.searchComponent.setValue).toHaveBeenCalledWith('o2a');
 	});
 
-    test('Test Config button calls plugin method', async () => {
-        settingTab.display();
-        const testBtn = findSettingByName('Test Configuration');
-        expect(testBtn).toBeDefined();
-        await testBtn.mockButton._onClick();
-        expect(plugin.testConfig).toHaveBeenCalled();
-    });
+	test('Test Config button calls plugin method', async () => {
+		settingTab.display();
+		const testBtn = findSettingByName('Test Configuration');
+		expect(testBtn).toBeDefined();
+		await testBtn.mockButton._onClick();
+		expect(plugin.testConfig).toHaveBeenCalled();
+	});
 
-    test('Open Sample Modal button works', async () => {
-        plugin.settings.debugMode = true;
-        settingTab.display();
-        const debugSetting = findSettingByName('Check Results (Debug)');
-        expect(debugSetting).toBeDefined();
+	test('Open Sample Modal button works', async () => {
+		plugin.settings.debugMode = true;
+		settingTab.display();
+		const debugSetting = findSettingByName('Check Results (Debug)');
+		expect(debugSetting).toBeDefined();
 
-        await debugSetting.mockButton._onClick();
-        // Just verify it doesn't crash
-    });
+		await debugSetting.mockButton._onClick();
+		// Just verify it doesn't crash
+	});
 });

@@ -19,6 +19,8 @@ interface O2APluginSettings {
 	debugMode: boolean;
 	backend: 'auto' | 'apy' | 'ankiconnect';
 	workers: number;
+	ankiConnectUrl: string;
+	ankiMediaDir: string;
 }
 
 const DEFAULT_SETTINGS: O2APluginSettings = {
@@ -27,6 +29,8 @@ const DEFAULT_SETTINGS: O2APluginSettings = {
 	debugMode: false,
 	backend: 'auto',
 	workers: 4,
+	ankiConnectUrl: 'http://localhost:8765',
+	ankiMediaDir: '',
 };
 
 export default class O2APlugin extends Plugin {
@@ -208,7 +212,8 @@ export default class O2APlugin extends Plugin {
 		const vaultPath = vaultConfig.getBasePath();
 
 		// Logging Setup
-		const pluginDir = (this.manifest && this.manifest.dir) || '.obsidian/plugins/obsidian-2-anki';
+		const pluginDir =
+			(this.manifest && this.manifest.dir) || '.obsidian/plugins/obsidian-2-anki';
 		const logPath = vaultPath ? path.join(vaultPath, pluginDir, 'o2a_plugin.log') : '';
 
 		const log = (msg: string) => {
@@ -288,6 +293,19 @@ export default class O2APlugin extends Plugin {
 			args.push(this.settings.workers.toString());
 		}
 
+		if (
+			this.settings.ankiConnectUrl &&
+			this.settings.ankiConnectUrl !== 'http://localhost:8765'
+		) {
+			args.push('--anki-connect-url');
+			args.push(this.settings.ankiConnectUrl);
+		}
+
+		if (this.settings.ankiMediaDir) {
+			args.push('--anki-media-dir');
+			args.push(this.settings.ankiMediaDir);
+		}
+
 		// If targetPath is specific file, append it.
 		// CAREFUL: If targetPath is meant to be the "VAULT_ROOT" arg for default sync, we should handle that.
 		// But for "single file sync", o2a supports `sync [PATH]`.
@@ -305,7 +323,7 @@ export default class O2APlugin extends Plugin {
 			let stderrBuffer = '';
 
 			child.stdout.on('data', (data) => {
-                if (!data) return;
+				if (!data) return;
 				const lines = data.toString().split('\n');
 				lines.forEach((l: string) => {
 					if (l) log(`STDOUT: ${l}`);
@@ -313,7 +331,7 @@ export default class O2APlugin extends Plugin {
 			});
 
 			child.stderr.on('data', (data) => {
-                if (!data) return;
+				if (!data) return;
 				const str = data.toString();
 				stderrBuffer += str;
 				const lines = str.split('\n');
@@ -490,7 +508,7 @@ export class O2ASettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-        // console.log('SettingTab Display. Debug Mode:', this.plugin.settings.debugMode);
+		// console.log('SettingTab Display. Debug Mode:', this.plugin.settings.debugMode);
 
 		containerEl.createEl('h2', { text: 'O2A Settings' });
 
@@ -541,6 +559,32 @@ export class O2ASettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.backend)
 					.onChange(async (value: 'auto' | 'apy' | 'ankiconnect') => {
 						this.plugin.settings.backend = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Anki Connect URL')
+			.setDesc('URL for AnkiConnect API (default: http://localhost:8765)')
+			.addText((text) =>
+				text
+					.setPlaceholder('http://localhost:8765')
+					.setValue(this.plugin.settings.ankiConnectUrl)
+					.onChange(async (value) => {
+						this.plugin.settings.ankiConnectUrl = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Anki Media Directory')
+			.setDesc('Custom path for Anki media uploads (optional)')
+			.addText((text) =>
+				text
+					.setPlaceholder('/path/to/Anki/collection.media')
+					.setValue(this.plugin.settings.ankiMediaDir)
+					.onChange(async (value) => {
+						this.plugin.settings.ankiMediaDir = value;
 						await this.plugin.saveSettings();
 					}),
 			);

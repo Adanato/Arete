@@ -9,10 +9,10 @@ describe('O2APlugin', () => {
 	let app: App;
 
 	beforeEach(() => {
-        jest.clearAllMocks();
+		jest.clearAllMocks();
 		app = new App();
 		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue('/mock/vault/path');
-		
+
 		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.statusBarItem = plugin.addStatusBarItem() as any;
 
@@ -22,6 +22,8 @@ describe('O2APlugin', () => {
 			debugMode: false,
 			backend: 'auto',
 			workers: 4,
+			ankiConnectUrl: 'http://localhost:8765',
+			ankiMediaDir: '',
 		};
 	});
 
@@ -29,25 +31,25 @@ describe('O2APlugin', () => {
 		jest.clearAllMocks();
 	});
 
-    test('loadSettings and saveSettings flow', async () => {
-        (plugin as any).loadData = jest.fn().mockResolvedValue({ pythonPath: 'custom-python' });
-        (plugin as any).saveData = jest.fn().mockResolvedValue(undefined);
-        
-        await plugin.loadSettings();
-        expect(plugin.settings.pythonPath).toBe('custom-python');
-        
-        plugin.settings.debugMode = true;
-        await plugin.saveSettings();
-        expect((plugin as any).saveData.mock.calls[0][0].debugMode).toBe(true);
-    });
+	test('loadSettings and saveSettings flow', async () => {
+		(plugin as any).loadData = jest.fn().mockResolvedValue({ pythonPath: 'custom-python' });
+		(plugin as any).saveData = jest.fn().mockResolvedValue(undefined);
+
+		await plugin.loadSettings();
+		expect(plugin.settings.pythonPath).toBe('custom-python');
+
+		plugin.settings.debugMode = true;
+		await plugin.saveSettings();
+		expect((plugin as any).saveData.mock.calls[0][0].debugMode).toBe(true);
+	});
 
 	test('runSync spawns python process with correct arguments', async () => {
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
 		const syncPromise = plugin.runSync();
-        mockChild.emit('close', 0);
-        await syncPromise;
+		mockChild.emit('close', 0);
+		await syncPromise;
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
@@ -62,8 +64,8 @@ describe('O2APlugin', () => {
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
 		const syncPromise = plugin.runSync();
-        mockChild.emit('close', 0);
-        await syncPromise;
+		mockChild.emit('close', 0);
+		await syncPromise;
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
