@@ -48,3 +48,4 @@ apy/
 *.log
 obsidian-plugin/main.js
 obsidian-plugin/styles.css
+obsidian-plugin/coverage/
