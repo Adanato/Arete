@@ -9,4 +9,3 @@ cards:
   - Front: "Give an example of a fadfasdfield."
     Back:  '$\mathbb{Q}$ is a field under standard addition and multiplication.'
 ---
-

@@ -1,11 +1,48 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.mypy_cache/
 
-# Virtual environments
-.venv
-logs
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Node.js / Obsidian Plugin
+node_modules/
+obsidian-plugin/node_modules/
+# Identify build artifacts vs source
+# o2a/obsidian-plugin/main.js is generated from main.ts by esbuild
+obsidian-plugin/main.js
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# MacOS
+.DS_Store
+
+# O2A Application Data (if any localized)
+# (User specific config is usually ignored if it contains secrets, but config.toml might be template)
+docker/anki_data/
+apy/
+*.log

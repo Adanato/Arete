@@ -28,4 +28,3 @@ cards:
       $$
       Meaning $n \mid (a-b)$.
 ---
-

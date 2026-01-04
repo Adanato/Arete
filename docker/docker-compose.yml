@@ -1,0 +1,15 @@
+services:
+  anki:
+    platform: linux/amd64
+    image: mlcivilengineer/anki-desktop-docker:main
+    container_name: anki-test
+    environment:
+      - PUID=1000
+      - PGID=1000
+    ports:
+      - "3000:3000"
+      - "8766:8765"
+    volumes:
+      - ./anki_data:/config
+    shm_size: "1gb"
+    restart: unless-stopped

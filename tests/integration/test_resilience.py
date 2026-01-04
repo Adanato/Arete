@@ -1,0 +1,39 @@
+import requests
+
+
+def test_invalid_model(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+    """
+    Card references non-existent model.
+    """
+    md_file = tmp_path / "badmodel.md"
+    md_file.write_text(
+        f"""---
+deck: {test_deck}
+anki_template_version: 1
+cards:
+  - model: NonExistentModelXYZ
+    Front: Should Fail
+    Back: ...
+---
+""",
+        encoding="utf-8",
+    )
+
+    res = run_o2a(tmp_path, anki_url)
+
+    # Should probably log an error like "Model 'NonExistentModelXYZ' not found"
+    # And not crash the whole process (if possible).
+    # Currently AnkiConnect might return error, o2a should catch it.
+
+    assert "Model name not found" in res.stderr or "not found" in res.stdout or res.returncode != 0
+
+    # Verify not added
+    resp = requests.post(
+        anki_url,
+        json={
+            "action": "findNotes",
+            "version": 6,
+            "params": {"query": f'"deck:{test_deck}" "Should Fail"'},
+        },
+    )
+    assert len(resp.json()["result"]) == 0
