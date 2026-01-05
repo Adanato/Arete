@@ -4,6 +4,9 @@
 
 It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
+> [!NOTE] 
+> **Current Status**: This project is in active development. While robust, we recommend backing up your Anki collection before large-scale syncs.
+
 ---
 
 ## Key Features
@@ -13,10 +16,17 @@ It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of 
 - 🩹 **Self-Healing**: Detects and fixes lost IDs or duplicate cards without manual intervention.
 - 📸 **Media Sync**: Seamlessly syncs images and attachments.
 - 📐 **MathJax/LaTeX**: Built-in protection for mathematical content.
+- 💻 **Cross-Platform**: First-class support for Windows (WSL), macOS, and Linux.
 
-## Getting Started
+## Documentation
 
-### Installation
+- **[CLI Guide](cli_guide.md)**: Command-line usage, configuration, and syntax.
+- **[Obsidian Plugin](plugin_guide.md)**: How to use the companion Obsidian plugin.
+- **[Architecture](ARCHITECTURE.md)**: Deep dive into the project internals.
+- **[Troubleshooting](troubleshooting.md)**: Solutions for common networking and sync issues.
+- **[Contributing](CONTRIBUTING.md)**: Guide for developers wanting to help out.
+
+## Installation
 
 ```bash
 git clone https://github.com/Adanato/obsidian_2_anki
@@ -24,7 +34,7 @@ cd obsidian_2_anki
 uv sync
 ```
 
-### Basic Usage
+## Basic Usage
 
 1.  **Initialize** your vault config:
     ```bash
@@ -35,9 +45,3 @@ uv sync
     ```bash
     uv run o2a sync
     ```
-
-## Documentation
-
-- **[CLI Guide](cli_guide.md)**: Detailed command-line usage and configuration.
-- **[Obsidian Plugin](plugin_guide.md)**: How to use the companion Obsidian plugin.
-- **[Contributing](CONTRIBUTING.md)**: Guide for developers wanting to help out.
