@@ -9,10 +9,10 @@ from typing import Any
 class ContentCache:
     def __init__(self, db_path: Path | None = None):
         if db_path is None:
-            # Default to XDG-ish standard: ~/.config/o2a/cache.db
+            # Default to XDG-ish standard: ~/.config/arete/cache.db
             # Fallback to old path if the cachedb already exists there?
-            # No, user asked to "make everything inside .config/o2a"
-            conf_dir = Path.home() / ".config/o2a"
+            # No, user asked to "make everything inside .config/arete"
+            conf_dir = Path.home() / ".config/arete"
             conf_dir.mkdir(parents=True, exist_ok=True)
             db_path = conf_dir / "cache.db"
 

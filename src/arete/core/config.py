@@ -14,18 +14,18 @@ from ..utils import detect_anki_paths
 
 class AppConfig(BaseSettings):
     """
-    Professional configuration model for o2a.
+    Professional configuration model for arete.
     Supports loading from:
     1. Environment variables (O2A_*)
-    2. Config file (~/.config/o2a/config.toml)
+    2. Config file (~/.config/arete/config.toml)
     3. Manual overrides (CLI)
     """
 
     model_config = SettingsConfigDict(
         env_prefix="O2A_",
         toml_file=[
-            Path.home() / ".config/o2a/config.toml",
-            Path.home() / ".o2a.toml",
+            Path.home() / ".config/arete/config.toml",
+            Path.home() / ".arete.toml",
         ],
         extra="ignore",
     )
@@ -35,7 +35,7 @@ class AppConfig(BaseSettings):
     vault_root: Path | None = None
     anki_media_dir: Path | None = None
     anki_base: Path | None = None
-    log_dir: Path = Field(default_factory=lambda: Path.home() / ".config/o2a/logs")
+    log_dir: Path = Field(default_factory=lambda: Path.home() / ".config/arete/logs")
 
     # Execution Settings
     backend: Literal["auto", "apy", "ankiconnect"] = "auto"
@@ -74,8 +74,8 @@ class AppConfig(BaseSettings):
 
         # Try to load from both possible config locations
         toml_files = [
-            Path.home() / ".config/o2a/config.toml",
-            Path.home() / ".o2a.toml",
+            Path.home() / ".config/arete/config.toml",
+            Path.home() / ".arete.toml",
         ]
 
         # Find the first existing file
@@ -126,7 +126,7 @@ def resolve_config(
     """
     Multi-layered configuration resolution.
     1. Defaults in AppConfig
-    2. ~/.config/o2a/config.toml (if exists) OR explicit config_file
+    2. ~/.config/arete/config.toml (if exists) OR explicit config_file
     3. Environment variables (O2A_*)
     4. cli_overrides (passed from Typer)
     """

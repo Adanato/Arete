@@ -9,12 +9,12 @@ import typer
 from .core.config import resolve_config
 
 app = typer.Typer(
-    help="o2a: Pro-grade Obsidian to Anki sync tool.",
+    help="arete: Pro-grade Obsidian to Anki sync tool.",
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
 
-config_app = typer.Typer(help="Manage o2a configuration.")
+config_app = typer.Typer(help="Manage arete configuration.")
 app.add_typer(config_app, name="config")
 
 
@@ -29,7 +29,7 @@ def main_callback(
     ] = 1,
 ):
     """
-    Global settings for o2a.
+    Global settings for arete.
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose_bonus"] = verbose
@@ -129,7 +129,7 @@ def config_open():
     """
     import subprocess
 
-    cfg_path = Path.home() / ".config/o2a/config.toml"
+    cfg_path = Path.home() / ".config/arete/config.toml"
     if not cfg_path.exists():
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
         cfg_path.touch()
@@ -187,13 +187,13 @@ def check_file(
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON.")] = False,
 ):
     """
-    Validate a single file for o2a compatibility.
+    Validate a single file for arete compatibility.
     Checks YAML syntax and required fields.
     """
 
     from yaml import YAMLError
 
-    from o2a.text import validate_frontmatter
+    from arete.text import validate_frontmatter
 
     # Type hint the result dictionary
     result: dict[str, Any] = {
@@ -244,7 +244,7 @@ def check_file(
         # Schema Validation
         # 1. Check anki_template_version (Required for auto-detection usually)
         if "anki_template_version" not in meta and "cards" not in meta:
-            # It might be valid markdown but NOT an o2a note.
+            # It might be valid markdown but NOT an arete note.
             # We should warn if it looks like they intended to use it.
             pass
 
@@ -367,7 +367,7 @@ def check_file(
         typer.echo(json.dumps(result))
     else:
         if result["ok"]:
-            typer.secho("✅ Valid o2a file!", fg="green")
+            typer.secho("✅ Valid arete file!", fg="green")
             typer.echo(f"  Deck: {result['stats']['deck']}")
             typer.echo(f"  Cards: {result['stats']['cards_found']}")
         else:
@@ -385,7 +385,7 @@ def fix_file(
     """
     Attempts to automatically fix common format errors in a file.
     """
-    from o2a.text import apply_fixes, validate_frontmatter
+    from arete.text import apply_fixes, validate_frontmatter
 
     if not path.exists():
         typer.secho("File not found.", fg="red")

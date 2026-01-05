@@ -1,4 +1,4 @@
-from o2a.main import main
+from arete.main import main
 
 if __name__ == "__main__":
     main()

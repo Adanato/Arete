@@ -1,15 +1,15 @@
 import platform
 import sys
 
-from o2a.core.config import AppConfig
-from o2a.core.pipeline import run_pipeline
-from o2a.domain.interfaces import AnkiBridge
-from o2a.infrastructure.cache import ContentCache
-from o2a.logging_utils import setup_logging
-from o2a.services.anki_apy import AnkiApyAdapter
-from o2a.services.anki_connect import AnkiConnectAdapter
-from o2a.services.parser import MarkdownParser
-from o2a.services.vault import VaultService
+from arete.core.config import AppConfig
+from arete.core.pipeline import run_pipeline
+from arete.domain.interfaces import AnkiBridge
+from arete.infrastructure.cache import ContentCache
+from arete.logging_utils import setup_logging
+from arete.services.anki_apy import AnkiApyAdapter
+from arete.services.anki_connect import AnkiConnectAdapter
+from arete.services.parser import MarkdownParser
+from arete.services.vault import VaultService
 
 
 async def run_sync_logic(config: AppConfig):
@@ -94,7 +94,7 @@ def main():
     """
     Professional entry point that delegates to Typer.
     """
-    from o2a.cli import app
+    from arete.cli import app
 
     app()
 
