@@ -1,8 +1,8 @@
-# ObsiAnki (formerly o2a)
+# Arete (formerly o2a)
 
 **Pro-grade synchronization from Obsidian to Anki.**
 
-`o2a` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
+`arete` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
 ```mermaid
 graph TD
@@ -11,7 +11,7 @@ graph TD
         Media["Images/Files"]
     end
 
-    subgraph "Sync Component (o2a)"
+    subgraph "Sync Component (Arete)"
         CLI["Python CLI"]
         Plugin["Obsidian Plugin (GUI wrapper)"]
         Cache[("SQLite Cache")]
@@ -56,8 +56,8 @@ Download `main.js`, `manifest.json`, `styles.css` from [Releases](https://github
 
 ### 3. Initialize & Sync
 ```bash
-uv run o2a init   # Set up your vault path
-uv run o2a sync   # First sync (will scan and link cards)
+uv run arete init   # Set up your vault path
+uv run arete sync   # First sync (will scan and link cards)
 ```
 
 ## Key Features

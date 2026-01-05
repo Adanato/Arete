@@ -1,6 +1,6 @@
 # ObsiAnki Plugin Guide
 
-The `ObsiAnki` Obsidian Plugin provides a convenient interface for the underlying `o2a` CLI, allowing you to sync, lint, and fix your notes directly from Obsidian.
+The `ObsiAnki` Obsidian Plugin provides a convenient interface for the underlying `arete` CLI, allowing you to sync, lint, and fix your notes directly from Obsidian.
 
 ## Installation
 
@@ -24,7 +24,7 @@ If you use the BRAT plugin, you can install directly from the GitHub repository 
 Go to **Settings -> O2A Sync**:
 
 - **Python Path**: Path to your python executable (e.g., `/usr/bin/python3` or `uv`).
-- **O2A Script Path**: (Optional) If you installed via pip, leave this blank. The plugin will auto-detect `python -m o2a`.
+- **O2A Script Path**: (Optional) If you installed via pip, leave this blank. The plugin will auto-detect `python -m arete`.
 - **Debug Mode**: Enable verbose logging to the developer console.
 
 ## Features & Usage
@@ -43,4 +43,4 @@ Go to **Settings -> O2A Sync**:
 
 ## Troubleshooting
 - **"Command failed"**: Check the Developer Console (Cmd+Option+I) for detailed error logs from the plugin itself.
-- **Sync Logs**: Detailed logs for the `o2a` process are saved in `o2a_plugin.log` within the plugin folder. Use these if the sync starts but fails midway.
+- **Sync Logs**: Detailed logs for the `arete` process are saved in `arete_plugin.log` within the plugin folder. Use these if the sync starts but fails midway.

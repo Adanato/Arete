@@ -51,7 +51,7 @@ To get your plugin into the official list inside Obsidian, you must submit a Pul
           "id": "obsianki",
           "name": "ObsiAnki",
           "author": "Adam Nguyen",
-          "description": "Sync Obsidian vault to Anki using the o2a CLI.",
+          "description": "Sync Obsidian vault to Anki using the arete CLI.",
           "repo": "Adanato/obsidian_2_anki"
         }
         ```

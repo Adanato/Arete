@@ -1,4 +1,4 @@
-# Contributing to o2a
+# Contributing to arete
 
 We follow a structured, iterative development process. Our goal is to make small, atomic changes and verify them completely before moving to the next task.
 
@@ -68,7 +68,7 @@ This command runs:
 Every feature or fix **must** be accompanied by tests.
 
 ### 1. Python Unit Tests (`tests/`)
-- **Location**: Mirror the `src/o2a` structure (e.g., `src/o2a/core/pipeline.py` -> `tests/core/test_pipeline.py`).
+- **Location**: Mirror the `src/arete` structure (e.g., `src/arete/core/pipeline.py` -> `tests/core/test_pipeline.py`).
 - **Scope**: Test individual functions and classes. Mock external dependencies (like Anki).
 - **Tool**: `pytest`.
 
@@ -104,6 +104,6 @@ Your task is done when:
 ## 🏗 Architecture & Design
 
 - **One-Way Sync**: Obsidian is the source of truth. We push to Anki, we do not pull back.
-- **Plugin vs CLI**: The Plugin wraps the CLI. Keep complex logic in the CLI (`o2a.main`) where it can be tested easily. The Plugin should primarily handle UI and process orchestration.
+- **Plugin vs CLI**: The Plugin wraps the CLI. Keep complex logic in the CLI (`arete.main`) where it can be tested easily. The Plugin should primarily handle UI and process orchestration.
 
 Please review [ARCHITECTURE.md](./ARCHITECTURE.md) for deeper system design details.

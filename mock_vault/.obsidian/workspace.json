@@ -11,10 +11,14 @@
             "id": "316d6e7ea8770926",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Performance Test.md",
+                "mode": "preview",
+                "source": true
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Performance Test"
             }
           }
         ]
@@ -74,7 +78,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "2c96124be968a25f",
@@ -157,13 +162,25 @@
               "icon": "lucide-list",
               "title": "Outline"
             }
+          },
+          {
+            "id": "38e8bdcb56cc1cc8",
+            "type": "leaf",
+            "state": {
+              "type": "file-properties",
+              "state": {
+                "file": "Performance Test.md"
+              },
+              "icon": "lucide-info",
+              "title": "File properties for Performance Test"
+            }
           }
-        ]
+        ],
+        "currentTab": 5
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -179,6 +196,10 @@
   },
   "active": "316d6e7ea8770926",
   "lastOpenFiles": [
+    "test.jpg",
+    "cloze.md",
+    "math.md",
+    "media.md",
     "Performance Test.md"
   ]
 }

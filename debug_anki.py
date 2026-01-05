@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-# Ensure src is in python path so we can import o2a
+# Ensure src is in python path so we can import arete
 repo_root = Path(__file__).parent
 sys.path.insert(0, str(repo_root / "src"))
 
@@ -45,9 +45,9 @@ async def async_main():
     print(f"  ANKI_CONNECT_HOST: {env_host if env_host else 'Not Set'}")
 
     try:
-        from o2a.services.anki_connect import AnkiConnectAdapter
+        from arete.services.anki_connect import AnkiConnectAdapter
     except ImportError as e:
-        print(f"\n[Error] Could not import o2a: {e}")
+        print(f"\n[Error] Could not import arete: {e}")
         print("Make sure you are running this from the repo root.")
         return
 

@@ -1,11 +1,11 @@
 # Project Architecture
 
-`o2a` follows a modular **Clean Architecture** approach. The code is organized into layers, separating the core domain logic from external services and infrastructure.
+`arete` follows a modular **Clean Architecture** approach. The code is organized into layers, separating the core domain logic from external services and infrastructure.
 
 ## Directory Structure
 
 ```text
-src/o2a/           # Core Python Logic
+src/arete/           # Core Python Logic
 ├── core/           # Application Logic
 │   ├── pipeline.py # The main orchestration loop (Producer/Consumer)
 │   ├── config.py   # Configuration loading & argument parsing
@@ -34,10 +34,10 @@ obsidian-plugin/    # Obsidian GUI
 
 ## CLI vs Plugin
 
-`o2a` is fundamentally a **Python CLI tool**. The Obsidian Plugin acts as a graphical user interface (GUI) wrapper around this CLI.
+`arete` is fundamentally a **Python CLI tool**. The Obsidian Plugin acts as a graphical user interface (GUI) wrapper around this CLI.
 
 -   **CLI**: Handles all the heavy lifting—scanning files, hashing content, communicating with AnkiConnect, and writing IDs back to Markdown.
--   **Plugin**: Provides a settings page in Obsidian and a simple "Sync" ribbon icon. When clicked, it spawns a child process to run `o2a sync` and captures the output to display in a modal.
+-   **Plugin**: Provides a settings page in Obsidian and a simple "Sync" ribbon icon. When clicked, it spawns a child process to run `arete sync` and captures the output to display in a modal.
 
 This split ensures that advanced users can automate syncs via crontab or shell scripts, while causal users get a seamless integrated experience.
 
@@ -70,12 +70,12 @@ The application runs in 5 distinct stages, orchestrated by `core/pipeline.py`:
 ## Key Design Decisions
 
 ### 1. Filesystem-Based Media Sync
-Unlike note syncing which uses an API, **Media Sync is filesystem-based**. `o2a` copies images directly from your vault into Anki's `collection.media` folder. 
+Unlike note syncing which uses an API, **Media Sync is filesystem-based**. `arete` copies images directly from your vault into Anki's `collection.media` folder. 
 *   **Implication**: The CLI must have write access to the Anki media directory.
 *   **Uniqueness**: Files are hashed to avoid duplicates (e.g., `image.png` becomes `image_a1b2c3d4.png`).
 
 ### 2. Obsidian as Source of Truth
-The system is designed to be **Stateless** regarding logic. The state lives in Obsidian (text) and Anki (reviews). `o2a` is just the bridge. We write IDs back to Obsidian so it "owns" the link to the card.
+The system is designed to be **Stateless** regarding logic. The state lives in Obsidian (text) and Anki (reviews). `arete` is just the bridge. We write IDs back to Obsidian so it "owns" the link to the card.
 
 ### 3. WSL Compatibility
 `anki_connect.py` contains specific logic to detect WSL environments.
@@ -87,7 +87,7 @@ The system is designed to be **Stateless** regarding logic. The state lives in O
 
 ## Development Stack
 
-`o2a` is built with a focus on developer velocity and code quality:
+`arete` is built with a focus on developer velocity and code quality:
 
 -   **Package Management**: `uv` for lightning-fast dependency resolution and isolated environments.
 -   **Task Automation**: `just` (via `justfile`) replaces complex Makefiles for common tasks (test, lint, docker).
@@ -98,12 +98,12 @@ The system is designed to be **Stateless** regarding logic. The state lives in O
 
 -   **`debug_anki.py`**: A specialized diagnostic tool to verify connectivity between the CLI and Anki (handles WSL/Networking edge cases).
 -   **Self-Healing**: Automatic recovery from "Duplicate" errors by adopting existing NIDs, making it robust against manual edits in Anki.
--   **Integrated Logs**: Use `o2a --open-logs` to quickly access detailed execution logs for debugging.
+-   **Integrated Logs**: Use `arete --open-logs` to quickly access detailed execution logs for debugging.
 
 ## Logging & Reporting
 
-Every execution of `o2a` is fully audited:
+Every execution of `arete` is fully audited:
 
 1.  **Console Output**: Clean and high-level, with verbosity controlled by `-v`.
-2.  **Debug Logs**: A comprehensive log file (`run_*.log`) is generated in `~/.config/o2a/logs/` for every run, capturing full stack traces and internal transitions.
+2.  **Debug Logs**: A comprehensive log file (`run_*.log`) is generated in `~/.config/arete/logs/` for every run, capturing full stack traces and internal transitions.
 3.  **Run Reports**: `logging_utils.py` generates a human-readable Markdown report (`report_*.md`) for every sync, providing stats on files scanned, cards updated, and specific error tables.

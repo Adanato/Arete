@@ -1,6 +1,6 @@
 # Welcome to ObsiAnki
 
-**ObsiAnki (formerly o2a)** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
+**ObsiAnki (formerly arete)** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
 
 It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
@@ -38,10 +38,10 @@ uv sync
 
 1.  **Initialize** your vault config:
     ```bash
-    uv run o2a init
+    uv run arete init
     ```
 
 2.  **Sync** your notes:
     ```bash
-    uv run o2a sync
+    uv run arete sync
     ```

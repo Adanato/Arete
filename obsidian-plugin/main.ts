@@ -13,9 +13,9 @@ import {
 import { spawn } from 'child_process';
 import * as path from 'path';
 
-interface O2APluginSettings {
+interface AretePluginSettings {
 	pythonPath: string;
-	o2aScriptPath: string;
+	areteScriptPath: string;
 	debugMode: boolean;
 	backend: 'auto' | 'apy' | 'ankiconnect';
 	workers: number;
@@ -23,9 +23,9 @@ interface O2APluginSettings {
 	ankiMediaDir: string;
 }
 
-const DEFAULT_SETTINGS: O2APluginSettings = {
+const DEFAULT_SETTINGS: AretePluginSettings = {
 	pythonPath: 'python3',
-	o2aScriptPath: '',
+	areteScriptPath: '',
 	debugMode: false,
 	backend: 'auto',
 	workers: 4,
@@ -33,8 +33,8 @@ const DEFAULT_SETTINGS: O2APluginSettings = {
 	ankiMediaDir: '',
 };
 
-export default class O2APlugin extends Plugin {
-	settings: O2APluginSettings;
+export default class AretePlugin extends Plugin {
+	settings: AretePluginSettings;
 	statusBarItem: HTMLElement;
 
 	async onload() {
@@ -47,7 +47,7 @@ export default class O2APlugin extends Plugin {
 		// 2. Ribbon Icon
 		const ribbonIconEl = this.addRibbonIcon(
 			'sheets-in-box',
-			'Sync to Anki (o2a)',
+			'Sync to Anki (Arete)',
 			(evt: MouseEvent) => {
 				this.runSync();
 			},
@@ -55,7 +55,7 @@ export default class O2APlugin extends Plugin {
 
 		// 3. Commands
 		this.addCommand({
-			id: 'o2a-sync',
+			id: 'arete-sync',
 			name: 'Sync',
 			// Default hotkey: Cmd/Ctrl + Shift + A
 			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'A' }],
@@ -65,7 +65,7 @@ export default class O2APlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'o2a-check-file',
+			id: 'arete-check-file',
 			name: 'Check Current File',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				if (view.file) {
@@ -82,7 +82,7 @@ export default class O2APlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'o2a-check-integrity',
+			id: 'arete-check-integrity',
 			name: 'Debug: Check Vault Integrity (Obsidian vs Linter)',
 			callback: () => {
 				this.checkVaultIntegrity();
@@ -90,7 +90,7 @@ export default class O2APlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'o2a-sync-current-file',
+			id: 'arete-sync-current-file',
 			name: 'Sync Current File (Force Update)',
 			callback: () => {
 				const activeFile = this.app.workspace.getActiveFile();
@@ -110,7 +110,7 @@ export default class O2APlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'o2a-sync-prune',
+			id: 'arete-sync-prune',
 			name: 'Sync with Prune',
 			callback: () => {
 				this.runSync(true);
@@ -118,7 +118,7 @@ export default class O2APlugin extends Plugin {
 		});
 
 		// 4. Settings
-		this.addSettingTab(new O2ASettingTab(this.app, this));
+		this.addSettingTab(new AreteSettingTab(this.app, this));
 	}
 
 	onunload() {
@@ -134,12 +134,12 @@ export default class O2APlugin extends Plugin {
 
 		if (state === 'idle') {
 			// Optional: Hide or show "Ready"
-			// this.statusBarItem.setText('O2A: Ready');
+			// this.statusBarItem.setText('Arete: Ready');
 			return;
 		}
 
 		if (state === 'syncing') {
-			this.statusBarItem.createSpan({ cls: 'o2a-sb-icon', text: '🔄 ' }); // You can replace with CSS spinner
+			this.statusBarItem.createSpan({ cls: 'arete-sb-icon', text: '🔄 ' }); // You can replace with CSS spinner
 			this.statusBarItem.createSpan({ text: 'Anki Syncing...' });
 		} else if (state === 'success') {
 			this.statusBarItem.setText('✅ Sync Complete');
@@ -154,7 +154,7 @@ export default class O2APlugin extends Plugin {
 	async runCheck(filePath: string) {
 		new Notice('Checking file...');
 		const python = this.settings.pythonPath || 'python3';
-		const scriptPath = this.settings.o2aScriptPath || '';
+		const scriptPath = this.settings.areteScriptPath || '';
 
 		const cmd = python;
 		const args = [];
@@ -165,11 +165,11 @@ export default class O2APlugin extends Plugin {
 			const packageRoot = path.dirname(scriptDir);
 			env['PYTHONPATH'] = packageRoot;
 			args.push('-m');
-			args.push('o2a');
+			args.push('arete');
 			args.push('check-file');
 		} else {
 			args.push('-m');
-			args.push('o2a');
+			args.push('arete');
 			args.push('check-file');
 		}
 
@@ -204,7 +204,7 @@ export default class O2APlugin extends Plugin {
 
 	async runSync(prune = false, targetPath: string | null = null, force = false) {
 		this.updateStatusBar('syncing');
-		const action = targetPath ? 'Sycing file...' : 'Starting o2a sync...';
+		const action = targetPath ? 'Sycing file...' : 'Starting arete sync...';
 		new Notice(action);
 
 		const vaultConfig = this.app.vault.adapter as FileSystemAdapter;
@@ -218,7 +218,7 @@ export default class O2APlugin extends Plugin {
 		// Logging Setup
 		const pluginDir =
 			(this.manifest && this.manifest.dir) || '.obsidian/plugins/obsidian-2-anki';
-		const logPath = vaultPath ? path.join(vaultPath, pluginDir, 'o2a_plugin.log') : '';
+		const logPath = vaultPath ? path.join(vaultPath, pluginDir, 'arete_plugin.log') : '';
 
 		const log = (msg: string) => {
 			const timestamp = new Date().toISOString();
@@ -237,7 +237,7 @@ export default class O2APlugin extends Plugin {
 		log(`Vault: ${vaultPath}`);
 
 		const python = this.settings.pythonPath || 'python3';
-		const scriptPath = this.settings.o2aScriptPath || '';
+		const scriptPath = this.settings.areteScriptPath || '';
 
 		const cmd = python;
 		const args = [];
@@ -251,7 +251,7 @@ export default class O2APlugin extends Plugin {
 			env['PYTHONPATH'] = packageRoot;
 
 			args.push('-m');
-			args.push('o2a');
+			args.push('arete');
 
 			if (this.settings.debugMode) {
 				args.push('--verbose');
@@ -268,9 +268,9 @@ export default class O2APlugin extends Plugin {
 
 			args.push('sync');
 		} else {
-			log(`Trace: No script path provided. Defaulting to 'python -m o2a'`);
+			log(`Trace: No script path provided. Defaulting to 'python -m arete'`);
 			args.push('-m');
-			args.push('o2a');
+			args.push('arete');
 
 			if (this.settings.debugMode) {
 				args.push('--verbose');
@@ -312,7 +312,7 @@ export default class O2APlugin extends Plugin {
 
 		// If targetPath is specific file, append it.
 		// CAREFUL: If targetPath is meant to be the "VAULT_ROOT" arg for default sync, we should handle that.
-		// But for "single file sync", o2a supports `sync [PATH]`.
+		// But for "single file sync", arete supports `sync [PATH]`.
 		// If targetPath is null, we default to vaultPath.
 		args.push(targetPath || vaultPath);
 
@@ -348,7 +348,7 @@ export default class O2APlugin extends Plugin {
 				log(`Process exited with code ${code}`);
 
 				if (code === 0) {
-					new Notice('o2a sync completed successfully!');
+					new Notice('arete sync completed successfully!');
 					this.updateStatusBar('success');
 				} else {
 					// Smart Error Handling
@@ -364,9 +364,9 @@ export default class O2APlugin extends Plugin {
 							'Error: Python Dependencies missing. Check Python Executable path.',
 						);
 					} else if (stderrBuffer.includes('No module named')) {
-						new Notice('Error: Invalid Python environment or o2a not installed.');
+						new Notice('Error: Invalid Python environment or arete not installed.');
 					} else {
-						new Notice(`o2a sync failed! (Code ${code}). See log.`);
+						new Notice(`arete sync failed! (Code ${code}). See log.`);
 					}
 				}
 			});
@@ -388,9 +388,9 @@ export default class O2APlugin extends Plugin {
 		new Notice('Testing configuration...');
 		const python = this.settings.pythonPath || 'python3';
 
-		// Ideally checking version: python -m o2a --version (if installed via pip)
+		// Ideally checking version: python -m arete --version (if installed via pip)
 		// Our current setup doesn't expose --version easily on the main entry point logic if importing script
-		// But `pip` installed o2a works with --version if using typer?
+		// But `pip` installed arete works with --version if using typer?
 		// Typer usually adds --version if configured?
 		// Let's just try running `python --version` to at least valid python path.
 
@@ -421,21 +421,21 @@ export default class O2APlugin extends Plugin {
 	}
 
 	async runFix(filePath: string): Promise<void> {
-		// Run o2a fix-file
+		// Run arete fix-file
 		const settings = this.settings;
 		const pythonPath = settings.pythonPath || 'python3';
-		const scriptPath = settings.o2aScriptPath;
+		const scriptPath = settings.areteScriptPath;
 
 		let cmd = '';
 		let args: string[] = [];
 
 		if (scriptPath && scriptPath.endsWith('.py')) {
-			const scriptDir = path.dirname(settings.o2aScriptPath);
+			const scriptDir = path.dirname(settings.areteScriptPath);
 			cmd = pythonPath;
-			args = ['-m', 'o2a', 'fix-file', filePath];
+			args = ['-m', 'arete', 'fix-file', filePath];
 		} else {
 			cmd = pythonPath;
-			args = ['-m', 'o2a', 'fix-file', filePath];
+			args = ['-m', 'arete', 'fix-file', filePath];
 		}
 
 		const env = Object.assign({}, process.env);
@@ -465,7 +465,7 @@ export default class O2APlugin extends Plugin {
 		let issues = 0;
 		let checked = 0;
 
-		console.log('--- O2A Integrity Check ---');
+		console.log('--- Arete Integrity Check ---');
 
 		for (const file of files) {
 			checked++;
@@ -501,10 +501,10 @@ export default class O2APlugin extends Plugin {
 	}
 }
 
-export class O2ASettingTab extends PluginSettingTab {
-	plugin: O2APlugin;
+export class AreteSettingTab extends PluginSettingTab {
+	plugin: AretePlugin;
 
-	constructor(app: App, plugin: O2APlugin) {
+	constructor(app: App, plugin: AretePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -514,11 +514,11 @@ export class O2ASettingTab extends PluginSettingTab {
 		containerEl.empty();
 		// console.log('SettingTab Display. Debug Mode:', this.plugin.settings.debugMode);
 
-		containerEl.createEl('h2', { text: 'O2A Settings' });
+		containerEl.createEl('h2', { text: 'Arete Settings' });
 
 		new Setting(containerEl)
 			.setName('Python Executable')
-			.setDesc('Path to python3 or o2a executable')
+			.setDesc('Path to python3 or arete executable')
 			.addText((text) =>
 				text
 					.setPlaceholder('python3')
@@ -530,14 +530,14 @@ export class O2ASettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('O2A Script Path')
-			.setDesc('Absolute path to o2a/main.py. Leave empty if you are using a global binary.')
+			.setName('Arete Script Path')
+			.setDesc('Absolute path to arete/main.py. Leave empty if you are using a global binary.')
 			.addText((text) =>
 				text
-					.setPlaceholder('/path/to/o2a/main.py')
-					.setValue(this.plugin.settings.o2aScriptPath)
+					.setPlaceholder('/path/to/arete/main.py')
+					.setValue(this.plugin.settings.areteScriptPath)
 					.onChange(async (value) => {
-						this.plugin.settings.o2aScriptPath = value;
+						this.plugin.settings.areteScriptPath = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -641,9 +641,9 @@ export class O2ASettingTab extends PluginSettingTab {
 		});
 
 		const commands = [
-			{ id: 'obsidian-2-anki:o2a-sync', name: 'Sync' },
-			{ id: 'obsidian-2-anki:o2a-sync-current-file', name: 'Sync Current File' },
-			{ id: 'obsidian-2-anki:o2a-sync-prune', name: 'Sync with Prune' },
+			{ id: 'obsidian-2-anki:arete-sync', name: 'Sync' },
+			{ id: 'obsidian-2-anki:arete-sync-current-file', name: 'Sync Current File' },
+			{ id: 'obsidian-2-anki:arete-sync-prune', name: 'Sync with Prune' },
 		];
 
 		commands.forEach((cmd) => {
@@ -669,7 +669,7 @@ export class O2ASettingTab extends PluginSettingTab {
 						// Optional: Try to set filter
 						const hotkeysTab = (this.app as any).setting.activeTab;
 						if (hotkeysTab && hotkeysTab.searchComponent) {
-							hotkeysTab.searchComponent.setValue('o2a');
+							hotkeysTab.searchComponent.setValue('arete');
 							hotkeysTab.updateHotkeyVisibility();
 						}
 					}),
@@ -680,10 +680,10 @@ export class O2ASettingTab extends PluginSettingTab {
 
 export class CheckResultModal extends Modal {
 	result: any;
-	plugin: O2APlugin;
+	plugin: AretePlugin;
 	filePath: string;
 
-	constructor(app: App, plugin: O2APlugin, result: any, filePath: string) {
+	constructor(app: App, plugin: AretePlugin, result: any, filePath: string) {
 		super(app);
 		this.plugin = plugin;
 		this.result = result;
@@ -692,31 +692,31 @@ export class CheckResultModal extends Modal {
 
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.addClass('o2a-modal');
+		contentEl.addClass('arete-modal');
 
 		const header = contentEl.createDiv({ cls: 'modal-header' });
-		header.createEl('h2', { text: 'O2A File Check' });
-		header.createEl('span', { text: path.basename(this.filePath), cls: 'o2a-filename' });
+		header.createEl('h2', { text: 'Arete File Check' });
+		header.createEl('span', { text: path.basename(this.filePath), cls: 'arete-filename' });
 
 		if (this.result.ok) {
-			contentEl.createDiv({ text: '✅ Valid', cls: 'o2a-success' });
+			contentEl.createDiv({ text: '✅ Valid', cls: 'arete-success' });
 
-			const ul = contentEl.createEl('ul', { cls: 'o2a-stats' });
+			const ul = contentEl.createEl('ul', { cls: 'arete-stats' });
 
 			const li1 = ul.createEl('li');
-			li1.createSpan({ text: 'Deck', cls: 'o2a-stats-label' });
-			li1.createSpan({ text: this.result.stats.deck || 'None', cls: 'o2a-stats-val' });
+			li1.createSpan({ text: 'Deck', cls: 'arete-stats-label' });
+			li1.createSpan({ text: this.result.stats.deck || 'None', cls: 'arete-stats-val' });
 
 			const li2 = ul.createEl('li');
-			li2.createSpan({ text: 'Cards Found', cls: 'o2a-stats-label' });
+			li2.createSpan({ text: 'Cards Found', cls: 'arete-stats-label' });
 			li2.createSpan({
 				text: this.result.stats.cards_found.toString(),
-				cls: 'o2a-stats-val',
+				cls: 'arete-stats-val',
 			});
 		} else {
-			contentEl.createDiv({ text: '❌ Validation Failed', cls: 'o2a-error' });
+			contentEl.createDiv({ text: '❌ Validation Failed', cls: 'arete-error' });
 
-			const table = contentEl.createEl('table', { cls: 'o2a-error-table' });
+			const table = contentEl.createEl('table', { cls: 'arete-error-table' });
 			const head = table.createEl('thead');
 			const row = head.createEl('tr');
 			row.createEl('th', { text: 'Line' });
@@ -727,8 +727,8 @@ export class CheckResultModal extends Modal {
 
 			this.result.errors.forEach((err: any) => {
 				const tr = body.createEl('tr');
-				tr.createEl('td', { text: err.line.toString(), cls: 'o2a-error-line' });
-				tr.createEl('td', { text: err.message, cls: 'o2a-err-msg' });
+				tr.createEl('td', { text: err.line.toString(), cls: 'arete-error-line' });
+				tr.createEl('td', { text: err.message, cls: 'arete-err-msg' });
 
 				// Detect fixable errors
 				if (
@@ -741,7 +741,7 @@ export class CheckResultModal extends Modal {
 
 			if (fixable) {
 				const btnContainer = contentEl.createDiv({
-					cls: 'o2a-btn-container',
+					cls: 'arete-btn-container',
 					attr: { style: 'margin-top: 1rem; text-align: right;' },
 				});
 				const btn = btnContainer.createEl('button', {
@@ -760,7 +760,7 @@ export class CheckResultModal extends Modal {
 
 			contentEl.createDiv({
 				text: '💡 Tip: Check for correct YAML indentation (2 spaces) and ensure "cards" list exists.',
-				cls: 'o2a-hint',
+				cls: 'arete-hint',
 			});
 		}
 	}
