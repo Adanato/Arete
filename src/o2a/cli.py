@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -197,7 +197,11 @@ def check_file(
 
     from o2a.text import validate_frontmatter
 
-    result = {"ok": True, "errors": [], "stats": {"cards_found": 0, "deck": None, "model": None}}
+    result: dict[str, Any] = {
+        "ok": True,
+        "errors": [],
+        "stats": {"cards_found": 0, "deck": None, "model": None},
+    }
 
     if not path.exists():
         result["ok"] = False
@@ -212,15 +216,16 @@ def check_file(
 
     try:
         meta = validate_frontmatter(content)
-    except YAMLError as e:
+    except YAMLError as e_raw:
+        e: Any = e_raw
         result["ok"] = False
         # problem_mark.line is now 0-indexed relative to FILE (thanks to text.py fix)
         # So we just add 1 to get 1-based line number.
-        line = e.problem_mark.line + 1 if hasattr(e, "problem_mark") else 1
-        col = e.problem_mark.column + 1 if hasattr(e, "problem_mark") else 1
+        line = e.problem_mark.line + 1 if hasattr(e, "problem_mark") else 1  # type: ignore
+        col = e.problem_mark.column + 1 if hasattr(e, "problem_mark") else 1  # type: ignore
 
         # Original technical message
-        tech_msg = f"{e.problem}"
+        tech_msg = f"{e.problem}"  # type: ignore
         if hasattr(e, "context") and e.context:
             tech_msg += f" ({e.context})"
 

@@ -1,7 +1,8 @@
 import json
 
-from o2a.cli import app
 from typer.testing import CliRunner
+
+from o2a.cli import app
 
 runner = CliRunner()
 

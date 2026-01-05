@@ -37,6 +37,8 @@ async def run_sync_logic(config: AppConfig):
         logger.info("Clearing content cache as requested...")
         cache.clear()
 
+    if config.root_input is None:
+        raise ValueError("Root input must be set")
     vault_service = VaultService(config.root_input, cache, ignore_cache=config.force)
 
     # These are guaranteed to be set by resolve_config

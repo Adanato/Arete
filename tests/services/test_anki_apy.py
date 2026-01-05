@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from o2a.services.anki_apy import AnkiApyAdapter
 
 

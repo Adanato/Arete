@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from o2a.core.config import AppConfig
 from o2a.core.pipeline import UpdateItem, run_pipeline
 from o2a.domain.types import AnkiNote

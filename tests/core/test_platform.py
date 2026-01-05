@@ -62,7 +62,8 @@ def test_detect_paths_linux_wsl():
             # We must use autospec=True so self is passed correctly to side_effect
 
             def exists_side_effect(self):
-                return str(self) == "/mnt/c/Users"
+                # Handle Windows path separators if running on Windows
+                return str(self).replace("\\", "/") == "/mnt/c/Users"
 
             with patch("pathlib.Path.exists", autospec=True, side_effect=exists_side_effect):
                 with patch("pathlib.Path.iterdir") as mock_iterdir:

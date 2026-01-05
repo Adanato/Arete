@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import requests
 
-ANKI_URL = "http://localhost:8766"
+ANKI_URL = "http://localhost:8765"
 
 
 @pytest.fixture(scope="session")

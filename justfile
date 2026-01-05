@@ -17,8 +17,13 @@ test:
 test-integration:
     uv run pytest tests/integration
 
+# Download and configure AnkiConnect for Docker
+setup-anki-data:
+    uv run python scripts/install_ankiconnect.py
+
 # Start Dockerized Anki
 docker-up:
+    @just setup-anki-data
     docker compose -f docker/docker-compose.yml up -d
 
 # Stop Dockerized Anki

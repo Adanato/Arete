@@ -93,8 +93,12 @@ jobs:
         npm run build
 
   integration:
-    name: Integration Tests
+    name: Integration Tests (${{ matrix.network_mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        network_mode: [bridge, host]
     steps:
     - uses: actions/checkout@v4
 
@@ -107,11 +111,31 @@ jobs:
     - name: Install dependencies
       run: uv sync --dev
 
-    - name: Start Anki
-      run: uv run just docker-up
+    - name: Start Anki (${{ matrix.network_mode }})
+      run: |
+        if [ "${{ matrix.network_mode }}" == "host" ]; then
+          uv run just setup-anki-data
+          docker compose -f docker/docker-compose.host.yml up -d
+        else
+          uv run just docker-up
+        fi
 
     - name: Wait for Anki
       run: uv run just wait-for-anki
+
+    - name: Debug Anki Logs and State
+      if: failure()
+      run: |
+        docker logs anki-test
+        echo "=== Container Process List ==="
+        docker exec anki-test ps aux || echo "ps failed"
+        echo "=== Container File System (Search for addons) ==="
+        docker exec anki-test find / -name "addons21" -type d || echo "find failed"
+        echo "=== Config Directory Contents ==="
+        docker exec anki-test ls -R /config || echo "ls failed"
+        echo "=== Network Listening Ports ==="
+        docker exec anki-test netstat -tulpn || echo "netstat failed (trying ss)"
+        docker exec anki-test ss -tulpn || echo "ss failed"
 
     - name: Run integration tests
       run: uv run just test-integration

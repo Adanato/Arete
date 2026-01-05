@@ -63,6 +63,32 @@ This command runs:
 | **Unit Tests** | `just test` | Run fast unit tests. |
 | **Integration** | `just test-integration`| Run E2E tests (requires Docker). |
 
+## 🧪 Testing Strategy
+
+Every feature or fix **must** be accompanied by tests.
+
+### 1. Python Unit Tests (`tests/`)
+- **Location**: Mirror the `src/o2a` structure (e.g., `src/o2a/core/pipeline.py` -> `tests/core/test_pipeline.py`).
+- **Scope**: Test individual functions and classes. Mock external dependencies (like Anki).
+- **Tool**: `pytest`.
+
+### 2. Python Integration Tests (`tests/integration/`)
+- **Location**: `tests/integration/`.
+- **Scope**: End-to-end flows against a real Anki instance (dockerized).
+- **Rule**: Only add here if you need to verify actual Anki communication. Use specialized markers if needed.
+
+### 3. Plugin Tests (`obsidian-plugin/tests/`)
+- **Location**: `obsidian-plugin/tests/`.
+- **Scope**: Test UI logic, settings parsing, and command invocation.
+- **Mocking**: We use a `k` mock for Obsidian's API (App, Notice, FileSystem).
+
+### 4. Definition of Done
+Your task is done when:
+- [ ] You have added a test case that replicates the bug (for fixes) or verifies the feature.
+- [ ] `just test` passes (Unit).
+- [ ] `just check` passes (Full Suite).
+- [ ] You have verified the UX manually (for Plugin changes).
+
 ### Obsidian Plugin
 | Task | Command | Description |
 | :--- | :--- | :--- |
