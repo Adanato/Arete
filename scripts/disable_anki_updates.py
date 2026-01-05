@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Update prefs21.db to disable Anki update checks."""
+
 import pickle
 import sqlite3
 from pathlib import Path
@@ -19,8 +20,8 @@ prefs = pickle.loads(data_blob)
 print(f"Current prefs: {prefs}")
 
 # Disable updates
-prefs['updates'] = False
-prefs['suppressUpdate'] = True
+prefs["updates"] = False
+prefs["suppressUpdate"] = True
 
 # Re-encode
 new_blob = pickle.dumps(prefs, protocol=2)

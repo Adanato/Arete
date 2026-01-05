@@ -85,7 +85,7 @@ jobs:
     - name: Test
       run: |
         cd obsidian-plugin
-        npm test
+        npm test -- --coverage
 
     - name: Build
       run: |
