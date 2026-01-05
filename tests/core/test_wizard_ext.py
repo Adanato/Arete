@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from o2a.core.wizard import run_init_wizard
+from arete.core.wizard import run_init_wizard
 
 
 def test_wizard_successful_flow(tmp_path):
@@ -11,10 +11,10 @@ def test_wizard_successful_flow(tmp_path):
     m = tmp_path / "m"
     m.mkdir()
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch("builtins.input", side_effect=[str(v), str(m), "1"]):
                 run_init_wizard()
-    assert (new_home / ".config/o2a/config.toml").exists()
+    assert (new_home / ".config/arete/config.toml").exists()
 
 
 def test_wizard_path_validation_and_reprompt(tmp_path):
@@ -26,7 +26,7 @@ def test_wizard_path_validation_and_reprompt(tmp_path):
     m.mkdir()
 
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch(
                 "builtins.input",
                 side_effect=[
@@ -37,7 +37,7 @@ def test_wizard_path_validation_and_reprompt(tmp_path):
                 ],
             ):
                 run_init_wizard()
-    assert (new_home / ".config/o2a/config.toml").exists()
+    assert (new_home / ".config/arete/config.toml").exists()
 
 
 def test_wizard_nonexistent_confirm(tmp_path):
@@ -46,16 +46,16 @@ def test_wizard_nonexistent_confirm(tmp_path):
     v_bad = tmp_path / "bad_v"
     m_bad = tmp_path / "bad_m"
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch("builtins.input", side_effect=[str(v_bad), "y", str(m_bad), "y", "1"]):
                 run_init_wizard()
-    assert (new_home / ".config/o2a/config.toml").exists()
+    assert (new_home / ".config/arete/config.toml").exists()
 
 
 def test_wizard_overwrite_abort(tmp_path):
     new_home = tmp_path / "home"
     new_home.mkdir()
-    config_dir = new_home / ".config/o2a"
+    config_dir = new_home / ".config/arete"
     config_dir.mkdir(parents=True)
     config_file = config_dir / "config.toml"
     config_file.write_text("old")
@@ -64,7 +64,7 @@ def test_wizard_overwrite_abort(tmp_path):
     m = tmp_path / "m"
     m.mkdir()
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch("builtins.input", side_effect=[str(v), str(m), "1", "n"]):
                 run_init_wizard()
     assert config_file.read_text() == "old"
@@ -78,10 +78,10 @@ def test_wizard_backend_choices(tmp_path):
     m = tmp_path / "m"
     m.mkdir()
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch("builtins.input", side_effect=[str(v), str(m), "2"]):
                 run_init_wizard()
-    assert 'backend = "ankiconnect"' in (new_home / ".config/o2a/config.toml").read_text()
+    assert 'backend = "ankiconnect"' in (new_home / ".config/arete/config.toml").read_text()
 
 
 def test_wizard_write_error(tmp_path):
@@ -92,7 +92,7 @@ def test_wizard_write_error(tmp_path):
     m = tmp_path / "m"
     m.mkdir()
     with patch("pathlib.Path.home", return_value=new_home):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             with patch("builtins.input", side_effect=[str(v), str(m), "1", "y"]):
                 with patch("builtins.open", side_effect=OSError("Permission denied")):
                     run_init_wizard()

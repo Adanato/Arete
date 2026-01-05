@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from o2a.services.parser import MarkdownParser
+from arete.services.parser import MarkdownParser
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def test_parse_exception_handling(parser_fixture):
     parser.logger = MagicMock()  # Mock the logger
 
     # Mock image transform to raise exception (happens inside the loop)
-    with patch("o2a.services.parser.transform_images_in_text", side_effect=Exception(" Boom ")):
+    with patch("arete.services.parser.transform_images_in_text", side_effect=Exception(" Boom ")):
         meta = {"cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
         notes, skipped, inventory = parser.parse_file(Path("test.md"), meta, MagicMock())
         assert len(notes) == 0

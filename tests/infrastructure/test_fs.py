@@ -1,4 +1,4 @@
-from o2a.infrastructure.fs import iter_markdown_files
+from arete.infrastructure.fs import iter_markdown_files
 
 
 def test_iter_markdown_files_simple(tmp_path):

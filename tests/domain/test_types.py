@@ -1,4 +1,4 @@
-from o2a.domain.types import AnkiDeck
+from arete.domain.types import AnkiDeck
 
 
 def test_anki_deck_parents_simple():

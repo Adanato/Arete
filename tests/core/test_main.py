@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from o2a.core.config import AppConfig
-from o2a.main import run_sync_logic
+from arete.core.config import AppConfig
+from arete.main import run_sync_logic
 
 
 @pytest.fixture
@@ -38,8 +38,8 @@ def mock_config(tmp_path):
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_run_sync_logic_success(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test successful execution of run_sync_logic."""
     # Setup mocks
@@ -71,9 +71,9 @@ async def test_run_sync_logic_success(mock_setup_logging, mock_run_pipeline, moc
 
 
 @pytest.mark.asyncio
-@patch("o2a.services.anki_connect.AnkiConnectAdapter.is_responsive")
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.services.anki_connect.AnkiConnectAdapter.is_responsive")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_backend_selection_ankiconnect(
     mock_setup_logging, mock_run_pipeline, mock_is_responsive, mock_config
 ):
@@ -98,15 +98,15 @@ async def test_backend_selection_ankiconnect(
 
     # Verify pipeline was called with AnkiConnect adapter
     call_args = mock_run_pipeline.call_args.args
-    from o2a.services.anki_connect import AnkiConnectAdapter
+    from arete.services.anki_connect import AnkiConnectAdapter
 
     assert isinstance(call_args[5], AnkiConnectAdapter)  # anki_bridge is 6th arg
 
 
 @pytest.mark.asyncio
-@patch("o2a.services.anki_connect.AnkiConnectAdapter.is_responsive")
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.services.anki_connect.AnkiConnectAdapter.is_responsive")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_backend_selection_apy_fallback(
     mock_setup_logging, mock_run_pipeline, mock_is_responsive, mock_config
 ):
@@ -128,14 +128,14 @@ async def test_backend_selection_apy_fallback(
 
     # Verify pipeline was called with AnkiApy adapter
     call_args = mock_run_pipeline.call_args.args
-    from o2a.services.anki_apy import AnkiApyAdapter
+    from arete.services.anki_apy import AnkiApyAdapter
 
     assert isinstance(call_args[5], AnkiApyAdapter)  # anki_bridge is 6th arg
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_backend_manual_ankiconnect(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test manual selection of AnkiConnect backend."""
     mock_logger = MagicMock()
@@ -150,14 +150,14 @@ async def test_backend_manual_ankiconnect(mock_setup_logging, mock_run_pipeline,
 
     # Verify AnkiConnect was used
     call_args = mock_run_pipeline.call_args.args
-    from o2a.services.anki_connect import AnkiConnectAdapter
+    from arete.services.anki_connect import AnkiConnectAdapter
 
     assert isinstance(call_args[5], AnkiConnectAdapter)  # anki_bridge is 6th arg
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_backend_manual_apy(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test manual selection of apy backend."""
     mock_logger = MagicMock()
@@ -172,14 +172,14 @@ async def test_backend_manual_apy(mock_setup_logging, mock_run_pipeline, mock_co
 
     # Verify apy was used
     call_args = mock_run_pipeline.call_args.args
-    from o2a.services.anki_apy import AnkiApyAdapter
+    from arete.services.anki_apy import AnkiApyAdapter
 
     assert isinstance(call_args[5], AnkiApyAdapter)  # anki_bridge is 6th arg
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_cache_clearing(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test that cache is cleared when clear_cache is True."""
     mock_logger = MagicMock()
@@ -200,8 +200,8 @@ async def test_cache_clearing(mock_setup_logging, mock_run_pipeline, mock_config
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_vault_root_assertion(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test that assertions ensure vault_root and anki_media_dir are set."""
     mock_logger = MagicMock()
@@ -221,8 +221,8 @@ async def test_vault_root_assertion(mock_setup_logging, mock_run_pipeline, mock_
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_services_initialization(mock_setup_logging, mock_run_pipeline, mock_config):
     """Test that all services are properly initialized."""
     mock_logger = MagicMock()
@@ -238,9 +238,9 @@ async def test_services_initialization(mock_setup_logging, mock_run_pipeline, mo
     assert len(call_args) == 7  # run_pipeline takes 7 args
 
     # Verify types (config, logger, run_id, vault_service, parser, anki_bridge, cache)
-    from o2a.infrastructure.cache import ContentCache
-    from o2a.services.parser import MarkdownParser
-    from o2a.services.vault import VaultService
+    from arete.infrastructure.cache import ContentCache
+    from arete.services.parser import MarkdownParser
+    from arete.services.vault import VaultService
 
     assert isinstance(call_args[6], ContentCache)  # cache
     assert isinstance(call_args[3], VaultService)  # vault_service
@@ -248,8 +248,8 @@ async def test_services_initialization(mock_setup_logging, mock_run_pipeline, mo
 
 
 @pytest.mark.asyncio
-@patch("o2a.main.run_pipeline")
-@patch("o2a.main.setup_logging")
+@patch("arete.main.run_pipeline")
+@patch("arete.main.setup_logging")
 async def test_summary_output(mock_setup_logging, mock_run_pipeline, mock_config, capsys):
     """Test that summary is printed after pipeline execution."""
     mock_logger = MagicMock()

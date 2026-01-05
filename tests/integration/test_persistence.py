@@ -3,7 +3,7 @@ import re
 import requests
 
 
-def test_nid_cid_writeback(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_nid_cid_writeback(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Verify that NID and CID are written back to the markdown file after creation.
     This ensures that the Anki bridge (AnkiConnect in this env) correctly returns
@@ -23,7 +23,7 @@ cards:
     )
 
     # 1. Sync (Create)
-    res = run_o2a(tmp_path, anki_url)
+    res = run_arete(tmp_path, anki_url)
     assert res.returncode == 0
     assert "updated/added=1" in res.stdout
 

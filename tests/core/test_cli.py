@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from o2a.cli import app
+from arete.cli import app
 
 runner = CliRunner()
 
@@ -16,7 +16,7 @@ def test_cli_help():
     """Test that help text is displayed correctly."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "o2a: Pro-grade Obsidian to Anki sync tool" in result.stdout
+    assert "arete: Pro-grade Obsidian to Anki sync tool" in result.stdout
     assert "sync" in result.stdout
     assert "init" in result.stdout
     assert "config" in result.stdout
@@ -39,7 +39,7 @@ def test_sync_command_help():
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_basic(mock_resolve_config, mock_asyncio_run):
     """Test basic sync command execution."""
     # Mock config
@@ -62,7 +62,7 @@ def test_sync_command_basic(mock_resolve_config, mock_asyncio_run):
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_with_flags(mock_resolve_config, mock_asyncio_run):
     """Test sync command with various flags."""
     mock_config = MagicMock()
@@ -95,7 +95,7 @@ def test_sync_command_with_flags(mock_resolve_config, mock_asyncio_run):
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_verbose_flag(mock_resolve_config, mock_asyncio_run):
     """Test verbose flag increments verbosity."""
     mock_config = MagicMock()
@@ -115,7 +115,7 @@ def test_sync_command_verbose_flag(mock_resolve_config, mock_asyncio_run):
     assert call_args["verbose"] == 2
 
 
-@patch("o2a.core.wizard.run_init_wizard")
+@patch("arete.core.wizard.run_init_wizard")
 def test_init_command(mock_wizard):
     """Test init command calls the wizard."""
     result = runner.invoke(app, ["init"])
@@ -125,7 +125,7 @@ def test_init_command(mock_wizard):
     mock_wizard.assert_called_once()
 
 
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_config_show_command(mock_resolve_config):
     """Test config show command displays JSON."""
     mock_config = MagicMock()
@@ -158,13 +158,13 @@ def test_config_open_command_macos(mock_subprocess):
         # On Windows host, Path(...) will produce backslashes even if stripped.
         # We verify that the *parts* match to avoid separator issues.
         # But here we are mocking subprocess so the arg is effectively `str(path)`.
-        # The key is checking if ".config" and "o2a" are in there.
+        # The key is checking if ".config" and "arete" are in there.
         arg_str = str(call_args[1])
-        assert ".config" in arg_str and "o2a" in arg_str and "config.toml" in arg_str
+        assert ".config" in arg_str and "arete" in arg_str and "config.toml" in arg_str
 
 
 @patch("subprocess.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_logs_command(mock_resolve_config, mock_subprocess):
     """Test logs command opens log directory."""
     mock_config = MagicMock()
@@ -182,7 +182,7 @@ def test_logs_command(mock_resolve_config, mock_subprocess):
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_no_path_uses_cwd(mock_resolve_config, mock_asyncio_run):
     """Test sync without path argument defaults to CWD."""
     mock_config = MagicMock()
@@ -198,7 +198,7 @@ def test_sync_command_no_path_uses_cwd(mock_resolve_config, mock_asyncio_run):
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_anki_connect_url(mock_resolve_config, mock_asyncio_run):
     """Test custom AnkiConnect URL."""
     mock_config = MagicMock()
@@ -213,7 +213,7 @@ def test_sync_command_anki_connect_url(mock_resolve_config, mock_asyncio_run):
 
 
 @patch("asyncio.run")
-@patch("o2a.cli.resolve_config")
+@patch("arete.cli.resolve_config")
 def test_sync_command_clear_cache(mock_resolve_config, mock_asyncio_run):
     """Test --clear-cache flag."""
     mock_config = MagicMock()

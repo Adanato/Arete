@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from o2a.cli import app
+from arete.cli import app
 
 runner = CliRunner()
 

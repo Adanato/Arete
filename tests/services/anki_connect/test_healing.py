@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from o2a.domain.types import AnkiNote, WorkItem
-from o2a.services.anki_connect import AnkiConnectAdapter
+from arete.domain.types import AnkiNote, WorkItem
+from arete.services.anki_connect import AnkiConnectAdapter
 
 
 @pytest.fixture

@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from o2a.consts import CURRENT_TEMPLATE_VERSION
-from o2a.infrastructure.cache import ContentCache
-from o2a.services.vault import VaultService
+from arete.consts import CURRENT_TEMPLATE_VERSION
+from arete.infrastructure.cache import ContentCache
+from arete.services.vault import VaultService
 
 
 @pytest.fixture

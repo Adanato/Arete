@@ -5,10 +5,10 @@ import pytest
 import respx
 from httpx import Response
 
-from o2a.core.config import AppConfig
-from o2a.core.pipeline import _prune_orphans
-from o2a.logging_utils import RunRecorder
-from o2a.services.anki_connect import AnkiConnectAdapter
+from arete.core.config import AppConfig
+from arete.core.pipeline import _prune_orphans
+from arete.logging_utils import RunRecorder
+from arete.services.anki_connect import AnkiConnectAdapter
 
 
 @pytest.fixture

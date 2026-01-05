@@ -1,4 +1,4 @@
-from o2a.text import (
+from arete.text import (
     convert_math_to_tex_delimiters,
     make_editor_note,
     parse_frontmatter,

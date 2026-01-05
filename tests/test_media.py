@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from o2a.media import (
+from arete.media import (
     _resolve_candidate_paths,
     build_filename_index,
     transform_images_in_text,

@@ -1,7 +1,7 @@
 import requests
 
 
-def test_invalid_model(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_invalid_model(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Card references non-existent model.
     """
@@ -19,11 +19,11 @@ cards:
         encoding="utf-8",
     )
 
-    res = run_o2a(tmp_path, anki_url)
+    res = run_arete(tmp_path, anki_url)
 
     # Should probably log an error like "Model 'NonExistentModelXYZ' not found"
     # And not crash the whole process (if possible).
-    # Currently AnkiConnect might return error, o2a should catch it.
+    # Currently AnkiConnect might return error, arete should catch it.
 
     assert "Model name not found" in res.stderr or "not found" in res.stdout or res.returncode != 0
 

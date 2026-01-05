@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
-from o2a.cli import app
+from arete.cli import app
 
 runner = CliRunner()
 
@@ -55,7 +55,7 @@ def test_cli_logs_open_windows():
 
 
 def test_cli_init_mock():
-    with patch("o2a.core.wizard.run_init_wizard") as mock_wizard:
+    with patch("arete.core.wizard.run_init_wizard") as mock_wizard:
         result = runner.invoke(app, ["init"])
         assert result.exit_code == 0
         mock_wizard.assert_called_once()
@@ -67,7 +67,7 @@ def test_cli_check_file(tmp_path):
 
     result = runner.invoke(app, ["check-file", str(f)])
     assert result.exit_code == 0
-    assert "Valid o2a file" in result.stdout
+    assert "Valid arete file" in result.stdout
 
 
 def test_cli_check_file_json(tmp_path):
@@ -154,7 +154,7 @@ def test_cli_sync_mock(tmp_path):
     vault = tmp_path / "vault"
     vault.mkdir()
 
-    with patch("o2a.main.run_sync_logic", new_callable=AsyncMock) as mock_sync:
+    with patch("arete.main.run_sync_logic", new_callable=AsyncMock) as mock_sync:
         result = runner.invoke(app, ["sync", str(vault)])
         assert result.exit_code == 0
         mock_sync.assert_called_once()

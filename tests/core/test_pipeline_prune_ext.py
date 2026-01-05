@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from o2a.core.pipeline import _prune_orphans
+from arete.core.pipeline import _prune_orphans
 
 
 @pytest.fixture

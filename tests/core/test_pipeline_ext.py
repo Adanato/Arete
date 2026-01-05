@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from o2a.core.config import AppConfig
-from o2a.core.pipeline import _prune_orphans, run_pipeline
-from o2a.domain.types import AnkiNote, UpdateItem
-from o2a.services.anki_apy import AnkiApyAdapter
+from arete.core.config import AppConfig
+from arete.core.pipeline import _prune_orphans, run_pipeline
+from arete.domain.types import AnkiNote, UpdateItem
+from arete.services.anki_apy import AnkiApyAdapter
 
 
 @pytest.fixture

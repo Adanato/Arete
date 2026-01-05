@@ -1,7 +1,7 @@
 import requests
 
 
-def test_nested_decks(tmp_path, anki_url, setup_anki, run_o2a):
+def test_nested_decks(tmp_path, anki_url, setup_anki, run_arete):
     """
     Verify creating notes in nested decks (Parent::Child::Grandchild).
     """
@@ -19,7 +19,7 @@ cards:
     )
 
     # Sync
-    res = run_o2a(tmp_path, anki_url)
+    res = run_arete(tmp_path, anki_url)
     assert res.returncode == 0
 
     # Verify Deck Created
@@ -39,7 +39,7 @@ cards:
     assert len(resp.json()["result"]) == 1
 
 
-def test_move_deck(tmp_path, anki_url, setup_anki, run_o2a):
+def test_move_deck(tmp_path, anki_url, setup_anki, run_arete):
     """
     Verify moving a note from Deck A to Deck B by changing frontmatter.
     """
@@ -57,7 +57,7 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Verify in DeckA
     resp = requests.post(
@@ -71,7 +71,7 @@ cards:
     assert len(resp.json()["result"]) == 1
 
     # 2. Move to Deck B (Preserving NID)
-    # Read the file to get the NID o2a wrote
+    # Read the file to get the NID arete wrote
     content = md_file.read_text(encoding="utf-8")
     import re
 
@@ -93,7 +93,7 @@ cards:
     )
 
     # Run sync again
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Verify GONE from DeckA
     respA = requests.post(

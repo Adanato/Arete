@@ -2,7 +2,7 @@ from unittest.mock import ANY, patch
 
 from typer.testing import CliRunner
 
-from o2a.cli import app
+from arete.cli import app
 
 runner = CliRunner()
 
@@ -44,7 +44,7 @@ def test_config_open_linux():
 
 
 def test_logs_mkdir_and_open_win32():
-    with patch("o2a.cli.resolve_config") as mock_conf:
+    with patch("arete.cli.resolve_config") as mock_conf:
         mock_conf.return_value.log_dir.exists.return_value = False
 
         with patch("sys.platform", "win32"), patch("os.startfile", create=True) as mock_start:
@@ -55,7 +55,7 @@ def test_logs_mkdir_and_open_win32():
 
 
 def test_logs_linux():
-    with patch("o2a.cli.resolve_config") as mock_conf:
+    with patch("arete.cli.resolve_config") as mock_conf:
         mock_conf.return_value.log_dir.exists.return_value = True
 
         with patch("sys.platform", "linux"), patch("subprocess.run") as mock_run:
@@ -65,7 +65,7 @@ def test_logs_linux():
 
 
 def test_humanize_error_extra_cases():
-    from o2a.cli import humanize_error
+    from arete.cli import humanize_error
 
     assert "Syntax Error" in humanize_error("did not find expected key")
     assert "Duplicate Key" in humanize_error("found duplicate key")

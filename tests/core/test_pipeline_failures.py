@@ -3,9 +3,9 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
-from o2a.core.config import AppConfig
-from o2a.core.pipeline import run_pipeline
-from o2a.domain.types import AnkiNote, UpdateItem
+from arete.core.config import AppConfig
+from arete.core.pipeline import run_pipeline
+from arete.domain.types import AnkiNote, UpdateItem
 
 
 @pytest.fixture

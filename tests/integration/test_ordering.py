@@ -1,7 +1,7 @@
 import requests
 
 
-def test_list_reordering(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_list_reordering(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Verify that swapping card order in YAML creates stable updates (via NID)
     instead of overwriting based on index.
@@ -28,14 +28,14 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Read assigned NIDs
     # txt = md_file.read_text()
 
     # We need to parse which NID belongs to which card.
-    # Since o2a writes NIDs back to the file, let's grab them.
-    # But o2a writes them into the YAML list.
+    # Since arete writes NIDs back to the file, let's grab them.
+    # But arete writes them into the YAML list.
 
     # Let's just rely on Anki content.
     resp_a = requests.post(
@@ -58,8 +58,8 @@ cards:
     ).json()["result"]
     nid_b = resp_b[0]
 
-    # 2. Swap Order AND Add explicit NIDs (which o2a should have done)
-    # Actually, let's read the file to get the exact NIDs o2a wrote so we can swap them correctly
+    # 2. Swap Order AND Add explicit NIDs (which arete should have done)
+    # Actually, let's read the file to get the exact NIDs arete wrote so we can swap them correctly
     # to simulate user rearranging blocks *with* their existing IDs.
 
     # The file content will look like:
@@ -72,7 +72,7 @@ cards:
     # lines = md_file.read_text().splitlines()
     # This is fragile parsing, but sufficient for test if we construct it well.
     # Instead, let's just constructing v2 content using the known nids from Anki
-    # (since o2a syncs nids to file matching anki).
+    # (since arete syncs nids to file matching anki).
 
     md_file.write_text(
         f"""---
@@ -91,7 +91,7 @@ cards:
     )
 
     # 3. Sync
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # 4. Verify Content
     # Card A (nid_a) should now have "Back A Modified"

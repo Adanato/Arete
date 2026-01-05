@@ -2,8 +2,8 @@
 
 import pytest
 
-from o2a.domain.interfaces import AnkiBridge
-from o2a.domain.types import AnkiDeck, UpdateItem, WorkItem
+from arete.domain.interfaces import AnkiBridge
+from arete.domain.types import AnkiDeck, UpdateItem, WorkItem
 
 
 class TrivialAnkiBridge(AnkiBridge):

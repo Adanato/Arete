@@ -6,7 +6,7 @@ def test_basic_sync_flow(tmp_path, anki_url, setup_anki, test_deck):
     """
     Scenario 1: The "Hello World" Sync.
     1. Create a markdown file with a Basic card.
-    2. Run o2a.
+    2. Run arete.
     3. Verify Anki has the card.
     4. Verify markdown has the NID.
     """
@@ -25,12 +25,12 @@ cards:
 """
     md_file.write_text(content, encoding="utf-8")
 
-    # 2. Run o2a (as a subprocess to test CLI entry point)
+    # 2. Run arete (as a subprocess to test CLI entry point)
     # We point it to our temp vault and the docker anki
     cmd = [
         sys.executable,
         "-m",
-        "o2a.main",
+        "arete.main",
         "-v",
         "sync",  # Add subcommand
         str(tmp_path),  # Vault root
@@ -41,7 +41,7 @@ cards:
     print(f"DEBUG: Running command: {cmd}")
     proc = subprocess.run(cmd, capture_output=True, text=True)
 
-    assert proc.returncode == 0, f"o2a failed: {proc.stderr}"
+    assert proc.returncode == 0, f"arete failed: {proc.stderr}"
     assert "updated/added=1" in proc.stdout, f"Sync failed: {proc.stdout}"
 
     # 3. Verify Markdown Updated (NID writeback)

@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from o2a.utils import detect_anki_paths
+from arete.utils import detect_anki_paths
 
 
 def test_detect_paths_macos():

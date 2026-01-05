@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from o2a.core.config import resolve_config
+from arete.core.config import resolve_config
 
 
 def test_config_defaults(mock_home, mock_vault):
@@ -19,7 +19,7 @@ def test_config_defaults(mock_home, mock_vault):
 
 def test_config_file_override(mock_home, mock_vault):
     # Write a config file
-    config_dir = mock_home / ".config/o2a"
+    config_dir = mock_home / ".config/arete"
     config_dir.mkdir(parents=True)
     (config_dir / "config.toml").write_text("verbose = 2\nrun = true", encoding="utf-8")
 

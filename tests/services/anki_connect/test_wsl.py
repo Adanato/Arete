@@ -1,6 +1,6 @@
 from unittest.mock import mock_open, patch
 
-from o2a.services.anki_connect import AnkiConnectAdapter
+from arete.services.anki_connect import AnkiConnectAdapter
 
 
 def test_wsl_detection_active():

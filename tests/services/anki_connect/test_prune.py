@@ -2,7 +2,7 @@ import pytest
 import respx
 from httpx import Response
 
-from o2a.services.anki_connect import AnkiConnectAdapter
+from arete.services.anki_connect import AnkiConnectAdapter
 
 
 @pytest.fixture

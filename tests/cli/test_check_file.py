@@ -2,7 +2,7 @@ import json
 
 from typer.testing import CliRunner
 
-from o2a.cli import app
+from arete.cli import app
 
 runner = CliRunner()
 
@@ -16,7 +16,7 @@ def test_check_file_valid_basic(tmp_path):
 
     result = runner.invoke(app, ["check-file", str(f)])
     assert result.exit_code == 0
-    assert "✅ Valid o2a file!" in result.stdout
+    assert "✅ Valid arete file!" in result.stdout
     assert "Cards: 1" in result.stdout
 
 
@@ -27,7 +27,7 @@ def test_check_file_valid_minimal(tmp_path):
 
     result = runner.invoke(app, ["check-file", str(f)])
     assert result.exit_code == 0
-    assert "✅ Valid o2a file!" in result.stdout
+    assert "✅ Valid arete file!" in result.stdout
 
 
 def test_check_file_yaml_syntax_error(tmp_path):
@@ -86,9 +86,9 @@ def test_check_file_no_frontmatter(tmp_path):
     f.write_text("# Just Markdown", encoding="utf-8")
 
     result = runner.invoke(app, ["check-file", str(f)])
-    # Currently considered valid (just ignored by o2a)
+    # Currently considered valid (just ignored by arete)
     assert result.exit_code == 0
-    assert "✅ Valid o2a file!" in result.stdout
+    assert "✅ Valid arete file!" in result.stdout
 
 
 def test_check_file_json_output_failure(tmp_path):

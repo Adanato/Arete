@@ -1,6 +1,6 @@
-from o2a.domain.types import UpdateItem
-from o2a.infrastructure.cache import ContentCache
-from o2a.services.vault import VaultService
+from arete.domain.types import UpdateItem
+from arete.infrastructure.cache import ContentCache
+from arete.services.vault import VaultService
 
 
 def test_nid_persistence(tmp_path):

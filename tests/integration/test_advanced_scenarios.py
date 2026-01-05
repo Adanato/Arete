@@ -3,7 +3,7 @@ import re
 import requests
 
 
-def test_sync_update_flow(tmp_path, anki_url, setup_anki, test_deck, run_o2a):
+def test_sync_update_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete):
     """
     Scenario 2: Updates
     1. Sync initial note.
@@ -25,7 +25,7 @@ cards:
     md_file.write_text(content_v1, encoding="utf-8")
 
     # Run V1
-    res1 = run_o2a(tmp_path, anki_url)
+    res1 = run_arete(tmp_path, anki_url)
     assert res1.returncode == 0
     assert "updated/added=1" in res1.stdout
 
@@ -40,7 +40,7 @@ cards:
     md_file.write_text(content_v2, encoding="utf-8")
 
     # Run V2
-    res2 = run_o2a(tmp_path, anki_url)
+    res2 = run_arete(tmp_path, anki_url)
     assert res2.returncode == 0
 
     # Verify Anki Content
@@ -57,7 +57,7 @@ cards:
     assert match2.group(1) == nid_v1
 
 
-def test_sync_healing_flow(tmp_path, anki_url, setup_anki, test_deck, run_o2a):
+def test_sync_healing_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete):
     """
     Scenario 4: Healing (Lost ID)
     1. Sync note.
@@ -79,7 +79,7 @@ cards:
     md_file.write_text(content, encoding="utf-8")
 
     # 1. Initial Sync
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Get the NID
     text_with_id = md_file.read_text(encoding="utf-8")
@@ -96,7 +96,7 @@ cards:
     md_file.write_text(sabotaged_text, encoding="utf-8")
 
     # 3. Sync Again (Should trigger healing)
-    res = run_o2a(tmp_path, anki_url, args=["--clear-cache"])
+    res = run_arete(tmp_path, anki_url, args=["--clear-cache"])
     assert res.returncode == 0
 
     # 4. Verify
@@ -121,12 +121,12 @@ cards:
 
 
 # @pytest.mark.xfail(reason="Flaky in CI environment: os.walk misses file or AnkiConnect lag")
-def test_sync_media_flow(tmp_path, anki_url, setup_anki, anki_media_dir, test_deck, run_o2a):
+def test_sync_media_flow(tmp_path, anki_url, setup_anki, anki_media_dir, test_deck, run_arete):
     """
     Scenario 3: Media Transfer
     1. Create a dummy image in attachments/.
     2. Create a note referencing it.
-    3. Run o2a with --anki-media-dir.
+    3. Run arete with --anki-media-dir.
     4. Verify image uploaded to Anki.
     """
     # 1. Setup Image
@@ -150,8 +150,8 @@ cards:
 """
     md_file.write_text(content, encoding="utf-8")
 
-    # 3. Run o2a
-    res = run_o2a(tmp_path, anki_url, args=["--anki-media-dir", str(anki_media_dir)])
+    # 3. Run arete
+    res = run_arete(tmp_path, anki_url, args=["--anki-media-dir", str(anki_media_dir)])
     assert res.returncode == 0
 
     # 4. Verify in Anki
@@ -178,12 +178,12 @@ cards:
 
 
 # @pytest.mark.xfail(reason="Flaky in CI: deleteNotes succeeds but note persists")
-def test_sync_prune_flow(tmp_path, anki_url, setup_anki, test_deck, run_o2a):
+def test_sync_prune_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete):
     """
     Scenario 5: Prune Mode
     1. Sync TWO notes using O2A_Basic (which has 'nid' field).
     2. Delete ONE file.
-    3. Run o2a --prune.
+    3. Run arete --prune.
     4. Verify ONLY the deleted note is pruned from Anki.
     """
     # Note 1: To be deleted
@@ -203,7 +203,7 @@ cards:
         encoding="utf-8",
     )
 
-    # Note 2: Persistent (Prevents early exit in o2a)
+    # Note 2: Persistent (Prevents early exit in arete)
     md_file2 = tmp_path / "stay.md"
     md_file2.write_text(
         f"""---
@@ -221,10 +221,10 @@ cards:
     )
 
     # 1. Sync 1: Create Notes
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # 2. Sync 2: Update Anki 'nid' fields
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Verify Notes exist in Anki
     resp = requests.post(
@@ -244,8 +244,8 @@ cards:
         ).json()["result"][0]
 
         # Get the NID from the 'nid' field (initially null/empty in Anki)
-        # Use the NID we know o2a put in the Front or Back?
-        # Actually o2a wrote NID back to markdown.
+        # Use the NID we know arete put in the Front or Back?
+        # Actually arete wrote NID back to markdown.
         # Let's just set the 'nid' field to a dummy value that WON'T be found in valid_nids (for the prune one)
         # But wait, Prune Candidate MUST have a NID that is NOT in valid_nids.
         # If we leave it empty, get_notes_in_deck IGNORES it.
@@ -308,7 +308,7 @@ cards:
     md_file1.unlink()
 
     # 4. Run Prune
-    res = run_o2a(tmp_path, anki_url, args=["--prune", "--force", "--clear-cache"])
+    res = run_arete(tmp_path, anki_url, args=["--prune", "--force", "--clear-cache"])
     if res.returncode != 0:
         print("STDERR (Crash):", res.stderr)
     print("STDERR (Prune):", res.stderr)

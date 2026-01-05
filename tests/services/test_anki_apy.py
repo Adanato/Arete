@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from o2a.services.anki_apy import AnkiApyAdapter
+from arete.services.anki_apy import AnkiApyAdapter
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_sync_notes_cid_parsing():
     """
     Verify that AnkiApyAdapter correctly parses NID and CID from apy output.
     """
-    from o2a.domain.types import AnkiNote, WorkItem
+    from arete.domain.types import AnkiNote, WorkItem
 
     adapter = AnkiApyAdapter(apy_bin="apy", anki_base=None)
 
@@ -81,7 +81,7 @@ async def test_sync_notes_failure_propagation():
     """
     Verify error handling in apy adapter.
     """
-    from o2a.domain.types import AnkiNote, WorkItem
+    from arete.domain.types import AnkiNote, WorkItem
 
     adapter = AnkiApyAdapter(apy_bin="apy", anki_base=None)
     note = AnkiNote(
@@ -115,7 +115,7 @@ async def test_sync_notes_integration_content(tmp_path):
     """
     Verify integration between making a note and writing it.
     """
-    from o2a.domain.types import AnkiNote, WorkItem
+    from arete.domain.types import AnkiNote, WorkItem
 
     adapter = AnkiApyAdapter(apy_bin="apy", anki_base=None)
 
@@ -154,7 +154,7 @@ async def test_sync_notes_duplicate_error():
     """
     Verify behavior on duplicate error.
     """
-    from o2a.domain.types import AnkiNote, WorkItem
+    from arete.domain.types import AnkiNote, WorkItem
 
     adapter = AnkiApyAdapter(apy_bin="apy", anki_base=None)
     note = AnkiNote(

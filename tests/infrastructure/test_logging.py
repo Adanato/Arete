@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from o2a.logging_utils import RunRecorder, rotate_logs, setup_logging, write_run_report
+from arete.logging_utils import RunRecorder, rotate_logs, setup_logging, write_run_report
 
 
 def test_setup_logging(tmp_path):

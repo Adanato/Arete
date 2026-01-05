@@ -92,16 +92,16 @@ def setup_anki(check_anki_available, anki_url, test_deck):
 
 
 @pytest.fixture
-def run_o2a():
+def run_arete():
     """
-    Fixture that returns a function to run the o2a CLI.
+    Fixture that returns a function to run the arete CLI.
     """
 
     def _run(tmp_path, anki_url, args=None, capture_output=True):
         cmd = [
             sys.executable,
             "-m",
-            "o2a.main",
+            "arete.main",
             "-v",
             "sync",
             str(tmp_path),

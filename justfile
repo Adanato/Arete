@@ -1,4 +1,4 @@
-# o2a Project Automation
+# Arete Project Automation
 
 # Default: list tasks
 default:
@@ -51,7 +51,7 @@ clear-cache:
 
 # Run tests with coverage report
 coverage:
-    uv run pytest --cov=src/o2a --cov-report=term-missing --cov-report=html tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
+    uv run pytest --cov=src/arete --cov-report=term-missing --cov-report=html tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
 
 # Wait for Anki to be ready
 wait-for-anki:

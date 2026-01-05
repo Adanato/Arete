@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from o2a.media import (
+from arete.media import (
     _copy_to_anki_media,
     _resolve_candidate_paths,
     build_filename_index,
@@ -181,7 +181,7 @@ def test_transform_images_copy_fails_logging(tmp_path, logger):
 
     (vault / "img.png").touch()
 
-    with patch("o2a.media._copy_to_anki_media", return_value=None):
+    with patch("arete.media._copy_to_anki_media", return_value=None):
         with patch.object(logger, "warning") as mock_warn:
             text = "![[img.png]]"
             transform_images_in_text(text, md_path, vault, anki_media, logger)

@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from o2a.infrastructure.cache import ContentCache
+from arete.infrastructure.cache import ContentCache
 
 
 def test_cache_init(tmp_path):

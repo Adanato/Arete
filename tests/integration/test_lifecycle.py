@@ -3,14 +3,14 @@ import re
 import requests
 
 
-def test_model_migration_basic_to_cloze(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_model_migration_basic_to_cloze(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Verify changing a card's model from Basic to Cloze keeps the node ID (if possible)
     or handles it gracefully.
     (Note: AnkiConnect implementation of updateModelTemplates is complex,
-    o2a might assume it's a new card if model mismatch, or try to update fields?)
+    arete might assume it's a new card if model mismatch, or try to update fields?)
 
-    Current o2a logic:
+    Current arete logic:
     - It uses the NID to try and update fields.
     - If the model in Anki differs from the model in MD, it likely needs to change the model in Anki
       OR delete and recreate.
@@ -32,7 +32,7 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Get NID
     txt = md_file.read_text()
@@ -56,17 +56,17 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Verify Anki
-    # o2a currently might FAIL to change model type via AnkiConnect updateNoteFields
+    # arete currently might FAIL to change model type via AnkiConnect updateNoteFields
     # if the note type ID doesn't match?
     # Actually, AnkiConnect 'updateNoteFields' works on the note ID.
     # But you can't change the model just by sending new fields if the model ID is different.
-    # So o2a might error out or create a duplicate if it doesn't handle model migration.
-    # If o2a doesn't handle model migration explicitly, this test might reveal that gap.
+    # So arete might error out or create a duplicate if it doesn't handle model migration.
+    # If arete doesn't handle model migration explicitly, this test might reveal that gap.
     # For now, let's assert that the OLD note is gone or updated, and a NEW note exists?
-    # OR if o2a supports it (via updateNoteModel?), it keeps NID.
+    # OR if arete supports it (via updateNoteModel?), it keeps NID.
 
     # Let's check if nid1 still exists
     resp = requests.post(
@@ -80,11 +80,11 @@ cards:
     if result:
         # model_name = result["modelName"]
         # If it successfully migrated, modelName should be Cloze
-        # If o2a doesn't support migration, it might still be Basic and failed to update fields?
+        # If arete doesn't support migration, it might still be Basic and failed to update fields?
         pass
 
 
-def test_tag_sync(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_tag_sync(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Verify adding/removing tags works.
     """
@@ -102,7 +102,7 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Check tags
     resp = requests.post(
@@ -131,7 +131,7 @@ cards:
         encoding="utf-8",
     )
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Check old tag gone
     resp_old = requests.post(

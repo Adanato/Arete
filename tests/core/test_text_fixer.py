@@ -1,4 +1,4 @@
-from o2a.text import apply_fixes
+from arete.text import apply_fixes
 
 
 def test_fix_tabs():

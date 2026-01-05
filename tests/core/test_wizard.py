@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from o2a.core.wizard import run_init_wizard
+from arete.core.wizard import run_init_wizard
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def test_wizard_default_flow(mock_home):
 
     with patch("builtins.input", side_effect=inputs):
         with patch(
-            "o2a.core.wizard.detect_anki_paths",
+            "arete.core.wizard.detect_anki_paths",
             return_value=(Path("/anki/base"), Path("/anki/media")),
         ):
             # Smart existence mock
@@ -47,7 +47,7 @@ def test_wizard_default_flow(mock_home):
             ):
                 run_init_wizard()
 
-    config_dir = mock_home / ".config/o2a"
+    config_dir = mock_home / ".config/arete"
     config_file = config_dir / "config.toml"
     assert config_file.exists()
 
@@ -79,7 +79,7 @@ def test_wizard_custom_flow(mock_home):
         with patch("pathlib.Path.exists", autospec=True, side_effect=side_effect_exists):
             run_init_wizard()
 
-    config_file = mock_home / ".config/o2a/config.toml"
+    config_file = mock_home / ".config/arete/config.toml"
     content = config_file.read_text()
 
     # Robust assertion: Check that our custom path fragments are in the file.
@@ -92,7 +92,7 @@ def test_wizard_custom_flow(mock_home):
 
 def test_wizard_overwrite_no(mock_home):
     # Create existing config
-    config_dir = mock_home / ".config/o2a"
+    config_dir = mock_home / ".config/arete"
     config_dir.mkdir(parents=True)
     (config_dir / "config.toml").write_text("old config")
 
@@ -107,7 +107,7 @@ def test_wizard_overwrite_no(mock_home):
     (mock_home / "Obsidian Vault").mkdir(parents=True)
 
     with patch("builtins.input", side_effect=inputs):
-        with patch("o2a.core.wizard.detect_anki_paths", return_value=(None, None)):
+        with patch("arete.core.wizard.detect_anki_paths", return_value=(None, None)):
             original_exists = Path.exists
 
             def overwrite_exists_side_effect(self):

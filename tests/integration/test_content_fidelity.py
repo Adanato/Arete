@@ -1,7 +1,7 @@
 import requests
 
 
-def test_complex_markdown(tmp_path, anki_url, setup_anki, run_o2a, test_deck):
+def test_complex_markdown(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     """
     Verify that Code blocks, MathJax, and Tables are preserved/converted correctly.
     """
@@ -32,7 +32,7 @@ cards:
 """
     md_file.write_text(content, encoding="utf-8")
 
-    run_o2a(tmp_path, anki_url)
+    run_arete(tmp_path, anki_url)
 
     # Verify Math
     resp = requests.post(
@@ -49,7 +49,7 @@ cards:
     ).json()["result"][0]
     back = info["fields"]["Back"]["value"]
 
-    # o2a converts $ to \( \) for Anki compatibility usually, or preserves them?
+    # arete converts $ to \( \) for Anki compatibility usually, or preserves them?
     # Checking implementation: convert_math_to_tex_delimiters does the job.
     assert r"\(E=mc^2\)" in back
     assert r"\[" in back  # Block math

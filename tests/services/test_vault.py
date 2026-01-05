@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from o2a.infrastructure.cache import ContentCache
-from o2a.services.vault import VaultService
+from arete.infrastructure.cache import ContentCache
+from arete.services.vault import VaultService
 
 
 @pytest.fixture
