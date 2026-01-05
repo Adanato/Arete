@@ -22,3 +22,18 @@ repos:
         language: system
         files: ^obsidian-plugin/
         pass_filenames: false
+
+      - id: py-test
+        name: Python Unit Tests
+        # Runs the unit test suite (explicitly excluding integration)
+        entry: uv run just test
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: ts-test
+        name: TypeScript Tests
+        entry: bash -c 'cd obsidian-plugin && npm test'
+        language: system
+        files: ^obsidian-plugin/
+        pass_filenames: false

@@ -45,12 +45,12 @@ cards:
     print("---------------------------------")
 
     # Yaml dump might quote the numbers
-    assert (
-        "nid: '123456789'" in new_content or "nid: 123456789" in new_content
-    ), "NID was not written to file"
-    assert (
-        "cid: '987654321'" in new_content or "cid: 987654321" in new_content
-    ), "CID was not written to file"
+    assert "nid: '123456789'" in new_content or "nid: 123456789" in new_content, (
+        "NID was not written to file"
+    )
+    assert "cid: '987654321'" in new_content or "cid: 987654321" in new_content, (
+        "CID was not written to file"
+    )
 
     # Also check that structure is preserved (basic check)
     assert "deck: Default" in new_content

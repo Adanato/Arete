@@ -29,7 +29,7 @@ def test_config_file_override(mock_home, mock_vault):
         # So we test that config file values are loaded
     }
 
-    cfg = resolve_config(overrides)
+    cfg = resolve_config(overrides, config_file=config_dir / "config.toml")
     assert cfg.verbose == 2  # From config
     assert cfg.run_apy is True  # From config file
 

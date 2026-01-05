@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
 from o2a.media import (
     _resolve_candidate_paths,
     build_filename_index,

@@ -39,7 +39,7 @@ class AppConfig(BaseSettings):
 
     # Execution Settings
     backend: Literal["auto", "apy", "ankiconnect"] = "auto"
-    anki_connect_url: str = "http://localhost:8765"
+    anki_connect_url: str = "http://127.0.0.1:8765"
     apy_bin: str = "apy"
 
     # Flags
@@ -86,15 +86,16 @@ class AppConfig(BaseSettings):
                 break
 
         if toml_file:
+            # Priority order: CLI overrides > ENV vars > TOML config file
             return (
-                TomlConfigSettingsSource(settings_cls, toml_file=toml_file),
+                init_settings,  # CLI overrides - HIGHEST priority
                 env_settings,
-                init_settings,
+                TomlConfigSettingsSource(settings_cls, toml_file=toml_file),
             )
         else:
             return (
+                init_settings,  # CLI overrides - HIGHEST priority
                 env_settings,
-                init_settings,
             )
 
     @field_validator("vault_root", mode="before")
@@ -119,21 +120,59 @@ class AppConfig(BaseSettings):
         return None
 
 
-def resolve_config(cli_overrides: dict[str, Any] | None = None) -> AppConfig:
+def resolve_config(
+    cli_overrides: dict[str, Any] | None = None, config_file: Path | None = None
+) -> AppConfig:
     """
     Multi-layered configuration resolution.
     1. Defaults in AppConfig
-    2. ~/.config/o2a/config.toml (if exists)
+    2. ~/.config/o2a/config.toml (if exists) OR explicit config_file
     3. Environment variables (O2A_*)
     4. cli_overrides (passed from Typer)
     """
-    # Note: pydantic-settings doesn't natively support multiple TOML files with priority easily
-    # in some versions, but we can just initialize it.
 
     # We create the config instance. CLI overrides take final precedence.
-    # Typer will pass us a dict of non-None values.
+    # We inject the config_file into the constructor if provided
+    init_kwargs = cli_overrides or {}
+    if config_file:
+        # We need a way to pass this to the settings source.
+        # Pydantic Settings is tricky with dynamic sources.
+        # A simpler way is to set the TOML file location via a hidden field or context
+        # but here we can just pass it directly if we modify AppConfig to accept it.
+        # OR better: monkeypatch/override the toml_file list in a subclass or locally.
+        pass
 
-    config = AppConfig(**(cli_overrides or {}))
+    # Actually, the cleanest way with pydantic-settings is to use a specific source instance.
+    # But for now, let's rely on the environment variable trick for testing,
+    # OR simpler: check if config_file is passed, and if so, read it and merge it manually
+    # into cli_overrides (as a heavy hammer)
+    # OR force pydantic to load it.
+
+    # Let's try the dynamic source approach by creating a specific config instance.
+    if config_file:
+        from pydantic_settings import TomlConfigSettingsSource
+
+        # Create a custom class on the fly or just instantiate with valid sources
+        class ExplicitConfig(AppConfig):
+            @classmethod
+            def settings_customise_sources(
+                cls,
+                settings_cls: type[BaseSettings],
+                init_settings: PydanticBaseSettingsSource,
+                env_settings: PydanticBaseSettingsSource,
+                dotenv_settings: PydanticBaseSettingsSource,
+                file_secret_settings: PydanticBaseSettingsSource,
+            ) -> tuple[PydanticBaseSettingsSource, ...]:
+                # Priority order: CLI overrides > ENV vars > TOML config file
+                return (
+                    init_settings,  # CLI overrides - HIGHEST priority
+                    env_settings,
+                    TomlConfigSettingsSource(settings_cls, toml_file=config_file),
+                )
+
+        config = ExplicitConfig(**init_kwargs)
+    else:
+        config = AppConfig(**init_kwargs)
 
     # Final cleanup of vault_root and anki_media_dir if they were missed during init
     if config.root_input is None:

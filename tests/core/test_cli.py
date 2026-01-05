@@ -1,11 +1,13 @@
 """Tests for the Typer CLI interface."""
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from o2a.cli import app
 from typer.testing import CliRunner
+
+from o2a.cli import app
 
 runner = CliRunner()
 
@@ -20,11 +22,9 @@ def test_cli_help():
     assert "config" in result.stdout
 
 
-import re
-
 def strip_ansi(text):
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def test_sync_command_help():
@@ -57,7 +57,8 @@ def test_sync_command_basic(mock_resolve_config, mock_asyncio_run):
 
     # Verify config overrides
     call_args = mock_resolve_config.call_args[0][0]
-    assert str(call_args["root_input"]) == "/tmp/vault"
+    expected_path = str(Path("/tmp/vault"))
+    assert str(call_args["root_input"]) == expected_path
 
 
 @patch("asyncio.run")
@@ -129,7 +130,7 @@ def test_config_show_command(mock_resolve_config):
     """Test config show command displays JSON."""
     mock_config = MagicMock()
     mock_config.model_dump.return_value = {
-        "root_input": "/tmp/vault",
+        "root_input": str(Path("/tmp/vault")),
         "backend": "auto",
         "verbose": 1,
     }
@@ -140,7 +141,7 @@ def test_config_show_command(mock_resolve_config):
     assert result.exit_code == 0
     # Verify JSON output
     output_data = json.loads(result.stdout)
-    assert output_data["root_input"] == "/tmp/vault"
+    assert output_data["root_input"] == str(Path("/tmp/vault"))
     assert output_data["backend"] == "auto"
 
 
@@ -154,7 +155,12 @@ def test_config_open_command_macos(mock_subprocess):
         mock_subprocess.assert_called_once()
         call_args = mock_subprocess.call_args[0][0]
         assert call_args[0] == "open"
-        assert ".config/o2a/config.toml" in str(call_args[1])
+        # On Windows host, Path(...) will produce backslashes even if stripped.
+        # We verify that the *parts* match to avoid separator issues.
+        # But here we are mocking subprocess so the arg is effectively `str(path)`.
+        # The key is checking if ".config" and "o2a" are in there.
+        arg_str = str(call_args[1])
+        assert ".config" in arg_str and "o2a" in arg_str and "config.toml" in arg_str
 
 
 @patch("subprocess.run")
@@ -172,7 +178,7 @@ def test_logs_command(mock_resolve_config, mock_subprocess):
         mock_subprocess.assert_called_once()
         call_args = mock_subprocess.call_args[0][0]
         assert call_args[0] == "open"
-        assert str(call_args[1]) == "/tmp/logs"
+        assert str(call_args[1]) == str(Path("/tmp/logs"))
 
 
 @patch("asyncio.run")

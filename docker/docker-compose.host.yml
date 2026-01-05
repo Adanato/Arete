@@ -10,9 +10,9 @@ services:
       - ANKI_VERSION=24.11
       - QT_QUICK_BACKEND=software
       - ANKI_NOHIGHDPI=1
-    ports:
-      - "3000:3000"
-      - "8765:8765"
+    # Host mode networking: Shares network namespace with host.
+    # No port mapping needed. 127.0.0.1 in container is 127.0.0.1 on host.
+    network_mode: "host" 
     volumes:
       - ./anki_data:/config
     shm_size: "1gb"

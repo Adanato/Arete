@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from o2a.core.config import AppConfig
 from o2a.main import run_sync_logic
 

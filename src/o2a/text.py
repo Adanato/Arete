@@ -1,7 +1,10 @@
 import re
 from typing import Any
 
-import yaml  # type: ignore
+import yaml
+import yaml.constructor
+import yaml.error
+import yaml.scanner  # type: ignore
 
 from .consts import FRONTMATTER_RE
 from .utils import sanitize
@@ -107,7 +110,7 @@ def validate_frontmatter(md_text: str) -> dict[str, Any]:
         )
         # Adjust line offset immediately
         if offset:
-            err.problem_mark.line += offset
+            err.problem_mark.line += offset  # type: ignore
         raise err
 
     try:
@@ -115,7 +118,7 @@ def validate_frontmatter(md_text: str) -> dict[str, Any]:
     except yaml.YAMLError as e:
         # Adjust the line number in the exception to match the file
         if hasattr(e, "problem_mark"):
-            e.problem_mark.line += offset
+            e.problem_mark.line += offset  # type: ignore
         raise e
 
 

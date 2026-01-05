@@ -88,3 +88,9 @@ o2a = "o2a.main:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ty]
+
+[[tool.ty.overrides]]
+include = ["tests/fixtures/anki/**"]
+rules = { unresolved-import = "ignore" }

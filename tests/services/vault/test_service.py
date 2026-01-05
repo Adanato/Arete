@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from o2a.consts import CURRENT_TEMPLATE_VERSION
 from o2a.infrastructure.cache import ContentCache
 from o2a.services.vault import VaultService
