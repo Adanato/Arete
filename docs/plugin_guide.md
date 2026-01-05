@@ -37,12 +37,10 @@ Go to **Settings -> O2A Sync**:
 ### 🧹 Lint & Fix
 - **Command**: `O2A: Check Current File`
     - Scans the active file for syntax errors.
-    - Displays results in a modal with red highlights for errors.
-- **Command**: `O2A: Fix Current File`
-    - Auto-corrects common issues (tabs vs spaces, missing fields).
+    - Displays results in a modal. If the error is fixable (e.g., tabs, missing 'cards' list), a **"Auto-Fix"** button will appear inside the modal.
 - **Integrity Check**: `O2A: Check Vault Integrity`
-    - Scans the entire vault for files with invalid YAML frontmatter that Obsidian fails to parse.
+    - Scans the entire vault for files with invalid YAML frontmatter that Obsidian fails to parse (properties with invalid nesting or tabs).
 
 ## Troubleshooting
-- **"Command failed"**: Check the Developer Console (Cmd+Option+I) for detailed error logs.
-- **Logs**: A log file is maintained in `.obsidian/plugins/obsidian-2-anki/o2a_plugin.log`.
+- **"Command failed"**: Check the Developer Console (Cmd+Option+I) for detailed error logs from the plugin itself.
+- **Sync Logs**: Detailed logs for the `o2a` process are saved in `o2a_plugin.log` within the plugin folder. Use these if the sync starts but fails midway.

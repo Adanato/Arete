@@ -64,11 +64,16 @@ cards:
 | :--- | :--- |
 | `o2a sync` | Standard sync. |
 | `o2a sync --prune` | Sync + orphan deletion. |
-| `o2a sync --force` | Bypass prompts. |
-| `o2a sync --dry-run` | Simulate changes. |
-| `o2a sync --clear-cache` | Force re-sync. |
-| `o2a config show` | View current config. |
-| `o2a logs` | Open logs folder. |
+| `o2a sync --force` | Bypass cache checks and prompts. |
+| `o2a sync --dry-run` | Preview changes without applying to Anki. |
+| `o2a sync --clear-cache` | Wipe the local SQLite cache and force re-sync. |
+| `o2a sync --keep-going` | Continue processing even if individual notes error out. |
+| `o2a config show` | View current resolved configuration. |
+| `o2a config open` | Open `config.toml` in your default editor. |
+| `o2a logs` | Open the run logs directory. |
+
+> [!IMPORTANT]
+> **WSL Media Sync**: If you are using WSL, ensure your Anki media directory is a regular Windows path that `o2a` can resolve (e.g., `/mnt/c/Users/.../collection.media`).
 
 ## Configuration (`~/.config/o2a/config.toml`)
 ```toml

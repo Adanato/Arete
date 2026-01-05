@@ -37,6 +37,7 @@ nav:
   - User Guide:
     - CLI Usage: cli_guide.md
     - Obsidian Plugin: plugin_guide.md
+    - Troubleshooting: troubleshooting.md
   - Development:
     - Contributing: CONTRIBUTING.md
     - Architecture: ARCHITECTURE.md

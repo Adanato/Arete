@@ -22,7 +22,19 @@ Once successful, `pip install obsianki` will work for everyone.
 
 ---
 
-## Part 2: Obsidian Community Plugins (The GUI)
+## Part 2: GitHub Actions (CI/CD)
+
+The project uses GitHub Actions to automate testing and releases.
+
+-   **Test Workflow**: Runs on every PR and push to `main`. It executes `pytest` (with Dockerized Anki) and `ruff`.
+-   **Release Workflow**: Trigged when a new GitHub Release is created.
+    -   Automatically builds the Python `dist/` artifacts.
+    -   Automatically builds the Obsidian Plugin (`main.js`, `manifest.json`, `styles.css`).
+    -   Attaches all binaries to the release.
+
+---
+
+## Part 3: Obsidian Community Plugins (The GUI)
 
 To get your plugin into the official list inside Obsidian, you must submit a Pull Request to the Obsidian team.
 
@@ -32,8 +44,7 @@ To get your plugin into the official list inside Obsidian, you must submit a Pul
 
 ### Submission Steps
 1.  **Fork** the [obsidian-releases](https://github.com/obsidianmd/obsidian-releases) repository.
-2.  **Add File**: Create a new file `community-plugins.json` entry in your fork.
-    *   Actually, you add your plugin to the end of the `community-plugins.json` file in their repo.
+2.  **Add Entry**: Add your plugin to `community-plugins.json` in their repo.
     *   Format:
         ```json
         {
@@ -45,9 +56,15 @@ To get your plugin into the official list inside Obsidian, you must submit a Pul
         }
         ```
 3.  **Submit PR**: Open a Pull Request on their repo.
-4.  **Review**: The Obsidian team will review your code (security, guidelines).
-    *   *Tip: They are strict about `eval()`, `innerHTML` usage, and network calls.*
-5.  **Approval**: Once merged, it appears in the Community Plugins list for everyone!
 
-### Detailed Policy
-Read the [Developer Policies](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines) to ensure you pass review.
+---
+
+## Part 4: Versioning Strategy
+
+We follow **Semantic Versioning (SemVer)**: `MAJOR.MINOR.PATCH`.
+
+-   **MAJOR**: Breaking changes (e.g., changes to the Markdown card syntax).
+-   **MINOR**: New features (e.g., support for a new Anki field type).
+-   **PATCH**: Bug fixes and documentation updates.
+
+Always update `version` in `pyproject.toml` and `manifest.json` simultaneously to keep the CLI and Plugin in sync.
