@@ -1,4 +1,6 @@
+import json
 import os
+import sys
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -113,7 +115,6 @@ def config_show():
     """
     Display final resolved configuration.
     """
-    import json
 
     config = resolve_config()
     # Path to str for JSON
@@ -127,7 +128,6 @@ def config_open():
     Open the config file in your default editor.
     """
     import subprocess
-    import sys
 
     cfg_path = Path.home() / ".config/o2a/config.toml"
     if not cfg_path.exists():
@@ -148,7 +148,6 @@ def logs():
     Open the log directory.
     """
     import subprocess
-    import sys
 
     config = resolve_config()
     if not config.log_dir.exists():
@@ -191,16 +190,20 @@ def check_file(
     Validate a single file for o2a compatibility.
     Checks YAML syntax and required fields.
     """
-    import json
 
     from yaml import YAMLError
 
     from o2a.text import validate_frontmatter
 
+    # Type hint the result dictionary
     result: dict[str, Any] = {
         "ok": True,
         "errors": [],
-        "stats": {"cards_found": 0, "deck": None, "model": None},
+        "stats": {
+            "deck": None,
+            "model": None,
+            "cards_found": 0,
+        },
     }
 
     if not path.exists():

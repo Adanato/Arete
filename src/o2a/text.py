@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore
 import yaml.constructor
 import yaml.error
 import yaml.scanner  # type: ignore

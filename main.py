@@ -301,7 +301,7 @@ def process_markdown_file(
                 fields = {k: v for k, v in card.items() if k not in {"id", "model"}}
                 if not fields:
                     logger.info(
-                        f"[skip] {md_path} card#{idx}: " f"custom model '{model}' has no fields"
+                        f"[skip] {md_path} card#{idx}: custom model '{model}' has no fields"
                     )
                     skipped += 1
                     continue

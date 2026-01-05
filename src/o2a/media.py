@@ -90,9 +90,6 @@ def transform_images_in_text(
         raw = m.group(1)
         candidates = _resolve_candidate_paths(md_path, vault_root, raw, name_index=name_index)
 
-        if not candidates:
-            logger.debug(f"[media] No candidates for {raw} in {md_path}")
-
         for cand in candidates:
             if cand.exists() and cand.is_file():
                 media_name = _copy_to_anki_media(cand, anki_media_dir, logger)

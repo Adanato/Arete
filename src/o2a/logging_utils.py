@@ -5,6 +5,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -35,13 +36,15 @@ class RunRecorder:
 
     start_time: datetime = field(default_factory=datetime.now)
 
-    def add_inventory(self, items: list[dict[str, str | None]]):
+    def add_inventory(self, items: list[Any]):
         with self._inventory_lock:
             for item in items:
-                if item.get("nid"):
-                    self.inventory_nids.add(item["nid"])
-                if item.get("deck"):
-                    self.inventory_decks.add(item["deck"])
+                nid = item.get("nid") if isinstance(item, dict) else getattr(item, "nid", None)
+                deck = item.get("deck") if isinstance(item, dict) else getattr(item, "deck", None)
+                if nid:
+                    self.inventory_nids.add(str(nid))
+                if deck:
+                    self.inventory_decks.add(str(deck))
 
     def add_error(self, file: Path, msg: str, context: str | None = None):
         self.errors.append(LogEntry(file.name, msg, context))

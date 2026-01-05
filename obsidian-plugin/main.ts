@@ -70,9 +70,12 @@ export default class O2APlugin extends Plugin {
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				if (view.file) {
 					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
-					if (vaultAdapter.getBasePath) {
-						const fullPath = path.join(vaultAdapter.getBasePath(), view.file.path);
+					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
+					if (basePath) {
+						const fullPath = path.join(basePath, view.file.path);
 						this.runCheck(fullPath);
+					} else {
+						new Notice('Error: Cannot determine vault path.');
 					}
 				}
 			},
@@ -93,8 +96,9 @@ export default class O2APlugin extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (activeFile) {
 					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
-					if (vaultAdapter.getBasePath) {
-						const maxPath = path.join(vaultAdapter.getBasePath(), activeFile.path);
+					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
+					if (basePath) {
+						const maxPath = path.join(basePath, activeFile.path);
 						this.runSync(false, maxPath, true);
 					} else {
 						new Notice('Error: Cannot resolve file path.');

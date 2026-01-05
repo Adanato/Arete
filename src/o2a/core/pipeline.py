@@ -163,7 +163,7 @@ async def run_pipeline(
 
     total_generated = len(updates)
     total_imported = sum(1 for u in updates if u.ok)
-    total_errors = sum(1 for u in updates if not u.ok)
+    total_errors = len(recorder.errors)
     error_items = [u for u in updates if not u.ok]
 
     return RunStats(
@@ -250,12 +250,22 @@ async def _prune_orphans(
             logger.info("[prune] Aborted by user.")
             return
 
+    if config.dry_run:
+        logger.warning("[prune] DRY RUN: Destructive actions skipped.")
+        return
+
     if n_notes > 0:
         logger.info(f"[prune] Deleting {n_notes} notes...")
-        await bridge.delete_notes(orphan_note_ids)
+        try:
+            await bridge.delete_notes(orphan_note_ids)
+        except Exception as e:
+            logger.error(f"[prune] Failed to delete notes: {e}")
 
     if n_decks > 0:
         logger.info(f"[prune] Deleting {n_decks} decks...")
-        await bridge.delete_decks(orphan_decks)
+        try:
+            await bridge.delete_decks(orphan_decks)
+        except Exception as e:
+            logger.error(f"[prune] Failed to delete decks: {e}")
 
     logger.info("[prune] Pruning complete.")

@@ -89,7 +89,7 @@ async def test_sync_notes_update_existing(adapter, sample_note):
         action = data["action"]
         if action == "notesInfo":
             return Response(200, json={"result": [{"noteId": 999}], "error": None})
-        elif action == "updateNoteFields":
+        elif action == "updateNoteFields" or action == "createDeck":
             return Response(200, json={"result": None, "error": None})
         elif action == "changeDeck":
             return Response(200, json={"result": None, "error": None})

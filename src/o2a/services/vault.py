@@ -48,13 +48,13 @@ class VaultService:
             return (False, 0, f"read_error:{e}", None)
 
         if self.cache and not self.ignore_cache:
-            cached_meta = self.cache.get_file_meta(md_file, file_hash)
-            if cached_meta:
-                try:
+            try:
+                cached_meta = self.cache.get_file_meta(md_file, file_hash)
+                if cached_meta:
                     cards = cached_meta.get("cards", [])
                     return (True, len(cards), None, cached_meta)
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
         meta, _body = parse_frontmatter(text)
         if not meta or "__yaml_error__" in meta:

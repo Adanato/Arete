@@ -152,8 +152,10 @@ jest.mock('obsidian', () => {
 			addRibbonIcon() {
 				return (global as any).mockCreateMockElement('div');
 			}
-			addCommand() {
-				return {};
+			addCommand(cmd: any) {
+				(global as any).registeredCommands = (global as any).registeredCommands || {};
+				(global as any).registeredCommands[cmd.id] = cmd;
+				return cmd;
 			}
 			addSettingTab() {
 				return {};

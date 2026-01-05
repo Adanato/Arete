@@ -100,14 +100,14 @@ class AnkiConnectAdapter(AnkiBridge):
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
         results = []
         for item in work_items:
+            note = item.note
             try:
-                note = item.note
-
                 # Convert fields to HTML while preserving MathJax
                 html_fields = {k: self._to_html(v) for k, v in note.fields.items()}
 
                 # Ensure deck exists
-                await self.ensure_deck(note.deck)
+                if not await self.ensure_deck(note.deck):
+                    raise Exception(f"Failed to ensure deck '{note.deck}'")
 
                 target_nid = None
                 info = None
@@ -373,18 +373,9 @@ class AnkiConnectAdapter(AnkiBridge):
         return result
 
     async def delete_notes(self, nids: list[int]) -> bool:
-        try:
-            # Ensure IDs are integers (AnkiConnect Strictness)
-            safe_nids = [int(n) for n in nids]
-            await self._invoke("deleteNotes", notes=safe_nids)
-            return True
-        except Exception as e:
-            self.logger.error(f"deleteNotes FAILED: {e}")
-            return False
+        await self._invoke("deleteNotes", notes=nids)
+        return True
 
     async def delete_decks(self, names: list[str]) -> bool:
-        try:
-            await self._invoke("deleteDecks", decks=names, cardsToo=True)
-            return True
-        except Exception:
-            return False
+        await self._invoke("deleteDecks", decks=names, cardsToo=True)
+        return True
