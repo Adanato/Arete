@@ -531,7 +531,9 @@ export class AreteSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Arete Script Path')
-			.setDesc('Absolute path to arete/main.py. Leave empty if you are using a global binary.')
+			.setDesc(
+				'Absolute path to arete/main.py. Leave empty if you are using a global binary.',
+			)
 			.addText((text) =>
 				text
 					.setPlaceholder('/path/to/arete/main.py')

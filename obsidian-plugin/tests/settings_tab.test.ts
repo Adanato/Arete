@@ -1,18 +1,18 @@
 import './test-setup';
 import { App, Setting } from 'obsidian';
-import O2APlugin, { O2ASettingTab } from '../main';
+import AretePlugin, { AreteSettingTab } from '../main';
 
-describe('O2ASettingTab Interaction Tests', () => {
-	let plugin: O2APlugin;
+describe('AreteSettingTab Interaction Tests', () => {
+	let plugin: AretePlugin;
 	let app: App;
-	let settingTab: O2ASettingTab;
+	let settingTab: AreteSettingTab;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		app = new App();
-		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.settings = {
-			o2aScriptPath: '/old/path',
+			areteScriptPath: '/old/path',
 			pythonPath: 'python',
 			debugMode: false,
 			backend: 'auto',
@@ -20,7 +20,7 @@ describe('O2ASettingTab Interaction Tests', () => {
 		} as any;
 		plugin.saveSettings = jest.fn().mockResolvedValue(undefined);
 		plugin.testConfig = jest.fn().mockResolvedValue(undefined);
-		settingTab = new O2ASettingTab(app, plugin);
+		settingTab = new AreteSettingTab(app, plugin);
 
 		(app as any).setting = {
 			openTabById: jest.fn(),
@@ -51,13 +51,13 @@ describe('O2ASettingTab Interaction Tests', () => {
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
-	test('O2A Script Path setting updates correctly', async () => {
+	test('Arete Script Path setting updates correctly', async () => {
 		settingTab.display();
-		const setting = findSettingByName('O2A Script Path');
+		const setting = findSettingByName('Arete Script Path');
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('/new/script/path.py');
-		expect(plugin.settings.o2aScriptPath).toBe('/new/script/path.py');
+		expect(plugin.settings.areteScriptPath).toBe('/new/script/path.py');
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -94,7 +94,7 @@ describe('O2ASettingTab Interaction Tests', () => {
 	test('Hotkey Configure button opens correct tab', async () => {
 		// Mock a command for the hotkey button
 		((app as any).commands.listCommands as jest.Mock).mockReturnValue([
-			{ id: 'o2a-sync', name: 'Sync' },
+			{ id: 'arete-sync', name: 'Sync' },
 		]);
 		((app as any).commands.findCommand as jest.Mock).mockReturnValue({
 			name: 'Sync',
@@ -107,7 +107,9 @@ describe('O2ASettingTab Interaction Tests', () => {
 
 		await syncSetting.mockButton._onClick();
 		expect((app as any).setting.openTabById).toHaveBeenCalledWith('hotkeys');
-		expect((app as any).setting.activeTab.searchComponent.setValue).toHaveBeenCalledWith('o2a');
+		expect((app as any).setting.activeTab.searchComponent.setValue).toHaveBeenCalledWith(
+			'arete',
+		);
 	});
 
 	test('Test Config button calls plugin method', async () => {

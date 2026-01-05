@@ -1,14 +1,14 @@
 import './test-setup';
 import { App } from 'obsidian';
-import O2APlugin from '../main';
+import AretePlugin from '../main';
 
-describe('O2APlugin Lifecycle and Commands', () => {
-	let plugin: O2APlugin;
+describe('AretePlugin Lifecycle and Commands', () => {
+	let plugin: AretePlugin;
 	let app: App;
 
 	beforeEach(() => {
 		app = new App();
-		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		// Mock required methods
 		plugin.loadSettings = jest.fn().mockResolvedValue(undefined);
 		plugin.addStatusBarItem = jest.fn().mockImplementation(() => ({
@@ -46,17 +46,17 @@ describe('O2APlugin Lifecycle and Commands', () => {
 		await plugin.onload();
 		const commands = (plugin.addCommand as jest.Mock).mock.calls;
 
-		const syncCmd = commands.find((c) => c[0].id === 'o2a-sync')[0];
+		const syncCmd = commands.find((c) => c[0].id === 'arete-sync')[0];
 		const runSyncSpy = jest.spyOn(plugin, 'runSync').mockImplementation();
 		syncCmd.callback();
 		expect(runSyncSpy).toHaveBeenCalled();
 
-		const integrityCmd = commands.find((c) => c[0].id === 'o2a-check-integrity')[0];
+		const integrityCmd = commands.find((c) => c[0].id === 'arete-check-integrity')[0];
 		const integritySpy = jest.spyOn(plugin, 'checkVaultIntegrity').mockImplementation();
 		integrityCmd.callback();
 		expect(integritySpy).toHaveBeenCalled();
 
-		const pruneCmd = commands.find((c) => c[0].id === 'o2a-sync-prune')[0];
+		const pruneCmd = commands.find((c) => c[0].id === 'arete-sync-prune')[0];
 		pruneCmd.callback();
 		expect(runSyncSpy).toHaveBeenCalledWith(true);
 

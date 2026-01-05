@@ -1,11 +1,11 @@
 import './test-setup';
 import { App, Notice } from 'obsidian';
-import O2APlugin from '../main';
+import AretePlugin from '../main';
 import { spawn } from 'child_process';
 import { createMockChildProcess } from './test-setup';
 
-describe('O2APlugin', () => {
-	let plugin: O2APlugin;
+describe('AretePlugin', () => {
+	let plugin: AretePlugin;
 	let app: App;
 
 	beforeEach(() => {
@@ -13,12 +13,12 @@ describe('O2APlugin', () => {
 		app = new App();
 		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue('/mock/vault/path');
 
-		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.statusBarItem = plugin.addStatusBarItem() as any;
 
 		plugin.settings = {
 			pythonPath: 'python3',
-			o2aScriptPath: '',
+			areteScriptPath: '',
 			debugMode: false,
 			backend: 'auto',
 			workers: 4,
@@ -53,7 +53,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '--force', '--workers', '4', '/mock/path/file.md'],
+			['-m', 'arete', 'sync', '--force', '--workers', '4', '/mock/path/file.md'],
 			expect.any(Object),
 		);
 	});
@@ -86,7 +86,7 @@ describe('O2APlugin', () => {
 	});
 
 	test('runSync with .py script path', async () => {
-		plugin.settings.o2aScriptPath = '/path/to/o2a/main.py';
+		plugin.settings.areteScriptPath = '/path/to/o2a/main.py';
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
@@ -96,14 +96,14 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '--workers', '4', '/mock/vault/path'],
+			['-m', 'arete', 'sync', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({
 				env: expect.objectContaining({ PYTHONPATH: '/path/to' }),
 			}),
 		);
 	});
 
-	test('runCheck calls o2a check-file', async () => {
+	test('runCheck calls arete check-file', async () => {
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
@@ -113,13 +113,13 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'check-file', '/mock/path/file.md', '--json'],
+			['-m', 'arete', 'check-file', '/mock/path/file.md', '--json'],
 			expect.any(Object),
 		);
 	});
 
 	test('runCheck with .py script path', async () => {
-		plugin.settings.o2aScriptPath = '/path/to/o2a/main.py';
+		plugin.settings.areteScriptPath = '/path/to/o2a/main.py';
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
@@ -129,7 +129,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'check-file', '/mock/path/file.md', '--json'],
+			['-m', 'arete', 'check-file', '/mock/path/file.md', '--json'],
 			expect.objectContaining({
 				env: expect.objectContaining({ PYTHONPATH: '/path/to' }),
 			}),
@@ -139,27 +139,27 @@ describe('O2APlugin', () => {
 	test('commands are registered and callback triggers runSync/runCheck', async () => {
 		await plugin.onload();
 		const commands = (global as any).registeredCommands;
-		expect(commands['o2a-sync']).toBeDefined();
-		expect(commands['o2a-check-file']).toBeDefined();
-		expect(commands['o2a-check-integrity']).toBeDefined();
-		expect(commands['o2a-sync-current-file']).toBeDefined();
-		expect(commands['o2a-sync-prune']).toBeDefined();
+		expect(commands['arete-sync']).toBeDefined();
+		expect(commands['arete-check-file']).toBeDefined();
+		expect(commands['arete-check-integrity']).toBeDefined();
+		expect(commands['arete-sync-current-file']).toBeDefined();
+		expect(commands['arete-sync-prune']).toBeDefined();
 
-		// Test o2a-sync command
+		// Test arete-sync command
 		plugin.runSync = jest.fn().mockResolvedValue(undefined);
-		commands['o2a-sync'].callback();
+		commands['arete-sync'].callback();
 		expect(plugin.runSync).toHaveBeenCalled();
 
-		// Test o2a-check-file command
+		// Test arete-check-file command
 		const mockView = {
 			file: { path: 'test.md' },
 		};
 		plugin.runCheck = jest.fn().mockResolvedValue(undefined);
-		commands['o2a-check-file'].editorCallback(null, mockView);
+		commands['arete-check-file'].editorCallback(null, mockView);
 		expect(plugin.runCheck).toHaveBeenCalled();
 
-		// Test o2a-sync-prune
-		commands['o2a-sync-prune'].callback();
+		// Test arete-sync-prune
+		commands['arete-sync-prune'].callback();
 		expect(plugin.runSync).toHaveBeenCalledWith(true);
 	});
 
@@ -173,7 +173,7 @@ describe('O2APlugin', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'o2a', 'sync', '--workers', '4', '/mock/vault/path'],
+			['-m', 'arete', 'sync', '--workers', '4', '/mock/vault/path'],
 			expect.objectContaining({ cwd: '/mock/vault/path' }),
 		);
 	});
@@ -184,7 +184,7 @@ describe('O2APlugin', () => {
 		(app.workspace.getActiveFile as jest.Mock).mockReturnValue({ path: 'test.md' });
 		plugin.runSync = jest.fn().mockResolvedValue(undefined);
 
-		await commands['o2a-sync-current-file'].callback();
+		await commands['arete-sync-current-file'].callback();
 		expect(plugin.runSync).toHaveBeenCalledWith(
 			false,
 			expect.stringContaining('test.md'),
@@ -198,13 +198,13 @@ describe('O2APlugin', () => {
 
 		// 1. No active file
 		(app.workspace.getActiveFile as jest.Mock).mockReturnValue(null);
-		await commands['o2a-sync-current-file'].callback();
+		await commands['arete-sync-current-file'].callback();
 		expect(Notice).toHaveBeenCalledWith('No active file to sync.');
 
 		// 2. No base path
 		(app.workspace.getActiveFile as jest.Mock).mockReturnValue({ path: 'test.md' });
 		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue(null);
-		await commands['o2a-sync-current-file'].callback();
+		await commands['arete-sync-current-file'].callback();
 		expect(Notice).toHaveBeenCalledWith('Error: Cannot resolve file path.');
 	});
 
@@ -213,12 +213,12 @@ describe('O2APlugin', () => {
 		const commands = (global as any).registeredCommands;
 		plugin.checkVaultIntegrity = jest.fn();
 
-		commands['o2a-check-integrity'].callback();
+		commands['arete-check-integrity'].callback();
 		expect(plugin.checkVaultIntegrity).toHaveBeenCalled();
 	});
 
 	test('runSync with custom binary script path', async () => {
-		plugin.settings.o2aScriptPath = '/usr/local/bin/o2a-custom';
+		plugin.settings.areteScriptPath = '/usr/local/bin/o2a-custom';
 		plugin.settings.debugMode = true;
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);

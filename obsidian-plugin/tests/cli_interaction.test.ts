@@ -1,11 +1,11 @@
 import './test-setup';
 import { App, Notice } from 'obsidian';
-import O2APlugin from '../main';
+import AretePlugin from '../main';
 import { spawn } from 'child_process';
 import { createMockChildProcess } from './test-setup';
 
-describe('O2APlugin CLI Interaction', () => {
-	let plugin: O2APlugin;
+describe('AretePlugin CLI Interaction', () => {
+	let plugin: AretePlugin;
 	let app: App;
 	let mockChild: any;
 
@@ -15,12 +15,12 @@ describe('O2APlugin CLI Interaction', () => {
 		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue('/mock/vault/path');
 		(app.vault as any).getMarkdownFiles = jest.fn().mockReturnValue([]);
 
-		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.statusBarItem = plugin.addStatusBarItem() as any;
 
 		plugin.settings = {
 			pythonPath: 'python3',
-			o2aScriptPath: 'o2a/main.py',
+			areteScriptPath: 'o2a/main.py',
 			debugMode: false,
 			backend: 'auto',
 			workers: 4,
@@ -112,7 +112,7 @@ describe('O2APlugin CLI Interaction', () => {
 		const syncPromise = plugin.runSync();
 		mockChild.emit('close', 1);
 		await syncPromise;
-		expect(Notice).toHaveBeenCalledWith('o2a sync failed! (Code 1). See log.');
+		expect(Notice).toHaveBeenCalledWith('arete sync failed! (Code 1). See log.');
 	});
 
 	test('runSync handles Anki not reachable', async () => {
@@ -132,14 +132,14 @@ describe('O2APlugin CLI Interaction', () => {
 	});
 
 	test('runSync with .py script path set', async () => {
-		plugin.settings.o2aScriptPath = '/path/to/script.py';
+		plugin.settings.areteScriptPath = '/path/to/script.py';
 		plugin.settings.debugMode = true; // Cover debug flag too
 		const syncPromise = plugin.runSync();
 		mockChild.emit('close', 0);
 		await syncPromise;
 		expect(spawn).toHaveBeenCalledWith(
 			expect.any(String),
-			expect.arrayContaining(['-m', 'o2a', '--verbose']),
+			expect.arrayContaining(['-m', 'arete', '--verbose']),
 			expect.objectContaining({ env: expect.objectContaining({ PYTHONPATH: '/path' }) }),
 		);
 	});
@@ -187,13 +187,13 @@ describe('O2APlugin CLI Interaction', () => {
 	});
 
 	test('runCheck with .py script path set', async () => {
-		plugin.settings.o2aScriptPath = '/path/to/script.py';
+		plugin.settings.areteScriptPath = '/path/to/script.py';
 		const checkPromise = plugin.runCheck('/path/to/file.md');
 		mockChild.emit('close', 0);
 		await checkPromise;
 		expect(spawn).toHaveBeenCalledWith(
 			expect.any(String),
-			expect.arrayContaining(['-m', 'o2a', 'check-file']),
+			expect.arrayContaining(['-m', 'arete', 'check-file']),
 			expect.objectContaining({ env: expect.objectContaining({ PYTHONPATH: '/path' }) }),
 		);
 	});
@@ -220,14 +220,14 @@ describe('O2APlugin CLI Interaction', () => {
 	});
 
 	test('runFix success with .py script', async () => {
-		plugin.settings.o2aScriptPath = '/path/to/script.py';
+		plugin.settings.areteScriptPath = '/path/to/script.py';
 		const fixPromise = plugin.runFix('/path/to/file.md');
 		mockChild.emit('close', 0);
 		await fixPromise;
 		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('auto-fixed'));
 		expect(spawn).toHaveBeenCalledWith(
 			expect.any(String),
-			expect.arrayContaining(['-m', 'o2a', 'fix-file', '/path/to/file.md']),
+			expect.arrayContaining(['-m', 'arete', 'fix-file', '/path/to/file.md']),
 			expect.objectContaining({
 				env: expect.objectContaining({ PYTHONPATH: expect.any(String) }),
 			}),
