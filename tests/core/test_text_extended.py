@@ -1,8 +1,8 @@
 
 import pytest
 import yaml
-import yaml.scanner
 import yaml.constructor
+import yaml.scanner
 
 from arete.text import apply_fixes, make_editor_note, parse_frontmatter, validate_frontmatter
 
