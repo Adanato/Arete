@@ -27,10 +27,21 @@ jobs:
       run: uv sync --dev
 
     - name: Run tests
-      run: uv run pytest tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
+      run: uv run just coverage
 
     - name: Build package
       run: uv build
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build Obsidian Plugin
+      run: |
+        cd obsidian-plugin
+        npm ci
+        npm run build
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
@@ -42,3 +53,6 @@ jobs:
         files: |
           dist/*.whl
           dist/*.tar.gz
+          obsidian-plugin/main.js
+          obsidian-plugin/manifest.json
+          obsidian-plugin/styles.css

@@ -2,6 +2,11 @@
 
 **Pro-grade synchronization from Obsidian to Anki.**
 
+
+[![CI](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
+[![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
+
 `arete` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
 ```mermaid
