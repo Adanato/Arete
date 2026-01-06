@@ -112,6 +112,26 @@ describe('AreteSettingTab Interaction Tests', () => {
 		);
 	});
 
+	test('Anki Connect URL setting updates correctly', async () => {
+		settingTab.display();
+		const setting = findSettingByName('Anki Connect URL');
+		expect(setting).toBeDefined();
+
+		await setting.mockText._onChange('http://some-anki:1234');
+		expect(plugin.settings.ankiConnectUrl).toBe('http://some-anki:1234');
+		expect(plugin.saveSettings).toHaveBeenCalled();
+	});
+
+	test('Anki Media Directory setting updates correctly', async () => {
+		settingTab.display();
+		const setting = findSettingByName('Anki Media Directory');
+		expect(setting).toBeDefined();
+
+		await setting.mockText._onChange('/tmp/media');
+		expect(plugin.settings.ankiMediaDir).toBe('/tmp/media');
+		expect(plugin.saveSettings).toHaveBeenCalled();
+	});
+
 	test('Test Config button calls plugin method', async () => {
 		settingTab.display();
 		const testBtn = findSettingByName('Test Configuration');

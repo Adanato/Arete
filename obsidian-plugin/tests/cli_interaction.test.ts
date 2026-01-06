@@ -241,10 +241,49 @@ describe('AretePlugin CLI Interaction', () => {
 		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Fix failed'));
 	});
 
-	test('runSync handles spawn error', async () => {
+	test('runFix success with module execution', async () => {
+		plugin.settings.areteScriptPath = 'python'; // Not ending in .py
+		const fixPromise = plugin.runFix('/path/to/file.md');
+		mockChild.emit('close', 0);
+		await fixPromise;
+		expect(spawn).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.arrayContaining(['-m', 'arete', 'fix-file', '/path/to/file.md']),
+			expect.any(Object),
+		);
+	});
+
+	test('testConfig handles synchronous error', async () => {
+		// Mock spawn to throw immediately to hit the catch block in testConfig
+		(spawn as jest.Mock).mockImplementation(() => {
+			throw new Error('Sync spawn error');
+		});
+		await plugin.testConfig();
+		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Error: Sync spawn error'));
+	});
+
+	test('runSync with custom binary script (non-py)', async () => {
+		// e.g. compiled binary or internal command
+		plugin.settings.areteScriptPath = '/usr/local/bin/arete-custom';
+		plugin.settings.debugMode = true; // hit debug branch too
 		const syncPromise = plugin.runSync();
-		mockChild.emit('error', new Error('spawn error'));
+		mockChild.emit('close', 0);
 		await syncPromise;
-		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Failed to start'));
+
+		expect(spawn).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.arrayContaining(['/usr/local/bin/arete-custom', '--verbose', 'sync']), // args pushed in specific order
+			expect.any(Object),
+		);
+	});
+
+	test('runSync handles synchronous spawn exception', async () => {
+		(spawn as jest.Mock).mockImplementation(() => {
+			throw new Error('Sync spawn immediate failure');
+		});
+		await plugin.runSync();
+		expect(Notice).toHaveBeenCalledWith(
+			expect.stringContaining('Exception: Sync spawn immediate failure'),
+		);
 	});
 });
