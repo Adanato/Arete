@@ -1,7 +1,9 @@
 import { Plugin } from 'obsidian';
 
 class ConcretePlugin extends Plugin {
-    async onload() {}
+	async onload() {
+		return Promise.resolve();
+	}
 }
 
 describe('Mock Setup Coverage', () => {

@@ -80,10 +80,18 @@ export const createMockObsidian = () => {
 				this.app = app;
 				this.manifest = manifest;
 			}
-			async onload() {}
-			async onunload() {}
-			async loadData() { return {}; }
-			async saveData(data: any) {}
+			async onload() {
+				return Promise.resolve();
+			}
+			async onunload() {
+				return Promise.resolve();
+			}
+			async loadData() {
+				return {};
+			}
+			async saveData(data: any) {
+				return Promise.resolve();
+			}
 		},
 		PluginSettingTab: class {
 			app: any;
