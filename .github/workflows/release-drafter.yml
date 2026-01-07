@@ -1,0 +1,32 @@
+name: Release Drafter
+
+on:
+  push:
+    # branches to consider in the event; optional, defaults to all
+    branches:
+      - main
+  # pull_request event is required only for autolabeler
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  update_release_draft:
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+      # write permission is required for autolabeler
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      # (Optional) GitHub Enterprise requires GITHUB_TOKEN to be passed
+      - uses: release-drafter/release-drafter@v6
+        with:
+          # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
+          # config-name: my-config.yml
+          disable-autolabeler: false
+          commit-label-inputs: "title,branch"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
