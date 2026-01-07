@@ -63,7 +63,7 @@ check:
     uv run ruff format src tests
     uv run ruff check src tests
     @echo "--- 🐍 Python: Testing ---"
-    uv run pytest
+    uv run pytest tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
     @echo "--- 🟦 TypeScript: Linting ---"
     cd obsidian-plugin && npm run lint
     @echo "--- 🟦 TypeScript: Testing ---"
