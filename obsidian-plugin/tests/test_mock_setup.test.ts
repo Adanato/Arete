@@ -1,11 +1,17 @@
 import { Plugin } from 'obsidian';
 
+class ConcretePlugin extends Plugin {
+	async onload() {
+		return Promise.resolve();
+	}
+}
+
 describe('Mock Setup Coverage', () => {
 	test('Plugin saveData mock coverage', async () => {
-		// Instantiate a mock Plugin (from our __mocks__ or jest.mock in test-setup.ts)
+		// Instantiate a concrete subclass of Plugin to avoid abstract class instantiation error
 		const mockApp = {} as any;
 		const mockManifest = {} as any;
-		const plugin = new (Plugin as any)(mockApp, mockManifest);
+		const plugin = new ConcretePlugin(mockApp, mockManifest);
 
 		// Call saveData to hit the uncovered line
 		await plugin.saveData({ key: 'value' });

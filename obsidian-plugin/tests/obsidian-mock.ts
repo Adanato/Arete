@@ -73,7 +73,26 @@ export const createMockObsidian = () => {
 				findCommand: jest.fn(),
 			},
 		})),
-		Plugin: class {},
+		Plugin: class {
+			app: any;
+			manifest: any;
+			constructor(app: any, manifest: any) {
+				this.app = app;
+				this.manifest = manifest;
+			}
+			async onload() {
+				return Promise.resolve();
+			}
+			async onunload() {
+				return Promise.resolve();
+			}
+			async loadData() {
+				return {};
+			}
+			async saveData(data: any) {
+				return Promise.resolve();
+			}
+		},
 		PluginSettingTab: class {
 			app: any;
 			plugin: any;

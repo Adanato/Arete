@@ -1,4 +1,3 @@
-
 import json
 import os
 import unittest
@@ -70,7 +69,9 @@ async def test_sync_notes_healing_failure(adapter, sample_note):
         if action == "createDeck":
             return Response(200, json={"result": 1, "error": None})
         if action == "addNote":
-            return Response(200, json={"result": None, "error": "cannot create note because it is a duplicate"})
+            return Response(
+                200, json={"result": None, "error": "cannot create note because it is a duplicate"}
+            )
         if action == "findNotes":
             # Return empty list -> healing fails
             return Response(200, json={"result": [], "error": None})
@@ -100,7 +101,9 @@ async def test_sync_notes_healing_success(adapter, sample_note):
         if action == "createDeck":
             return Response(200, json={"result": 1, "error": None})
         if action == "addNote":
-            return Response(200, json={"result": None, "error": "cannot create note because it is a duplicate"})
+            return Response(
+                200, json={"result": None, "error": "cannot create note because it is a duplicate"}
+            )
         if action == "findNotes":
             # Return valid ID -> healing works
             return Response(200, json={"result": [123999], "error": None})
@@ -124,6 +127,7 @@ async def test_sync_notes_cid_failure(adapter, sample_note):
     """
     Simulate addNote success, but notesInfo (CID fetch) fails/returns empty.
     """
+
     def side_effect(request):
         data = json.loads(request.content)
         action = data["action"]
@@ -184,12 +188,16 @@ async def test_invoke_invalid_response(adapter):
         await adapter._invoke("version")
 
     # Case 2: missing error
-    respx.post("http://mock-anki:8765").mock(return_value=Response(200, json={"result": 1, "foo": "bar"}))
+    respx.post("http://mock-anki:8765").mock(
+        return_value=Response(200, json={"result": 1, "foo": "bar"})
+    )
     with pytest.raises(ValueError, match="missing required error field"):
         await adapter._invoke("version")
 
     # Case 3: missing result
-    respx.post("http://mock-anki:8765").mock(return_value=Response(200, json={"error": None, "foo": "bar"}))
+    respx.post("http://mock-anki:8765").mock(
+        return_value=Response(200, json={"error": None, "foo": "bar"})
+    )
     with pytest.raises(ValueError, match="missing required result field"):
         await adapter._invoke("version")
 
@@ -200,14 +208,20 @@ async def test_get_notes_in_deck_html_strip(adapter):
     """
     Verify that <p>123</p> is stripped to 123 for NID.
     """
-    respx.post("http://mock-anki:8765").mock(side_effect=[
-        # findNotes
-        Response(200, json={"result": [100], "error": None}),
-        # notesInfo
-        Response(200, json={"result": [
-             {"noteId": 100, "fields": {"nid": {"value": "<p> 999 </p>"}}}
-        ], "error": None})
-    ])
+    respx.post("http://mock-anki:8765").mock(
+        side_effect=[
+            # findNotes
+            Response(200, json={"result": [100], "error": None}),
+            # notesInfo
+            Response(
+                200,
+                json={
+                    "result": [{"noteId": 100, "fields": {"nid": {"value": "<p> 999 </p>"}}}],
+                    "error": None,
+                },
+            ),
+        ]
+    )
 
     mapping = await adapter.get_notes_in_deck("test_deck")
     # Should get "999" mapped to 100
@@ -219,7 +233,9 @@ async def test_get_notes_in_deck_html_strip(adapter):
 @respx.mock
 async def test_get_notes_in_deck_empty(adapter):
     # findNotes returns []
-    respx.post("http://mock-anki:8765").mock(return_value=Response(200, json={"result": [], "error": None}))
+    respx.post("http://mock-anki:8765").mock(
+        return_value=Response(200, json={"result": [], "error": None})
+    )
     mapping = await adapter.get_notes_in_deck("empty_deck")
     assert mapping == {}
 
@@ -231,9 +247,11 @@ async def test_wsl_detection_resolv_conf():
         mock_uname.return_value.release = "microsoft-standard-WSL2"
         with patch("shutil.which", return_value=None):
             # Mock open for /etc/resolv.conf
-            with patch("builtins.open", unittest.mock.mock_open(read_data="nameserver 172.16.0.1\n")):
-                 ac = AnkiConnectAdapter(url="http://localhost:8765")
-                 assert ac.url == "http://172.16.0.1:8765"
+            with patch(
+                "builtins.open", unittest.mock.mock_open(read_data="nameserver 172.16.0.1\n")
+            ):
+                ac = AnkiConnectAdapter(url="http://localhost:8765")
+                assert ac.url == "http://172.16.0.1:8765"
 
 
 @pytest.mark.asyncio
@@ -242,6 +260,6 @@ async def test_wsl_detection_curl_found():
     with patch("platform.uname") as mock_uname:
         mock_uname.return_value.release = "microsoft-standard-WSL2"
         with patch("shutil.which", return_value="/mnt/c/Windows/System32/curl.exe"):
-             ac = AnkiConnectAdapter(url="http://localhost:8765")
-             assert ac.use_windows_curl is True
-             assert ac.url == "http://127.0.0.1:8765"
+            ac = AnkiConnectAdapter(url="http://localhost:8765")
+            assert ac.use_windows_curl is True
+            assert ac.url == "http://127.0.0.1:8765"
