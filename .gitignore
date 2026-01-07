@@ -51,3 +51,8 @@ obsidian-plugin/coverage/
 
 # Documentation Build
 site/
+
+# BMAD Framework
+_bmad/
+_bmad-output/
+.claude/
