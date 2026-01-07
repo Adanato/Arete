@@ -1,4 +1,3 @@
-
 import pytest
 import yaml
 import yaml.constructor
@@ -79,4 +78,3 @@ def test_make_editor_note_cloze_fallback_extra():
     out = make_editor_note("Cloze", "deck", [], fields)
     assert "## Back Extra" in out
     assert "fallback_extra" in out
-

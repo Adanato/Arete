@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -44,6 +43,7 @@ async def test_run_sync_logic_failure_exit():
             with pytest.raises(SystemExit) as exc:
                 await run_sync_logic(config)
             assert exc.value.code == 1
+
 
 def test_main_module_invoke():
     """
