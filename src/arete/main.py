@@ -1,15 +1,15 @@
 import platform
 import sys
 
-from arete.core.config import AppConfig
-from arete.core.pipeline import run_pipeline
+from arete.application.config import AppConfig
+from arete.application.parser import MarkdownParser
+from arete.application.pipeline import run_pipeline
+from arete.application.vault_service import VaultService
 from arete.domain.interfaces import AnkiBridge
-from arete.infrastructure.cache import ContentCache
-from arete.logging_utils import setup_logging
-from arete.services.anki_apy import AnkiApyAdapter
-from arete.services.anki_connect import AnkiConnectAdapter
-from arete.services.parser import MarkdownParser
-from arete.services.vault import VaultService
+from arete.infrastructure.adapters.anki_apy import AnkiApyAdapter
+from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
+from arete.infrastructure.persistence.cache import ContentCache
+from arete.infrastructure.utils.logging import setup_logging
 
 
 async def run_sync_logic(config: AppConfig):
@@ -94,7 +94,7 @@ def main():
     """
     Professional entry point that delegates to Typer.
     """
-    from arete.cli import app
+    from arete.interface.cli import app
 
     app()
 

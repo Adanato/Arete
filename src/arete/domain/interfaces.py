@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from .types import AnkiDeck, UpdateItem, WorkItem
+from .models import AnkiDeck, UpdateItem, WorkItem
 
 
 class AnkiBridge(ABC):

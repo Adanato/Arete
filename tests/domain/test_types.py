@@ -1,4 +1,4 @@
-from arete.domain.types import AnkiDeck
+from arete.domain.models import AnkiDeck
 
 
 def test_anki_deck_parents_simple():
