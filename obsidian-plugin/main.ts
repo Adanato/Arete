@@ -12,6 +12,7 @@ import {
 } from 'obsidian';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { CardView, CARD_VIEW_TYPE } from './CardView';
 
 interface AretePluginSettings {
 	pythonPath: string;
@@ -117,9 +118,49 @@ export default class AretePlugin extends Plugin {
 			},
 		});
 
+
 		// 4. Settings
 		this.addSettingTab(new AreteSettingTab(this.app, this));
+
+        // 5. Card Viewer
+        this.registerView(
+            CARD_VIEW_TYPE,
+            (leaf) => new CardView(leaf)
+        );
+
+        this.addRibbonIcon('sheets-in-box', 'Open Card Viewer', () => {
+            this.activateView();
+        });
+
+        this.addCommand({
+            id: 'open-card-view',
+            name: 'Open Card Viewer',
+            callback: () => {
+                this.activateView();
+            }
+        });
 	}
+
+    async activateView() {
+        const { workspace } = this.app;
+
+        let leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
+        
+        if (!leaf) {
+            const rightLeaf = workspace.getRightLeaf(false);
+            if (rightLeaf) {
+                 await rightLeaf.setViewState({
+                    type: CARD_VIEW_TYPE,
+                    active: true,
+                });
+            }
+             leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
+        }
+
+        if (leaf) {
+             workspace.revealLeaf(leaf);
+        }
+    }
 
 	onunload() {
 		if (this.statusBarItem) {
