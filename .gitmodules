@@ -1,0 +1,3 @@
+[submodule "apy"]
+	path = apy
+	url = git@github.com:Adanato/apy.git

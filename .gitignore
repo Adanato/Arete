@@ -44,7 +44,6 @@ obsidian-plugin/main.js
 # O2A Application Data (if any localized)
 # (User specific config is usually ignored if it contains secrets, but config.toml might be template)
 docker/anki_data/
-apy/
 *.log
 obsidian-plugin/main.js
 obsidian-plugin/coverage/
