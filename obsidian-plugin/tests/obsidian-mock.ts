@@ -141,5 +141,15 @@ export const createMockObsidian = () => {
 		MarkdownView: class {},
 		Editor: class {},
 		TFile: class {},
+		ItemView: class {
+			contentEl = {
+				empty: jest.fn(),
+				createEl: jest.fn().mockReturnValue({}),
+				createDiv: jest.fn().mockReturnValue({}),
+			};
+			constructor(leaf: any) {
+				/* no-op */
+			}
+		},
 	};
 };

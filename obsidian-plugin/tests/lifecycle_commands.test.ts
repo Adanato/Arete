@@ -1,6 +1,6 @@
 import './test-setup';
 import { App } from 'obsidian';
-import AretePlugin from '../main';
+import AretePlugin from '@/main';
 
 describe('AretePlugin Lifecycle and Commands', () => {
 	let plugin: AretePlugin;
@@ -9,8 +9,23 @@ describe('AretePlugin Lifecycle and Commands', () => {
 	beforeEach(() => {
 		app = new App();
 		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
+
+		// Initialize settings to prevent undefined access during onload
+		plugin.settings = {
+			pythonPath: 'python3',
+			areteScriptPath: '',
+			debugMode: false,
+			backend: 'auto',
+			workers: 4,
+			ankiConnectUrl: 'http://localhost:8765',
+			ankiMediaDir: '',
+			rendererMode: 'obsidian',
+		};
+
 		// Mock required methods
-		plugin.loadSettings = jest.fn().mockResolvedValue(undefined);
+		plugin.loadSettings = jest.fn().mockImplementation(async () => {
+			// Simulate loading settings (already set above)
+		});
 		plugin.addStatusBarItem = jest.fn().mockImplementation(() => ({
 			empty: jest.fn(),
 			setText: jest.fn(),

@@ -1,7 +1,8 @@
-import './test-setup';
+import '../../test-setup';
 import { App } from 'obsidian';
-import O2APlugin, { CheckResultModal } from '../main';
-import { createMockElement } from './test-setup';
+import O2APlugin from '@/main';
+import { CheckResultModal } from '@presentation/modals/CheckResultModal';
+import { createMockElement } from '../../test-setup';
 
 describe('CheckResultModal Deep Coverage', () => {
 	let plugin: O2APlugin;

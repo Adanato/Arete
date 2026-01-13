@@ -1,15 +1,18 @@
 import './test-setup';
 import { App, TFile } from 'obsidian';
-import O2APlugin from '../main';
+import AretePlugin from '@/main';
 
-describe('O2APlugin Integrity Check', () => {
-	let plugin: O2APlugin;
+describe('AretePlugin Integrity Check', () => {
+	let plugin: AretePlugin;
 	let app: App;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		app = new App();
-		plugin = new O2APlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
+		plugin.checkService = {
+			checkVaultIntegrity: jest.fn(),
+		} as any;
 	});
 
 	afterEach(() => {
@@ -40,8 +43,7 @@ describe('O2APlugin Integrity Check', () => {
 
 		await plugin.checkVaultIntegrity();
 
-		expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Bad.md'));
-		expect(mockConsoleError).not.toHaveBeenCalledWith(expect.stringContaining('Good.md'));
+		expect(plugin.checkService.checkVaultIntegrity).toHaveBeenCalled();
 
 		mockConsoleError.mockRestore();
 	});

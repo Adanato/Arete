@@ -169,6 +169,12 @@ jest.mock('obsidian', () => {
 			registerEvent() {
 				/* no-op */
 			}
+			registerView() {
+				/* no-op */
+			}
+			registerEditorExtension() {
+				/* no-op */
+			}
 		},
 		PluginSettingTab: class {
 			app: any;
@@ -199,6 +205,15 @@ jest.mock('obsidian', () => {
 		MarkdownView: class {},
 		Editor: class {},
 		TFile: class {},
+		ItemView: class {
+			contentEl = (global as any).mockCreateMockElement('div');
+			constructor(leaf: any) {
+				/* no-op */
+			}
+		},
+		MarkdownRenderer: {
+			render: jest.fn(),
+		},
 	};
 });
 

@@ -1,6 +1,7 @@
-import './test-setup';
+import '../../test-setup';
 import { App, Setting } from 'obsidian';
-import AretePlugin, { AreteSettingTab } from '../main';
+import AretePlugin from '@/main';
+import { AreteSettingTab } from '@presentation/settings/SettingTab';
 
 describe('AreteSettingTab Interaction Tests', () => {
 	let plugin: AretePlugin;
