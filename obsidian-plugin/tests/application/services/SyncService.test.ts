@@ -17,14 +17,18 @@ describe('SyncService', () => {
 		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue('/mock/vault/path');
 
 		settings = {
-			pythonPath: 'python3',
-			areteScriptPath: '',
-			debugMode: false,
+			python_path: 'python3',
+			arete_script_path: '',
+			debug_mode: false,
 			backend: 'auto',
 			workers: 4,
-			ankiConnectUrl: 'http://localhost:8765',
-			ankiMediaDir: '',
-			rendererMode: 'obsidian',
+			anki_connect_url: 'http://localhost:8765',
+			anki_media_dir: '',
+			renderer_mode: 'obsidian',
+			stats_algorithm: 'sm2',
+			stats_lapse_threshold: 3,
+			stats_ease_threshold: 2100,
+			stats_difficulty_threshold: 0.9, ui_expanded_decks: [], ui_expanded_concepts: [],
 		};
 
 		updateStatusBar = jest.fn();
@@ -50,8 +54,8 @@ describe('SyncService', () => {
 	});
 
 	test('runSync with all flags and custom settings', async () => {
-		service.settings.ankiConnectUrl = 'http://anki:8765';
-		service.settings.ankiMediaDir = '/anki/media';
+		service.settings.anki_connect_url = 'http://anki:8765';
+		service.settings.anki_media_dir = '/anki/media';
 		service.settings.backend = 'apy';
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
@@ -77,7 +81,7 @@ describe('SyncService', () => {
 	});
 
 	test('runSync with .py script path', async () => {
-		service.settings.areteScriptPath = '/path/to/o2a/main.py';
+		service.settings.arete_script_path = '/path/to/o2a/main.py';
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
@@ -95,8 +99,8 @@ describe('SyncService', () => {
 	});
 
 	test('runSync with custom binary script path', async () => {
-		service.settings.areteScriptPath = '/usr/local/bin/o2a-custom';
-		service.settings.debugMode = true;
+		service.settings.arete_script_path = '/usr/local/bin/o2a-custom';
+		service.settings.debug_mode = true;
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 

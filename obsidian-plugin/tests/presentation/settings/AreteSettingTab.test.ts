@@ -13,9 +13,9 @@ describe('AreteSettingTab Interaction Tests', () => {
 		app = new App();
 		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.settings = {
-			areteScriptPath: '/old/path',
-			pythonPath: 'python',
-			debugMode: false,
+			arete_script_path: '/old/path',
+			python_path: 'python',
+			debug_mode: false,
 			backend: 'auto',
 			workers: 4,
 		} as any;
@@ -48,7 +48,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('new-python');
-		expect(plugin.settings.pythonPath).toBe('new-python');
+		expect(plugin.settings.python_path).toBe('new-python');
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -58,7 +58,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('/new/script/path.py');
-		expect(plugin.settings.areteScriptPath).toBe('/new/script/path.py');
+		expect(plugin.settings.arete_script_path).toBe('/new/script/path.py');
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -68,7 +68,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 		expect(setting).toBeDefined();
 
 		await setting.mockToggle._onChange(true);
-		expect(plugin.settings.debugMode).toBe(true);
+		expect(plugin.settings.debug_mode).toBe(true);
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -119,7 +119,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('http://some-anki:1234');
-		expect(plugin.settings.ankiConnectUrl).toBe('http://some-anki:1234');
+		expect(plugin.settings.anki_connect_url).toBe('http://some-anki:1234');
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -129,7 +129,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('/tmp/media');
-		expect(plugin.settings.ankiMediaDir).toBe('/tmp/media');
+		expect(plugin.settings.anki_media_dir).toBe('/tmp/media');
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
@@ -142,7 +142,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 	});
 
 	test('Open Sample Modal button works', async () => {
-		plugin.settings.debugMode = true;
+		plugin.settings.debug_mode = true;
 		settingTab.display();
 		const debugSetting = findSettingByName('Check Results (Debug)');
 		expect(debugSetting).toBeDefined();

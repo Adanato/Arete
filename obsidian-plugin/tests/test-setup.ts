@@ -214,6 +214,7 @@ jest.mock('obsidian', () => {
 		MarkdownRenderer: {
 			render: jest.fn(),
 		},
+		requestUrl: jest.fn(),
 	};
 });
 

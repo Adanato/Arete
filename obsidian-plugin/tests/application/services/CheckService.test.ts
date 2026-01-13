@@ -18,14 +18,18 @@ describe('CheckService', () => {
 		// Mock Plugin
 		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
 		plugin.settings = {
-			pythonPath: 'python3',
-			areteScriptPath: '',
-			debugMode: false,
+			python_path: 'python3',
+			arete_script_path: '',
+			debug_mode: false,
 			backend: 'auto',
 			workers: 4,
-			ankiConnectUrl: 'http://localhost:8765',
-			ankiMediaDir: '',
-			rendererMode: 'obsidian',
+			anki_connect_url: 'http://localhost:8765',
+			anki_media_dir: '',
+			renderer_mode: 'obsidian',
+			stats_algorithm: 'sm2',
+			stats_lapse_threshold: 3,
+			stats_ease_threshold: 2100,
+			stats_difficulty_threshold: 0.9, ui_expanded_decks: [], ui_expanded_concepts: [],
 		};
 
 		service = new CheckService(app, plugin);
@@ -47,7 +51,7 @@ describe('CheckService', () => {
 	});
 
 	test('runCheck with .py script path', async () => {
-		plugin.settings.areteScriptPath = '/path/to/o2a/main.py';
+		plugin.settings.arete_script_path = '/path/to/o2a/main.py';
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 

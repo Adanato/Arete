@@ -53,8 +53,8 @@ export class SyncService {
 		log(`\n\n=== STARTING NEW SYNC RUN ===`);
 		log(`Vault: ${vaultPath}`);
 
-		const python = this.settings.pythonPath || 'python3';
-		const scriptPath = this.settings.areteScriptPath || '';
+		const python = this.settings.python_path || 'python3';
+		const scriptPath = this.settings.arete_script_path || '';
 
 		const cmd = python;
 		const args = [];
@@ -70,7 +70,7 @@ export class SyncService {
 			args.push('-m');
 			args.push('arete');
 
-			if (this.settings.debugMode) {
+			if (this.settings.debug_mode) {
 				args.push('--verbose');
 			}
 
@@ -79,7 +79,7 @@ export class SyncService {
 			log(`Trace: Using custom script/binary: ${scriptPath}`);
 			args.push(scriptPath);
 
-			if (this.settings.debugMode) {
+			if (this.settings.debug_mode) {
 				args.push('--verbose');
 			}
 
@@ -89,7 +89,7 @@ export class SyncService {
 			args.push('-m');
 			args.push('arete');
 
-			if (this.settings.debugMode) {
+			if (this.settings.debug_mode) {
 				args.push('--verbose');
 			}
 
@@ -102,6 +102,8 @@ export class SyncService {
 
 		if (force) {
 			args.push('--force');
+			// If forcing, we also typically want to ignore/clear cache to ensure fresh state
+			args.push('--clear-cache');
 		}
 
 		if (this.settings.backend && this.settings.backend !== 'auto') {
@@ -115,16 +117,16 @@ export class SyncService {
 		}
 
 		if (
-			this.settings.ankiConnectUrl &&
-			this.settings.ankiConnectUrl !== 'http://localhost:8765'
+			this.settings.anki_connect_url &&
+			this.settings.anki_connect_url !== 'http://localhost:8765'
 		) {
 			args.push('--anki-connect-url');
-			args.push(this.settings.ankiConnectUrl);
+			args.push(this.settings.anki_connect_url);
 		}
 
-		if (this.settings.ankiMediaDir) {
+		if (this.settings.anki_media_dir) {
 			args.push('--anki-media-dir');
-			args.push(this.settings.ankiMediaDir);
+			args.push(this.settings.anki_media_dir);
 		}
 
 		args.push(targetPath || vaultPath);

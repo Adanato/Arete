@@ -4,17 +4,25 @@ import * as path from 'path';
 
 import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
 import { CardView, CARD_VIEW_TYPE } from '@presentation/views/CardView';
+import { StatisticsView, STATS_VIEW_TYPE } from '@presentation/views/StatisticsView';
 import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
+import { StatsService, StatsCache } from '@application/services/StatsService';
 import { createCardGutter, highlightCardEffect } from '@presentation/extensions/CardGutterExtension';
+
+interface AreteData extends AretePluginSettings {
+	statsCache?: StatsCache;
+}
 
 export default class AretePlugin extends Plugin {
 	settings: AretePluginSettings;
+	statsCache: StatsCache;
 	statusBarItem: HTMLElement;
 	syncService: SyncService;
 	checkService: CheckService;
+	statsService: StatsService;
 	templateRenderer: TemplateRenderer;
 
 	async onload() {
@@ -25,12 +33,14 @@ export default class AretePlugin extends Plugin {
 			console.log('[Arete] Settings loaded:', this.settings);
 
 			// Initialize Services
-			this.templateRenderer = new TemplateRenderer(this.app, this.settings.ankiConnectUrl);
-			this.templateRenderer.setMode(this.settings.rendererMode);
+			this.templateRenderer = new TemplateRenderer(this.app, this.settings.anki_connect_url);
+			this.templateRenderer.setMode(this.settings.renderer_mode);
 			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
 				console.log(msg); // Default logger
 			});
 			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
+			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
+			
 			console.log('[Arete] Services initialized');
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
@@ -44,6 +54,14 @@ export default class AretePlugin extends Plugin {
 		// 2. Ribbon Icon
 		this.addRibbonIcon('sheets-in-box', 'Sync to Anki (Arete)', (evt: MouseEvent) => {
 			this.runSync();
+		});
+
+		this.addRibbonIcon('refresh-cw', 'Force Sync All (Arete)', (evt: MouseEvent) => {
+			this.runSync(false, null, true);
+		});
+
+		this.addRibbonIcon('bar-chart-2', 'Arete Statistics', (evt: MouseEvent) => {
+			this.activateStatsView();
 		});
 
 		// 3. Commands
@@ -109,11 +127,28 @@ export default class AretePlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: 'arete-sync-force-all',
+			name: 'Force Sync All (Clear Cache)',
+			callback: () => {
+				this.runSync(false, null, true);
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-open-stats',
+			name: 'Open Statistics Dashboard',
+			callback: () => {
+				this.activateStatsView();
+			},
+		});
+
 		// 4. Settings
 		this.addSettingTab(new AreteSettingTab(this.app, this));
 
-		// 5. Card Viewer
+		// 5. Views
 		this.registerView(CARD_VIEW_TYPE, (leaf) => new CardView(leaf, this));
+		this.registerView(STATS_VIEW_TYPE, (leaf) => new StatisticsView(leaf, this));
 
 		this.addRibbonIcon('layout-list', 'Open Card Viewer', () => {
 			this.activateView();
@@ -129,10 +164,20 @@ export default class AretePlugin extends Plugin {
 
 		// 6. Card Gutter Extension
 		this.registerEditorExtension(
-			createCardGutter((cardIndex) => {
-				this.highlightCardLines(cardIndex);
-				this.activateView(cardIndex);
-			}),
+			createCardGutter(
+				(cardIndex) => {
+					this.highlightCardLines(cardIndex);
+					this.activateView(cardIndex);
+				},
+				(nid) => {
+					// Lookup stats for this card
+					const activeFile = this.app.workspace.getActiveFile();
+					if (!activeFile) return null;
+					const stats = this.statsService.getCache().concepts[activeFile.path];
+					if (!stats || !stats.problematicCards) return null;
+					return stats.problematicCards.find(c => c.noteId === nid) || null;
+				}
+			),
 		);
 	}
 
@@ -180,6 +225,26 @@ export default class AretePlugin extends Plugin {
 					setTimeout(() => view.setActiveCard(expandCardIndex), 0);
 				}
 			}
+		}
+	}
+
+	async activateStatsView() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(STATS_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) {
+				await rightLeaf.setViewState({
+					type: STATS_VIEW_TYPE,
+					active: true,
+				});
+			}
+			leaf = workspace.getLeavesOfType(STATS_VIEW_TYPE)[0];
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -232,13 +297,25 @@ export default class AretePlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		this.statsCache = data?.statsCache;
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
+		await this.saveData({ ...this.settings, statsCache: this.statsCache });
 		// Update services with new settings
 		this.syncService.settings = this.settings;
 		this.checkService.settings = this.settings;
+		if (this.statsService) {
+			this.statsService.settings = this.settings;
+		}
+	}
+
+	async saveStats() {
+		if (this.statsService) {
+			this.statsCache = this.statsService.getCache();
+			await this.saveSettings();
+		}
 	}
 }

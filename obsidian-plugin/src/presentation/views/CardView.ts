@@ -200,7 +200,7 @@ export class CardView extends ItemView {
 			// Render Logic: Preview Mode
 			if (this.previewMode) {
 				const fields = { ...card }; // Clone
-				const isObsidianMode = this.plugin.settings.rendererMode === 'obsidian';
+				const isObsidianMode = this.plugin.settings.renderer_mode === 'obsidian';
 
 				// Helper to find value case-insensitively
 				const getField = (name: string) => {
@@ -374,7 +374,7 @@ export class CardView extends ItemView {
 	}
 
 	async openInAnki(nid: number | string) {
-		const url = this.plugin.settings.ankiConnectUrl || 'http://127.0.0.1:8765';
+		const url = this.plugin.settings.anki_connect_url || 'http://127.0.0.1:8765';
 		try {
 			const response = await requestUrl({
 				url: url,

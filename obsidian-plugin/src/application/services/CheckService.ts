@@ -18,8 +18,8 @@ export class CheckService {
 
 	async runCheck(filePath: string) {
 		new Notice('Checking file...');
-		const python = this.settings.pythonPath || 'python3';
-		const scriptPath = this.settings.areteScriptPath || '';
+		const python = this.settings.python_path || 'python3';
+		const scriptPath = this.settings.arete_script_path || '';
 
 		const cmd = python;
 		const args = [];
@@ -71,14 +71,14 @@ export class CheckService {
 
 	async runFix(filePath: string): Promise<void> {
 		const settings = this.settings;
-		const pythonPath = settings.pythonPath || 'python3';
-		const scriptPath = settings.areteScriptPath;
+		const pythonPath = settings.python_path || 'python3';
+		const scriptPath = settings.arete_script_path;
 
 		let cmd = '';
 		let args: string[] = [];
 
 		if (scriptPath && scriptPath.endsWith('.py')) {
-			const scriptDir = path.dirname(settings.areteScriptPath);
+			const scriptDir = path.dirname(settings.arete_script_path);
 			cmd = pythonPath;
 			args = ['-m', 'arete', 'fix-file', filePath];
 		} else {
@@ -109,7 +109,7 @@ export class CheckService {
 
 	async testConfig() {
 		new Notice('Testing configuration...');
-		const python = this.settings.pythonPath || 'python3';
+		const python = this.settings.python_path || 'python3';
 
 		try {
 			const child = spawn(python, ['--version']);
