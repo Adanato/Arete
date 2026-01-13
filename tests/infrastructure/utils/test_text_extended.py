@@ -7,6 +7,7 @@ from arete.infrastructure.utils.text import (
     apply_fixes,
     make_editor_note,
     parse_frontmatter,
+    scrub_internal_keys,
     validate_frontmatter,
 )
 
@@ -17,7 +18,7 @@ def test_parse_frontmatter_tabs():
     """
     text = "---\n\tkey: value\n---\ncontent"
     meta, rest = parse_frontmatter(text)
-    assert meta == {"key": "value"}
+    assert scrub_internal_keys(meta) == {"key": "value"}
     assert rest == "content"
 
 

@@ -97,17 +97,53 @@ class AnkiConnectAdapter(AnkiBridge):
             self.logger.error(f"Failed to ensure deck '{name}': {e}")
             return False
 
+    async def ensure_model_has_source_field(self, model_name: str) -> bool:
+        """
+        Ensure the note model has the _obsidian_source field.
+        This enables backwards compatibility for existing cards.
+        """
+        cache_key = f"_source_field_{model_name}"
+        if hasattr(self, cache_key):
+            return True
+
+        try:
+            # Get current model fields
+            fields = await self._invoke("modelFieldNames", modelName=model_name)
+            if "_obsidian_source" not in fields:
+                # Add the field to the model
+                await self._invoke(
+                    "modelFieldAdd",
+                    modelName=model_name,
+                    fieldName="_obsidian_source",
+                )
+                self.logger.info(f"Added '_obsidian_source' field to model '{model_name}'")
+
+            setattr(self, cache_key, True)
+            return True
+        except Exception as e:
+            self.logger.warning(f"Could not add _obsidian_source field to '{model_name}': {e}")
+            return False
+
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
         results = []
         for item in work_items:
             note = item.note
             try:
                 # Convert fields to HTML while preserving MathJax
-                html_fields = {k: self._to_html(v) for k, v in note.fields.items()}
+                # Skip HTML conversion for internal fields like _obsidian_source
+                html_fields = {}
+                for k, v in note.fields.items():
+                    if k == "_obsidian_source":
+                        html_fields[k] = v
+                    else:
+                        html_fields[k] = self._to_html(v)
 
                 # Ensure deck exists
                 if not await self.ensure_deck(note.deck):
                     raise Exception(f"Failed to ensure deck '{note.deck}'")
+
+                # Ensure model has _obsidian_source field (backwards compatibility)
+                await self.ensure_model_has_source_field(note.model)
 
                 target_nid = None
                 info = None

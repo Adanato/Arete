@@ -12,10 +12,15 @@ from arete.infrastructure.utils.text import convert_math_to_tex_delimiters, make
 
 class MarkdownParser:
     def __init__(
-        self, vault_root: Path, anki_media_dir: Path, logger: logging.Logger | None = None
+        self,
+        vault_root: Path,
+        anki_media_dir: Path,
+        ignore_cache: bool = False,
+        logger: logging.Logger | None = None,
     ):
         self.vault_root = vault_root
         self.anki_media_dir = anki_media_dir
+        self.ignore_cache = ignore_cache
         self.logger = logger or logging.getLogger(__name__)
 
     def parse_file(
@@ -95,6 +100,7 @@ class MarkdownParser:
                 # 2) IDs
                 nid = sanitize(card.get("nid", "")).strip() or None
                 cid = sanitize(card.get("cid", "")).strip() or None
+                start_line = int(card.get("__line__", 0))
 
                 # 3) Deck
                 deck_this = (
@@ -111,7 +117,20 @@ class MarkdownParser:
                 # We must record the deck even if NID is missing (to protect the deck from deletion)
                 inventory.append({"nid": nid, "deck": deck_this})
 
-                # 4) Calculate hash check
+                # 4) Add Obsidian source location for linking back
+                try:
+                    relative_path = md_path.relative_to(self.vault_root)
+                    vault_name = self.vault_root.name
+                    # Store as a simple string format: vault|path|line
+                    # Use start_line so Advanced URI can jump to the exact location
+                    fields["_obsidian_source"] = (
+                        f"{vault_name}|{relative_path.as_posix()}|{start_line}"
+                    )
+                except ValueError:
+                    # File not in vault root, skip source field
+                    pass
+
+                # 5) Calculate hash check
                 # We use make_editor_note to produce the canonical content for hashing
                 content = make_editor_note(
                     model, deck_this, base_tags, fields, nid=nid, cid=cid, markdown=True
@@ -119,7 +138,7 @@ class MarkdownParser:
                 content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
 
                 cached_hash = cache.get_hash(md_path, idx)
-                if cached_hash == content_hash:
+                if not self.ignore_cache and cached_hash == content_hash:
                     self.logger.debug(f"[cache-hit] {md_path} card#{idx}: skipping")
                     continue
 
@@ -129,8 +148,8 @@ class MarkdownParser:
                         deck=deck_this,
                         fields=fields,
                         tags=base_tags,
-                        start_line=0,
-                        end_line=0,
+                        start_line=start_line,
+                        end_line=start_line,  # Frontmatter cards are single-block usually
                         nid=nid,
                         cid=cid,
                         content_hash=content_hash,

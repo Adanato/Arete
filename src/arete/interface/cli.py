@@ -296,13 +296,17 @@ def check_file(
                                 ),
                             }
                         )
-                    elif not card:  # Empty dict or None (if handled by safe_load as None)
+                    elif not {k: v for k, v in card.items() if not k.startswith("__")}:
+                        line = card.get("__line__", i + 1)
                         result["ok"] = False
-                        result["errors"].append({"line": 1, "message": f"Card #{i + 1} is empty."})
+                        result["errors"].append(
+                            {"line": line, "message": f"Card #{i + 1} is empty."}
+                        )
                     else:
                         # Heuristic: Check for common primary keys
                         # Most Anki notes need a 'Front', 'Text' (Cloze), 'Question', or 'Term'
-                        keys = set(card.keys())
+                        line = card.get("__line__", i + 1)
+                        keys = {k for k in card.keys() if not k.startswith("__")}
                         # We look for at least one "Primary" looking key.
                         # We also check if the user is using a custom model?
                         # If the user defines explicit fields in Card 1,
@@ -332,7 +336,7 @@ def check_file(
                                     result["ok"] = False
                                     result["errors"].append(
                                         {
-                                            "line": 1,
+                                            "line": line,
                                             "message": f"Card #{i + 1} is missing 'Front' field "
                                             "(present in first card).",
                                         }
@@ -342,7 +346,7 @@ def check_file(
                                     result["ok"] = False
                                     result["errors"].append(
                                         {
-                                            "line": 1,
+                                            "line": line,
                                             "message": f"Card #{i + 1} is missing 'Text' field "
                                             "(present in first card).",
                                         }
@@ -354,7 +358,7 @@ def check_file(
                                 result["ok"] = False
                                 result["errors"].append(
                                     {
-                                        "line": 1,
+                                        "line": line,
                                         "message": f"Card #{i + 1} has only 'Back' field. "
                                         "Missing 'Front'?",
                                     }

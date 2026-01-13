@@ -53,7 +53,25 @@ def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
     if "\t" in raw:
         raw = raw.replace("\t", "  ")
     try:
-        meta = yaml.safe_load(raw) or {}
+        # Use our custom loader to get line numbers and handle duplicates
+        meta = yaml.load(raw, Loader=UniqueKeyLoader) or {}
+
+        # Add offset to __line__ to make it absolute
+        # m.start(1) is the beginning of the captured YAML content.
+        offset = md_text[: m.start(1)].count("\n")
+
+        def _add_offset(d):
+            if isinstance(d, dict):
+                if "__line__" in d:
+                    d["__line__"] += offset
+                for v in d.values():
+                    _add_offset(v)
+            elif isinstance(d, list):
+                for v in d:
+                    _add_offset(v)
+
+        _add_offset(meta)
+
     except Exception as e:
         return {"__yaml_error__": str(e)}, md_text
     rest = md_text[m.end() :]
@@ -74,7 +92,12 @@ class UniqueKeyLoader(yaml.SafeLoader):
                     None, None, f"found duplicate key '{key}'", key_node.start_mark
                 )
             mapping.add(key)
-        return super().construct_mapping(node, deep)
+
+        result = super().construct_mapping(node, deep)
+        if isinstance(result, dict):
+            # Inject line number (1-based)
+            result["__line__"] = node.start_mark.line + 1
+        return result
 
 
 def validate_frontmatter(md_text: str) -> dict[str, Any]:
@@ -122,9 +145,19 @@ def validate_frontmatter(md_text: str) -> dict[str, Any]:
         raise e
 
 
+def scrub_internal_keys(d: Any) -> Any:
+    """Recursively remove keys starting with __"""
+    if isinstance(d, dict):
+        return {k: scrub_internal_keys(v) for k, v in d.items() if not k.startswith("__")}
+    elif isinstance(d, list):
+        return [scrub_internal_keys(v) for v in d]
+    return d
+
+
 def rebuild_markdown_with_frontmatter(meta: dict[str, Any], body: str) -> str:
+    clean_meta = scrub_internal_keys(meta)
     yaml_text = yaml.dump(
-        meta,
+        clean_meta,
         Dumper=_LiteralDumper,
         sort_keys=False,
         allow_unicode=True,
@@ -196,24 +229,19 @@ def make_editor_note(
     lines += [f"markdown: {'true' if markdown else 'false'}", "", "# Note", ""]
     mlow = model.lower()
     if mlow == "basic":
-        lines += [
-            "## Front",
-            sanitize(fields.get("Front", "")),
-            "",
-            "## Back",
-            sanitize(fields.get("Back", "")),
-            "",
-        ]
+        f_list = ["Front", "Back"]
     elif mlow == "cloze":
-        lines += [
-            "## Text",
-            sanitize(fields.get("Text", "")),
-            "",
-            "## Back Extra",
-            sanitize(fields.get("Back Extra", "")) or sanitize(fields.get("Extra", "")),
-            "",
-        ]
+        f_list = ["Text", "Back Extra"]
     else:
-        for k, v in fields.items():
-            lines += [f"## {k}", sanitize(v), ""]
+        f_list = sorted(fields.keys())
+
+    # Always ensure _obsidian_source is included if present
+    if "_obsidian_source" in fields and "_obsidian_source" not in f_list:
+        f_list.append("_obsidian_source")
+
+    for k in f_list:
+        v = fields.get(k, "")
+        if k == "Back Extra" and not v:
+            v = fields.get("Extra", "")
+        lines += [f"## {k}", sanitize(v), ""]
     return "\n".join(lines)

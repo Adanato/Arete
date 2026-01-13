@@ -44,7 +44,9 @@ async def run_sync_logic(config: AppConfig):
     assert config.vault_root is not None
     assert config.anki_media_dir is not None
 
-    parser = MarkdownParser(config.vault_root, config.anki_media_dir, logger)
+    parser = MarkdownParser(
+        config.vault_root, config.anki_media_dir, ignore_cache=config.force, logger=logger
+    )
 
     # Anki Adapter Selection
     anki_bridge: AnkiBridge

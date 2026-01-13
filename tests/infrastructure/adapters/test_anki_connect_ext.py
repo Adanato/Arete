@@ -17,7 +17,10 @@ def adapter():
 @pytest.mark.asyncio
 @respx.mock
 async def test_anki_connect_update_existing_with_tags_and_move(adapter):
-    with patch.object(adapter, "ensure_deck", return_value=True):
+    with (
+        patch.object(adapter, "ensure_deck", return_value=True),
+        patch.object(adapter, "ensure_model_has_source_field", return_value=True),
+    ):
         # Calls:
         # 1. notesInfo (existence check)
         # 2. updateNoteFields
@@ -65,7 +68,10 @@ async def test_anki_connect_update_existing_with_tags_and_move(adapter):
 @pytest.mark.asyncio
 @respx.mock
 async def test_anki_connect_notes_info_missing_cards(adapter):
-    with patch.object(adapter, "ensure_deck", return_value=True):
+    with (
+        patch.object(adapter, "ensure_deck", return_value=True),
+        patch.object(adapter, "ensure_model_has_source_field", return_value=True),
+    ):
         respx.post("http://localhost:8765").mock(
             side_effect=[
                 httpx.Response(

@@ -40,3 +40,25 @@ def test_config_default_cwd_when_no_path(mock_home):
 
     cfg = resolve_config(overrides)
     assert cfg.root_input == Path.cwd().resolve()
+
+
+def test_config_resets_vault_root_if_input_outside(tmp_path):
+    # configured vault root
+    configured_root = tmp_path / "ConfigVault"
+    configured_root.mkdir()
+
+    # input path outside
+    input_path = tmp_path / "Other" / "file.md"
+    input_path.parent.mkdir(parents=True)
+    input_path.touch()
+
+    overrides = {
+        "root_input": str(input_path),
+        "vault_root": str(configured_root),
+    }
+
+    cfg = resolve_config(overrides)
+
+    # Heuristic should kick in: input is not relative to configured root
+    # So vault_root should reset to input's parent
+    assert cfg.vault_root == input_path.parent.resolve()

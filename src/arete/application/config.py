@@ -179,11 +179,16 @@ def resolve_config(
         # No CLI path provided? Prefer configured vault_root, else CWD.
         config.root_input = config.vault_root if config.vault_root else Path.cwd()
 
+    # Ensure root_input is absolute for relative_to checks
+    config.root_input = config.root_input.resolve()
+
     if config.vault_root is None:
         config.vault_root = (
             config.root_input if config.root_input.is_dir() else config.root_input.parent
-        )
+        ).resolve()
     else:
+        # Ensure vault_root is absolute
+        config.vault_root = config.vault_root.resolve()
         # Heuristic: If root_input is NOT inside the configured vault_root,
         # then the configured vault_root (e.g. from ~/.config) is likely irrelevant for this run.
         # We should default to the root_input as the vault root.
@@ -195,7 +200,7 @@ def resolve_config(
             # So here we detect mismatch.
             config.vault_root = (
                 config.root_input if config.root_input.is_dir() else config.root_input.parent
-            )
+            ).resolve()
 
     if config.anki_media_dir is None:
         _, detected_media = detect_anki_paths()
