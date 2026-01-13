@@ -1,4 +1,62 @@
-# Strategy 2: Extract Core Logic from Apy
+# Arete v2.0 Planning Document
+
+## Vision Overview
+
+### 🏗️ Architecture Upgrade
+| Feature | Impact |
+|---------|--------|
+| **Direct Apy Integration** | No subprocess spawning, 3-5x faster sync |
+| **Vendor core logic** | Full control, no external dependencies |
+| **FSRS parity in Apy** | Same stats available offline and online |
+
+### ⚡ Performance
+| Feature | Impact |
+|---------|--------|
+| **HTTP Server Mode** | Persistent connection, streaming progress |
+| **Warm Anki connection** | No cold start per sync |
+| **Parallel card operations** | Batch writes to DB |
+
+### 🎨 UX Polish
+| Feature | Status |
+|---------|--------|
+| Status bar with last sync | ✅ Done (v1.x) |
+| Sync on save | ✅ Done (v1.x) |
+| Gutter right-click menu | Planned |
+| Due date on hover | Planned |
+| Leech notifications | Planned |
+
+### 🔬 Advanced Features
+| Feature | Description |
+|---------|-------------|
+| **Review Mode in Obsidian** | Study cards without leaving Obsidian |
+| **Graph View Coloring** | Color nodes by retention/health |
+| **Learning Velocity Dashboard** | Track progress over time |
+| **Bulk Card Operations** | Suspend/reschedule multiple cards |
+
+---
+
+## v2.0 Release Criteria
+
+1. ✅ No subprocess calls (pure Python)
+2. ✅ Stats work with both backends (Apy + AnkiConnect parity)
+3. ✅ Gutter right-click menu (suspend, reschedule)
+4. ✅ HTTP server mode (optional, for power users)
+5. ✅ E2E tests for Obsidian plugin
+
+---
+
+## Versioning Strategy
+
+| Version | Theme |
+|---------|-------|
+| **v1.0** | Core sync, basic plugin |
+| **v1.1** | Card health gutter, stats dashboard |
+| **v1.2** | UX polish (settings, commands) |
+| **v2.0** | Architecture overhaul + advanced features |
+
+---
+
+# Implementation: Extract Core Logic from Apy
 
 ## Executive Summary
 
@@ -19,10 +77,10 @@
 
 | Module | Purpose |
 |--------|---------|
-| [text.py](file:///Users/adam/Research/arete/src/arete/infrastructure/utils/text.py) | `make_editor_note()`, `convert_math_to_tex_delimiters()`, frontmatter parsing |
-| [parser.py](file:///Users/adam/Research/arete/src/arete/application/parser.py) | Card extraction from Obsidian markdown |
-| [models.py](file:///Users/adam/Research/arete/src/arete/domain/models.py) | `WorkItem`, `UpdateItem`, domain models |
-| [interfaces.py](file:///Users/adam/Research/arete/src/arete/domain/interfaces.py) | `AnkiBridge` interface (adapter pattern) |
+| `text.py` | `make_editor_note()`, `convert_math_to_tex_delimiters()`, frontmatter parsing |
+| `parser.py` | Card extraction from Obsidian markdown |
+| `models.py` | `WorkItem`, `UpdateItem`, domain models |
+| `interfaces.py` | `AnkiBridge` interface (adapter pattern) |
 
 ---
 
@@ -32,10 +90,10 @@
 
 | Apy File | Lines | What to Extract |
 |----------|-------|-----------------|
-| [anki.py](file:///Users/adam/Research/arete/apy/src/apyanki/anki.py) | 749 | `Anki` class (DB connection, note operations) |
-| [note.py](file:///Users/adam/Research/arete/apy/src/apyanki/note.py) | 900 | `NoteData.add_to_collection()`, `NoteData.update_or_add_to_collection()` |
-| [fields.py](file:///Users/adam/Research/arete/apy/src/apyanki/fields.py) | 287 | `convert_text_to_field()` (markdown→Anki HTML) |
-| [markdown_math.py](file:///Users/adam/Research/arete/apy/src/apyanki/markdown_math.py) | 67 | `MathProtectExtension` (protects $$ during markdown conversion) |
+| `anki.py` | 749 | `Anki` class (DB connection, note operations) |
+| `note.py` | 900 | `NoteData.add_to_collection()`, `NoteData.update_or_add_to_collection()` |
+| `fields.py` | 287 | `convert_text_to_field()` (markdown→Anki HTML) |
+| `markdown_math.py` | 67 | `MathProtectExtension` (protects $$ during markdown conversion) |
 
 ### Files to Discard
 
@@ -275,8 +333,9 @@ def markdown_to_anki_html(text: str, latex_mode: str = "mathjax") -> str:
 
 ---
 
-## Decision Points for You
+## Decision Points
 
 1. **Start with Phase 1 only?** Lower risk, faster, still subprocess-free
 2. **Go straight to Phase 2?** More work upfront, full control forever
 3. **Keep AnkiConnect for online, Apy for offline?** Yes, this is the right dual-backend strategy
+
