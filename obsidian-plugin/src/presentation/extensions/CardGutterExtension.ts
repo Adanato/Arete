@@ -73,7 +73,7 @@ class CardGutterMarker extends GutterMarker {
 		lineIndex: number,
 		totalLines: number,
 		stats: ProblematicCard | null,
-		onClick: () => void
+		onClick: () => void,
 	) {
 		super();
 		this.index = index;
@@ -89,10 +89,10 @@ class CardGutterMarker extends GutterMarker {
 		const marker = document.createElement('div');
 		marker.className = 'arete-gutter-marker';
 		marker.dataset.cardIndex = String(this.index);
-		marker.style.position = 'relative'; 
-		marker.style.height = '100%';       
-		marker.style.width = '100%';        
-		marker.style.minWidth = '20px';     
+		marker.style.position = 'relative';
+		marker.style.height = '100%';
+		marker.style.width = '100%';
+		marker.style.minWidth = '20px';
 
 		if (this.isStart) {
 			marker.classList.add('arete-gutter-start');
@@ -106,10 +106,10 @@ class CardGutterMarker extends GutterMarker {
 			const badge = document.createElement('span');
 			badge.className = 'arete-gutter-badge';
 			badge.textContent = String(this.index + 1);
-			
+
 			badge.style.position = 'absolute';
 			badge.style.top = '0';
-			badge.style.right = '6px'; 
+			badge.style.right = '6px';
 			badge.style.fontSize = '9px';
 			badge.style.lineHeight = '10px';
 			badge.style.fontWeight = 'bold';
@@ -120,19 +120,19 @@ class CardGutterMarker extends GutterMarker {
 			if (this.stats) {
 				const statsDiv = document.createElement('div');
 				statsDiv.className = 'arete-gutter-stats';
-				
+
 				statsDiv.style.position = 'absolute';
 				statsDiv.style.bottom = '1px';
 				statsDiv.style.right = '6px';
-				statsDiv.style.fontSize = '8px'; 
+				statsDiv.style.fontSize = '8px';
 				statsDiv.style.lineHeight = '8px';
 				statsDiv.style.fontWeight = 'bold';
 				statsDiv.style.textAlign = 'right';
 				statsDiv.style.zIndex = '2';
-				
+
 				let text = '';
 				let color = 'var(--text-muted)';
-				
+
 				if (this.stats.difficulty && this.stats.difficulty > 0) {
 					const diff = Math.round(this.stats.difficulty * 100);
 					text = `${diff}%`;
@@ -143,7 +143,7 @@ class CardGutterMarker extends GutterMarker {
 					if (this.stats.lapses > 5) color = 'var(--color-red)';
 					else color = 'var(--color-orange)';
 				} else {
-					text = `${Math.round(this.stats.ease / 10)}%`; 
+					text = `${Math.round(this.stats.ease / 10)}%`;
 				}
 
 				statsDiv.textContent = text;
@@ -156,7 +156,7 @@ class CardGutterMarker extends GutterMarker {
 		// Add the colored bar
 		const bar = document.createElement('div');
 		bar.className = 'arete-gutter-bar';
-		
+
 		bar.style.position = 'absolute';
 		bar.style.right = '0';
 		bar.style.top = '0';
@@ -164,21 +164,24 @@ class CardGutterMarker extends GutterMarker {
 		bar.style.height = '100%';
 		bar.style.marginTop = '-1px';
 		bar.style.paddingBottom = '1px';
-		
+
 		bar.style.transition = 'width 0.15s ease-out, box-shadow 0.15s ease-out';
-		
+
 		// Color Logic: Solid color for all lines, fade-out gradient on last line only
 		let barColor = 'var(--interactive-accent)';
 		let shadowColor = 'var(--interactive-accent)';
-		
-		if (this.stats && (this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))) {
+
+		if (
+			this.stats &&
+			(this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))
+		) {
 			barColor = 'var(--color-red)';
 			shadowColor = 'var(--color-red)';
 		} else if (this.stats && this.stats.difficulty && this.stats.difficulty > 0.5) {
 			barColor = 'var(--color-orange)';
 			shadowColor = 'var(--color-orange)';
 		}
-		
+
 		// Last line: fade from solid color to transparent
 		if (this.isEnd) {
 			bar.style.background = `linear-gradient(to bottom, ${barColor}, transparent)`;
@@ -190,30 +193,32 @@ class CardGutterMarker extends GutterMarker {
 
 		// Helper to update all segments of this card
 		const setCardState = (hover: boolean, active: boolean) => {
-			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
-				const b = el.querySelector('.arete-gutter-bar') as HTMLElement;
-				if (hover) el.classList.add('arete-gutter-hover');
-				else el.classList.remove('arete-gutter-hover');
-				
-				if (active) el.classList.add('arete-gutter-active');
-				
-				const isActive = el.classList.contains('arete-gutter-active');
-				const isHover = el.classList.contains('arete-gutter-hover');
-				
-				if (isActive || isHover) {
-					if (b) {
-						b.style.width = '6px';
-						b.style.boxShadow = `0 0 10px ${shadowColor}`;
-						b.style.zIndex = '10';
+			document
+				.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`)
+				.forEach((el) => {
+					const b = el.querySelector('.arete-gutter-bar') as HTMLElement;
+					if (hover) el.classList.add('arete-gutter-hover');
+					else el.classList.remove('arete-gutter-hover');
+
+					if (active) el.classList.add('arete-gutter-active');
+
+					const isActive = el.classList.contains('arete-gutter-active');
+					const isHover = el.classList.contains('arete-gutter-hover');
+
+					if (isActive || isHover) {
+						if (b) {
+							b.style.width = '6px';
+							b.style.boxShadow = `0 0 10px ${shadowColor}`;
+							b.style.zIndex = '10';
+						}
+					} else {
+						if (b) {
+							b.style.width = '3px';
+							b.style.boxShadow = 'none';
+							b.style.zIndex = '0';
+						}
 					}
-				} else {
-					if (b) {
-						b.style.width = '3px';
-						b.style.boxShadow = 'none';
-						b.style.zIndex = '0';
-					}
-				}
-			});
+				});
 		};
 
 		marker.addEventListener('mouseenter', () => setCardState(true, false));
@@ -310,7 +315,7 @@ function parseCardRanges(text: string): ParseResult {
 			currentCard = { startLine: i, index: cardIndex, nid: null };
 			cardIndex++;
 		}
-		
+
 		// Parse NID in current card
 		if (currentCard) {
 			const nidMatch = trimmed.match(/^nid:\s*['"]?(\d+)['"]?/);
@@ -372,11 +377,11 @@ const cardHighlightField = StateField.define<DecorationSet>({
 					// Clear highlight
 					return Decoration.none;
 				}
-				
+
 				const cardIndex = e.value.cardIndex;
 				const result = tr.state.field(cardRangesField);
 				const range = result.ranges.find((r) => r.index === cardIndex);
-				
+
 				if (range) {
 					const builder = new RangeSetBuilder<Decoration>();
 					for (let lineNum = range.startLine; lineNum <= range.endLine; lineNum++) {
@@ -397,7 +402,7 @@ const cardHighlightField = StateField.define<DecorationSet>({
 // Create the gutter extension
 export function createCardGutter(
 	onCardClick: (cardIndex: number) => void,
-	getCardStats: (nid: number) => ProblematicCard | null = () => null
+	getCardStats: (nid: number) => ProblematicCard | null = () => null,
 ) {
 	return [
 		cardRangesField,
@@ -426,7 +431,7 @@ export function createCardGutter(
 						const isEnd = lineNum === range.endLine;
 						const totalLines = range.endLine - range.startLine + 1;
 						const lineIndex = lineNum - range.startLine;
-						
+
 						// Fix: Pass stats to ALL lines so the bar color is consistent opacity/gradient
 						let stats = null;
 						if (range.nid) {
@@ -437,12 +442,12 @@ export function createCardGutter(
 							line.from,
 							line.from,
 							new CardGutterMarker(
-								range.index, 
-								isStart, 
-								isEnd, 
-								lineIndex, 
-								totalLines, 
-								stats, 
+								range.index,
+								isStart,
+								isEnd,
+								lineIndex,
+								totalLines,
+								stats,
 								() => onCardClick(range.index),
 							),
 						);

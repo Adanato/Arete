@@ -23,7 +23,9 @@ describe('AretePlugin Lifecycle and Commands', () => {
 			stats_algorithm: 'sm2',
 			stats_lapse_threshold: 3,
 			stats_ease_threshold: 2100,
-			stats_difficulty_threshold: 0.9, ui_expanded_decks: [], ui_expanded_concepts: [],
+			stats_difficulty_threshold: 0.9,
+			ui_expanded_decks: [],
+			ui_expanded_concepts: [],
 		};
 
 		// Mock required methods

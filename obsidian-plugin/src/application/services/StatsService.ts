@@ -63,7 +63,10 @@ export class StatsService {
 
 	async refreshStats(): Promise<ConceptStats[]> {
 		const files = this.app.vault.getMarkdownFiles();
-		const nidMap = new Map<number, { file: TFile; index: number; front: string; back: string }>();
+		const nidMap = new Map<
+			number,
+			{ file: TFile; index: number; front: string; back: string }
+		>();
 		const filesWithCards: Map<string, TFile> = new Map();
 		const conceptMap: Record<string, ConceptStats> = {};
 		const conceptDeckCounts: Record<string, Record<string, number>> = {}; // filePath -> { deckName: count }
@@ -160,7 +163,10 @@ export class StatsService {
 
 			// Algo Specific
 			if (this.settings.stats_algorithm === 'fsrs') {
-				if (stat.difficulty !== undefined && stat.difficulty > this.settings.stats_difficulty_threshold) {
+				if (
+					stat.difficulty !== undefined &&
+					stat.difficulty > this.settings.stats_difficulty_threshold
+				) {
 					isProblematic = true;
 					issues.push(`Diff: ${(stat.difficulty * 100).toFixed(0)}%`);
 				}
@@ -194,15 +200,17 @@ export class StatsService {
 			const c = conceptMap[key];
 			if (c.totalCards > 0) {
 				c.averageEase = Math.round(c.averageEase / c.totalCards);
-				
+
 				if (c.difficultyCount && c.difficultyCount > 0) {
-					c.averageDifficulty = parseFloat((c.averageDifficulty! / c.difficultyCount).toFixed(2));
+					c.averageDifficulty = parseFloat(
+						(c.averageDifficulty! / c.difficultyCount).toFixed(2),
+					);
 				} else {
 					c.averageDifficulty = null; // Explicitly null if no valid difficulty stats
 				}
 
 				c.score = c.problematicCardsCount / c.totalCards;
-				
+
 				// Determine Primary Deck if not already set by YAML
 				if (c.primaryDeck === 'Unknown') {
 					const decks = conceptDeckCounts[key];
@@ -229,7 +237,7 @@ export class StatsService {
 
 	async fetchAnkiCardStats(nids: number[]): Promise<AnkiCardStats[]> {
 		const url = this.settings.anki_connect_url || 'http://127.0.0.1:8765';
-		
+
 		try {
 			// Chunking to avoid massive requests (AnkiConnect might toggle limits)
 			const CHUNK_SIZE = 500;
@@ -237,7 +245,7 @@ export class StatsService {
 
 			for (let i = 0; i < nids.length; i += CHUNK_SIZE) {
 				const chunk = nids.slice(i, i + CHUNK_SIZE);
-				
+
 				// 1. Get cards for notes
 				const findCardsRes = await requestUrl({
 					url,
@@ -245,10 +253,10 @@ export class StatsService {
 					body: JSON.stringify({
 						action: 'findCards',
 						version: 6,
-						params: { query: chunk.map(n => `nid:${n}`).join(' OR ') }
-					})
+						params: { query: chunk.map((n) => `nid:${n}`).join(' OR ') },
+					}),
 				});
-				
+
 				const cardIds = findCardsRes.json?.result;
 				if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) continue;
 
@@ -259,14 +267,14 @@ export class StatsService {
 					body: JSON.stringify({
 						action: 'cardsInfo',
 						version: 6,
-						params: { cards: cardIds }
-					})
+						params: { cards: cardIds },
+					}),
 				});
 
 				const infos = cardsInfoRes.json?.result;
-				
+
 				// 3. Get FSRS Data via Custom Add-on Action
-				let fsrsMap: Map<number, number> = new Map();
+				const fsrsMap: Map<number, number> = new Map();
 				if (this.settings.stats_algorithm === 'fsrs') {
 					try {
 						const fsrsRes = await requestUrl({
@@ -275,15 +283,19 @@ export class StatsService {
 							body: JSON.stringify({
 								action: 'getFSRSStats', // Custom action handled by 'anki-plugin'
 								version: 6,
-								params: { cards: cardIds }
-							})
+								params: { cards: cardIds },
+							}),
 						});
-						
+
 						const fsrsResults = fsrsRes.json?.result;
-						
+
 						if (fsrsResults && Array.isArray(fsrsResults)) {
 							fsrsResults.forEach((item: any) => {
-								if (item.cardId && item.difficulty !== undefined && item.difficulty !== null) {
+								if (
+									item.cardId &&
+									item.difficulty !== undefined &&
+									item.difficulty !== null
+								) {
 									// Normalize 1-10 -> 0-1
 									fsrsMap.set(item.cardId, item.difficulty / 10.0);
 								}
@@ -291,7 +303,7 @@ export class StatsService {
 						}
 					} catch (e) {
 						// Custom action likely not available if Anki not updated/restarted
-						console.warn("FSRS Custom Fetch failed", e);
+						console.warn('FSRS Custom Fetch failed', e);
 					}
 				}
 
@@ -303,22 +315,21 @@ export class StatsService {
 
 						allStats.push({
 							cardId: info.cardId,
-							noteId: info.note, 
+							noteId: info.note,
 							lapses: info.lapses,
 							ease: info.factor,
-							difficulty: difficulty, 
+							difficulty: difficulty,
 							deckName: info.deckName || 'Default',
 							interval: info.interval,
 							due: info.due,
 							reps: info.reps,
-							averageTime: 0 
+							averageTime: 0,
 						});
 					});
 				}
 			}
 
 			return allStats;
-
 		} catch (e) {
 			console.error('[Arete] Failed to fetch Anki stats', e);
 			new Notice('Failed to fetch stats from Anki.');

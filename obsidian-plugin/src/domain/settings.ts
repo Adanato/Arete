@@ -11,7 +11,7 @@ export interface AretePluginSettings {
 	stats_lapse_threshold: number;
 	stats_ease_threshold: number; // 2100 = 210%
 	stats_difficulty_threshold: number; // For FSRS, e.g. 0.9 (90%)
-	
+
 	// UI Persistence
 	ui_expanded_decks: string[];
 	ui_expanded_concepts: string[];
@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: AretePluginSettings = {
 	stats_lapse_threshold: 3,
 	stats_ease_threshold: 2100, // 210%
 	stats_difficulty_threshold: 0.9, // 90% Max Difficulty
-	
+
 	ui_expanded_decks: [],
 	ui_expanded_concepts: [],
 };

@@ -10,7 +10,10 @@ import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
 import { StatsService, StatsCache } from '@application/services/StatsService';
-import { createCardGutter, highlightCardEffect } from '@presentation/extensions/CardGutterExtension';
+import {
+	createCardGutter,
+	highlightCardEffect,
+} from '@presentation/extensions/CardGutterExtension';
 
 interface AreteData extends AretePluginSettings {
 	statsCache?: StatsCache;
@@ -40,7 +43,7 @@ export default class AretePlugin extends Plugin {
 			});
 			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
 			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
-			
+
 			console.log('[Arete] Services initialized');
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
@@ -175,8 +178,8 @@ export default class AretePlugin extends Plugin {
 					if (!activeFile) return null;
 					const stats = this.statsService.getCache().concepts[activeFile.path];
 					if (!stats || !stats.problematicCards) return null;
-					return stats.problematicCards.find(c => c.noteId === nid) || null;
-				}
+					return stats.problematicCards.find((c) => c.noteId === nid) || null;
+				},
 			),
 		);
 	}
@@ -186,7 +189,7 @@ export default class AretePlugin extends Plugin {
 		// Use getMostRecentLeaf to find the editor (works when called from sidebar)
 		const leaf = this.app.workspace.getMostRecentLeaf();
 		if (!leaf || !(leaf.view instanceof MarkdownView)) return;
-		
+
 		// @ts-expect-error - accessing internal editor
 		const cm = leaf.view.editor.cm as EditorView;
 		if (cm) {

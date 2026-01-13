@@ -13,7 +13,7 @@ describe('StatsService', () => {
 		// Mock vault and metadata cache
 		app.vault.getMarkdownFiles = jest.fn().mockReturnValue([]);
 		app.metadataCache.getFileCache = jest.fn().mockReturnValue({});
-		
+
 		settings = {
 			python_path: 'python3',
 			backend: 'auto',
@@ -42,18 +42,16 @@ describe('StatsService', () => {
 						cards: [
 							{ nid: '101', front: 'C1 Card 1' },
 							{ nid: '102', front: 'C1 Card 2' },
-						]
-					}
+						],
+					},
 				};
 			}
 			if (f.path === 'concept2.md') {
 				return {
 					frontmatter: {
 						// No deck in YAML
-						cards: [
-							{ nid: '201', front: 'C2 Card 1' },
-						]
-					}
+						cards: [{ nid: '201', front: 'C2 Card 1' }],
+					},
 				};
 			}
 			return {};
@@ -61,11 +59,41 @@ describe('StatsService', () => {
 
 		// 3. Mock Anki Fetch (Mocking the network call)
 		const mockAnkiStats: AnkiCardStats[] = [
-			{ noteId: 101, cardId: 1, lapses: 5, ease: 1500, interval: 1, due: 0, reps: 10, averageTime: 5000, deckName: 'Anki Deck A' },
-			{ noteId: 102, cardId: 2, lapses: 0, ease: 2500, interval: 10, due: 0, reps: 2, averageTime: 4000, deckName: 'Anki Deck A' },
-			{ noteId: 201, cardId: 3, lapses: 0, ease: 2300, interval: 5, due: 0, reps: 3, averageTime: 6000, deckName: 'Anki Deck B' },
+			{
+				noteId: 101,
+				cardId: 1,
+				lapses: 5,
+				ease: 1500,
+				interval: 1,
+				due: 0,
+				reps: 10,
+				averageTime: 5000,
+				deckName: 'Anki Deck A',
+			},
+			{
+				noteId: 102,
+				cardId: 2,
+				lapses: 0,
+				ease: 2500,
+				interval: 10,
+				due: 0,
+				reps: 2,
+				averageTime: 4000,
+				deckName: 'Anki Deck A',
+			},
+			{
+				noteId: 201,
+				cardId: 3,
+				lapses: 0,
+				ease: 2300,
+				interval: 5,
+				due: 0,
+				reps: 3,
+				averageTime: 6000,
+				deckName: 'Anki Deck B',
+			},
 		];
-		
+
 		service.fetchAnkiCardStats = jest.fn().mockResolvedValue(mockAnkiStats);
 
 		// 4. Run Refresh
@@ -73,16 +101,16 @@ describe('StatsService', () => {
 
 		// 5. Verify Results
 		expect(stats.length).toBe(2);
-		
+
 		// Concept 1 (Has YAML Deck)
-		const c1 = stats.find(s => s.filePath === 'concept1.md');
+		const c1 = stats.find((s) => s.filePath === 'concept1.md');
 		expect(c1).toBeDefined();
 		expect(c1?.primaryDeck).toBe('YAML Deck'); // Should be from YAML
 		expect(c1?.totalCards).toBe(2);
 		expect(c1?.problematicCardsCount).toBe(1);
 
 		// Concept 2 (No YAML Deck)
-		const c2 = stats.find(s => s.filePath === 'concept2.md');
+		const c2 = stats.find((s) => s.filePath === 'concept2.md');
 		expect(c2).toBeDefined();
 		expect(c2?.primaryDeck).toBe('Anki Deck B'); // Should be from Anki
 		expect(c2?.totalCards).toBe(1);

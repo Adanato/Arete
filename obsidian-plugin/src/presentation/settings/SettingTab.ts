@@ -146,11 +146,11 @@ export class AreteSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
-		
+
 		new Setting(containerEl)
 			.setName('Lapse Threshold')
 			.setDesc('Cards with this many lapses or more are considered problematic.')
-			.addSlider((slider) => 
+			.addSlider((slider) =>
 				slider
 					.setLimits(1, 20, 1)
 					.setValue(this.plugin.settings.stats_lapse_threshold)
@@ -158,13 +158,15 @@ export class AreteSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.stats_lapse_threshold = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		if (this.plugin.settings.stats_algorithm === 'sm2') {
 			new Setting(containerEl)
 				.setName('Ease Threshold (%)')
-				.setDesc('Cards with ease below this percentage are considered problematic (Ease Hell). Standard is 250%.')
+				.setDesc(
+					'Cards with ease below this percentage are considered problematic (Ease Hell). Standard is 250%.',
+				)
 				.addSlider((slider) =>
 					slider
 						.setLimits(130, 300, 10)
@@ -173,12 +175,14 @@ export class AreteSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.stats_ease_threshold = value * 10;
 							await this.plugin.saveSettings();
-						})
+						}),
 				);
 		} else {
 			new Setting(containerEl)
 				.setName('Difficulty Threshold (FSRS)')
-				.setDesc('Cards with FSRS difficulty above this value (0.0 to 1.0) are problematic.')
+				.setDesc(
+					'Cards with FSRS difficulty above this value (0.0 to 1.0) are problematic.',
+				)
 				.addSlider((slider) =>
 					slider
 						.setLimits(50, 100, 5) // Slider 0-100%
@@ -187,7 +191,7 @@ export class AreteSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.stats_difficulty_threshold = value / 100;
 							await this.plugin.saveSettings();
-						})
+						}),
 				);
 		}
 

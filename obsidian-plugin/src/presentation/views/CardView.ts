@@ -458,12 +458,12 @@ export class CardView extends ItemView {
 		// Update visual state
 		const container = this.containerEl.querySelector('.arete-card-list');
 		if (!container) return;
-		
+
 		// Remove active class from all cards
 		container.querySelectorAll('.arete-card-item').forEach((el) => {
 			el.classList.remove('arete-card-active');
 		});
-		
+
 		// Add active class to selected card
 		if (index !== null) {
 			const cardEls = container.querySelectorAll('.arete-card-item');

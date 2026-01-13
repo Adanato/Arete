@@ -73,10 +73,16 @@ export class StatisticsView extends ItemView {
 		viewSelect.style.padding = '4px';
 		viewSelect.style.borderRadius = '4px';
 		viewSelect.style.borderColor = 'var(--background-modifier-border)';
-		
-		const optHierarchy = viewSelect.createEl('option', { text: 'Hierarchy', value: 'hierarchy' });
-		const optLeaderboard = viewSelect.createEl('option', { text: 'Leaderboard', value: 'leaderboard' });
-		
+
+		const optHierarchy = viewSelect.createEl('option', {
+			text: 'Hierarchy',
+			value: 'hierarchy',
+		});
+		const optLeaderboard = viewSelect.createEl('option', {
+			text: 'Leaderboard',
+			value: 'leaderboard',
+		});
+
 		if (this.currentViewMode === 'hierarchy') optHierarchy.selected = true;
 		else optLeaderboard.selected = true;
 
@@ -87,7 +93,6 @@ export class StatisticsView extends ItemView {
 
 		// Controls Group (Right)
 		const rightGroup = header.createDiv({ cls: 'arete-header-right' });
-
 
 		// Collapse All Button
 		const collapseBtn = rightGroup.createEl('button', { cls: 'arete-icon-btn' });
@@ -101,7 +106,7 @@ export class StatisticsView extends ItemView {
 			await this.saveState();
 			this.render();
 		};
-		
+
 		const refreshBtn = rightGroup.createEl('button', { cls: 'arete-icon-btn' });
 		setIcon(refreshBtn, 'refresh-cw');
 		refreshBtn.title = 'Refresh Stats from Anki';
@@ -125,9 +130,9 @@ export class StatisticsView extends ItemView {
 		const lastFetched = this.plugin.statsService.getCache().lastFetched;
 		if (lastFetched > 0) {
 			const dateStr = new Date(lastFetched).toLocaleString();
-			const lastUpdated = container.createDiv({ 
-				text: `Last updated: ${dateStr}`, 
-				cls: 'arete-muted'
+			const lastUpdated = container.createDiv({
+				text: `Last updated: ${dateStr}`,
+				cls: 'arete-muted',
 			});
 			lastUpdated.style.fontSize = '0.8em';
 			lastUpdated.style.padding = '0 1rem';
@@ -136,7 +141,7 @@ export class StatisticsView extends ItemView {
 
 		// Data List
 		const concepts = Object.values(this.plugin.statsService.getCache().concepts);
-		
+
 		if (concepts.length === 0) {
 			const listContainer = container.createDiv({ cls: 'arete-stats-list' });
 			const empty = listContainer.createDiv({ cls: 'arete-empty-state' });
@@ -153,28 +158,31 @@ export class StatisticsView extends ItemView {
 			// Hierarchy View
 			const rootNode = this.buildDeckTree(concepts);
 			const sortedDeckKeys = Object.keys(rootNode.children).sort();
-			sortedDeckKeys.forEach(key => {
+			sortedDeckKeys.forEach((key) => {
 				this.renderDeckNode(listContainer, rootNode.children[key], 0);
 			});
 			if (rootNode.concepts.length > 0) {
-				rootNode.concepts.sort((a,b) => b.score - a.score);
-				rootNode.concepts.forEach(c => this.renderConceptRow(listContainer, c));
+				rootNode.concepts.sort((a, b) => b.score - a.score);
+				rootNode.concepts.forEach((c) => this.renderConceptRow(listContainer, c));
 			}
 		} else {
 			// Leaderboard View (Flat)
 			// Filter out perfect concepts? Or show all?
 			// Usually leaderboard shows problematic ones first.
 			const sortedConcepts = [...concepts].sort((a, b) => b.score - a.score);
-			
+
 			// Maybe only show top 50 or those with bad score?
 			// Let's show all for now, maybe filter score > 0?
 			// "Problematic Concepts" implies filtering, but let's show all sorted.
-			
-			if (sortedConcepts.every(c => c.problematicCardsCount === 0)) {
-				listContainer.createDiv({ text: "Great job! No problematic concepts found.", cls: "arete-success-message" });
+
+			if (sortedConcepts.every((c) => c.problematicCardsCount === 0)) {
+				listContainer.createDiv({
+					text: 'Great job! No problematic concepts found.',
+					cls: 'arete-success-message',
+				});
 			}
 
-			sortedConcepts.forEach(c => {
+			sortedConcepts.forEach((c) => {
 				// Only show if score > 0 to declutter? user request didn't specify.
 				// Let's show all so they can see "Green" status too.
 				this.renderConceptRow(listContainer, c);
@@ -183,22 +191,22 @@ export class StatisticsView extends ItemView {
 	}
 
 	buildDeckTree(concepts: ConceptStats[]): DeckTreeNode {
-		const root: DeckTreeNode = { 
-			name: 'Root', 
-			fullName: '', 
-			concepts: [], 
-			children: {}, 
+		const root: DeckTreeNode = {
+			name: 'Root',
+			fullName: '',
+			concepts: [],
+			children: {},
 			totalProblematic: 0,
 			totalCards: 0,
 			totalLapses: 0,
 			sumDifficulty: 0,
-			countDifficulty: 0
+			countDifficulty: 0,
 		};
 
-		concepts.forEach(c => {
+		concepts.forEach((c) => {
 			const deckName = c.primaryDeck || 'Default';
 			const parts = deckName.split('::');
-			
+
 			let currentNode = root;
 			let currentPath = '';
 
@@ -217,7 +225,7 @@ export class StatisticsView extends ItemView {
 						totalCards: 0,
 						totalLapses: 0,
 						sumDifficulty: 0,
-						countDifficulty: 0
+						countDifficulty: 0,
 					};
 				}
 				currentNode = currentNode.children[part];
@@ -234,12 +242,16 @@ export class StatisticsView extends ItemView {
 
 	aggregateTree(node: DeckTreeNode) {
 		// Base case: aggregate local concepts
-		node.concepts.forEach(c => {
+		node.concepts.forEach((c) => {
 			node.totalProblematic += c.problematicCardsCount;
 			node.totalCards += c.totalCards;
 			node.totalLapses += c.totalLapses;
-			
-			if (this.plugin.settings.stats_algorithm === 'fsrs' && c.averageDifficulty !== null && c.averageDifficulty !== undefined) {
+
+			if (
+				this.plugin.settings.stats_algorithm === 'fsrs' &&
+				c.averageDifficulty !== null &&
+				c.averageDifficulty !== undefined
+			) {
 				// Approximate sum from average
 				if (c.difficultyCount) {
 					node.sumDifficulty += c.averageDifficulty * c.difficultyCount;
@@ -249,7 +261,7 @@ export class StatisticsView extends ItemView {
 		});
 
 		// Recursive case: aggregate children
-		Object.values(node.children).forEach(child => {
+		Object.values(node.children).forEach((child) => {
 			this.aggregateTree(child);
 			node.totalProblematic += child.totalProblematic;
 			node.totalCards += child.totalCards;
@@ -261,13 +273,13 @@ export class StatisticsView extends ItemView {
 
 	renderDeckNode(container: HTMLElement, node: DeckTreeNode, depth: number) {
 		const deckContainer = container.createDiv({ cls: 'arete-deck-group' });
-		
+
 		// Deck Header
 		const header = deckContainer.createDiv({ cls: 'arete-deck-header' });
 		header.style.display = 'flex';
 		header.style.alignItems = 'center';
 		header.style.padding = '0.5rem 1rem';
-		header.style.paddingLeft = `${0.5 + (depth * 1.5)}rem`; // Indentation
+		header.style.paddingLeft = `${0.5 + depth * 1.5}rem`; // Indentation
 		header.style.backgroundColor = 'var(--background-secondary)';
 		header.style.borderBottom = '1px solid var(--background-modifier-border)';
 		header.style.cursor = 'pointer';
@@ -275,7 +287,6 @@ export class StatisticsView extends ItemView {
 		// Expand Icon
 		const icon = header.createSpan({ cls: 'arete-icon' });
 		icon.style.marginRight = '0.5rem';
-		
 
 		// Initial State
 		// REMOVED: if (depth < 1) ... logic. We rely on persistent state now.
@@ -284,7 +295,7 @@ export class StatisticsView extends ItemView {
 
 		// Name & Count
 		header.createSpan({ text: `${node.name} ` });
-		
+
 		// Aggregated Stats Info
 		const statsInfo = header.createSpan({ cls: 'arete-muted' });
 		statsInfo.style.fontSize = '0.7em';
@@ -305,11 +316,15 @@ export class StatisticsView extends ItemView {
 		statsInfo.setText(`${avgDiffText}${node.totalProblematic}/${node.totalCards} Bad`);
 
 		if (node.totalProblematic > 0) {
-			const badge = header.createSpan({ text: `${node.totalProblematic}`, cls: 'arete-badge' });
+			const badge = header.createSpan({
+				text: `${node.totalProblematic}`,
+				cls: 'arete-badge',
+			});
 			// badge.style.marginLeft = 'auto'; // handled by flex or margin-right of statsInfo?
 			// keeping margin-left auto ensuring right alignment
-			badge.style.marginLeft = '0.5rem'; 
-			badge.style.backgroundColor = node.totalProblematic > 5 ? 'var(--color-red)' : 'var(--color-orange)';
+			badge.style.marginLeft = '0.5rem';
+			badge.style.backgroundColor =
+				node.totalProblematic > 5 ? 'var(--color-red)' : 'var(--color-orange)';
 			badge.style.color = 'var(--text-on-accent)';
 			badge.style.padding = '2px 6px';
 			badge.style.borderRadius = '10px';
@@ -324,7 +339,6 @@ export class StatisticsView extends ItemView {
 			badge.style.fontSize = '0.8em';
 		}
 
-
 		// Content Container for Children/Concepts
 		const contentContainer = deckContainer.createDiv();
 		if (!isExpanded) {
@@ -335,7 +349,7 @@ export class StatisticsView extends ItemView {
 		header.onclick = async (e) => {
 			e.stopPropagation();
 			isExpanded = !isExpanded;
-			
+
 			if (isExpanded) {
 				this.expandedDecks.add(node.fullName);
 				contentContainer.style.display = 'block';
@@ -352,8 +366,8 @@ export class StatisticsView extends ItemView {
 		// 1. Concepts
 		if (node.concepts.length > 0) {
 			const conceptsDiv = contentContainer.createDiv();
-			node.concepts.sort((a,b) => b.score - a.score);
-			node.concepts.forEach(c => {
+			node.concepts.sort((a, b) => b.score - a.score);
+			node.concepts.forEach((c) => {
 				const wrapper = conceptsDiv.createDiv();
 				wrapper.style.paddingLeft = `${1.5 * (depth + 1)}rem`;
 				this.renderConceptRow(wrapper, c);
@@ -362,7 +376,7 @@ export class StatisticsView extends ItemView {
 
 		// 2. Children (Subdecks)
 		const childKeys = Object.keys(node.children).sort();
-		childKeys.forEach(key => {
+		childKeys.forEach((key) => {
 			this.renderDeckNode(contentContainer, node.children[key], depth + 1);
 		});
 	}
@@ -378,16 +392,16 @@ export class StatisticsView extends ItemView {
 		summary.style.justifyContent = 'space-between';
 		summary.style.alignItems = 'center';
 		summary.style.cursor = 'pointer';
-		
+
 		// Left: Title + Score Bar
 		const left = summary.createDiv();
-		
+
 		// Title
 		const titleLine = left.createDiv();
 		const titleLink = titleLine.createSpan({ cls: 'arete-stat-title', text: concept.fileName });
 		titleLink.style.fontWeight = 'bold';
 		titleLink.style.marginRight = '0.5rem';
-		
+
 		// Clickable Title
 		titleLink.addClass('arete-clickable');
 		titleLink.onclick = (e) => {
@@ -397,9 +411,9 @@ export class StatisticsView extends ItemView {
 
 		// Score Indicator
 		const scoreColor = this.getScoreColor(concept.score);
-		const scoreBadge = titleLine.createSpan({ 
+		const scoreBadge = titleLine.createSpan({
 			text: `${(concept.score * 100).toFixed(0)}% Bad`,
-			cls: 'arete-badge' 
+			cls: 'arete-badge',
 		});
 		scoreBadge.style.backgroundColor = scoreColor;
 		scoreBadge.style.color = 'var(--text-on-accent)';
@@ -411,7 +425,6 @@ export class StatisticsView extends ItemView {
 		// Stats Text
 		const statsLine = left.createDiv({ cls: 'arete-muted' });
 		statsLine.style.fontSize = '0.8em';
-
 
 		let metricLabel = '';
 		if (this.plugin.settings.stats_algorithm === 'fsrs') {
@@ -425,7 +438,7 @@ export class StatisticsView extends ItemView {
 		}
 
 		statsLine.setText(
-			`${concept.problematicCardsCount}/${concept.totalCards} Problematic • ${metricLabel} • Lapses: ${concept.totalLapses}`
+			`${concept.problematicCardsCount}/${concept.totalCards} Problematic • ${metricLabel} • Lapses: ${concept.totalLapses}`,
 		);
 
 		// Right: Expand chevron
@@ -455,7 +468,7 @@ export class StatisticsView extends ItemView {
 			if (concept.problematicCards.length === 0) {
 				details.createDiv({ text: 'No problematic cards found.', cls: 'arete-muted' });
 			} else {
-				concept.problematicCards.forEach(card => {
+				concept.problematicCards.forEach((card) => {
 					this.renderCardDetail(details, card, concept.filePath);
 				});
 			}
@@ -476,7 +489,7 @@ export class StatisticsView extends ItemView {
 		info.style.whiteSpace = 'nowrap';
 		info.style.maxWidth = '70%';
 		info.style.cursor = 'pointer';
-		
+
 		// Clean front text
 		const frontClean = card.front.replace(/<[^>]*>?/gm, '');
 		const text = info.createSpan({ text: frontClean });
@@ -510,13 +523,13 @@ export class StatisticsView extends ItemView {
 
 	async goToCard(filePath: string, frontText: string) {
 		await this.openFile(filePath);
-		
+
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view) {
 			const editor = view.editor;
 			const content = editor.getValue();
 			const index = content.indexOf(frontText); // Very naive, frontText might be partial or formatted
-			
+
 			if (index >= 0) {
 				const pos = editor.offsetToPos(index);
 				editor.setCursor(pos);
