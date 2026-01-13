@@ -22,9 +22,9 @@ export class AreteSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('python3')
-					.setValue(this.plugin.settings.pythonPath)
+					.setValue(this.plugin.settings.python_path)
 					.onChange(async (value) => {
-						this.plugin.settings.pythonPath = value;
+						this.plugin.settings.python_path = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -37,9 +37,9 @@ export class AreteSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('/path/to/arete/main.py')
-					.setValue(this.plugin.settings.areteScriptPath)
+					.setValue(this.plugin.settings.arete_script_path)
 					.onChange(async (value) => {
-						this.plugin.settings.areteScriptPath = value;
+						this.plugin.settings.arete_script_path = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -48,8 +48,8 @@ export class AreteSettingTab extends PluginSettingTab {
 			.setName('Debug Mode')
 			.setDesc('Enable verbose logging and extra output.')
 			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
-					this.plugin.settings.debugMode = value;
+				toggle.setValue(this.plugin.settings.debug_mode).onChange(async (value) => {
+					this.plugin.settings.debug_mode = value;
 					await this.plugin.saveSettings();
 				}),
 			);
@@ -63,12 +63,12 @@ export class AreteSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('obsidian', 'Obsidian (Markdown + LaTeX)')
 					.addOption('anki', 'Anki (Raw HTML/Text)')
-					.setValue(this.plugin.settings.rendererMode)
+					.setValue(this.plugin.settings.renderer_mode)
 					.onChange(async (value) => {
-						this.plugin.settings.rendererMode = value as 'obsidian' | 'anki';
+						this.plugin.settings.renderer_mode = value as 'obsidian' | 'anki';
 						await this.plugin.saveSettings();
 						// Update renderer instance
-						this.plugin.templateRenderer.setMode(this.plugin.settings.rendererMode);
+						this.plugin.templateRenderer.setMode(this.plugin.settings.renderer_mode);
 					}),
 			);
 
@@ -93,9 +93,9 @@ export class AreteSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('http://localhost:8765')
-					.setValue(this.plugin.settings.ankiConnectUrl)
+					.setValue(this.plugin.settings.anki_connect_url)
 					.onChange(async (value) => {
-						this.plugin.settings.ankiConnectUrl = value;
+						this.plugin.settings.anki_connect_url = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -106,9 +106,9 @@ export class AreteSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('/path/to/Anki/collection.media')
-					.setValue(this.plugin.settings.ankiMediaDir)
+					.setValue(this.plugin.settings.anki_media_dir)
 					.onChange(async (value) => {
-						this.plugin.settings.ankiMediaDir = value;
+						this.plugin.settings.anki_media_dir = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -129,6 +129,68 @@ export class AreteSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		containerEl.createEl('h3', { text: 'Statistics Dashboard' });
+
+		new Setting(containerEl)
+			.setName('Algorithm')
+			.setDesc('Choose the scoring algorithm used to identify problematic concepts.')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('sm2', 'Classic (SM-2)')
+					.addOption('fsrs', 'FSRS (New Scheduler)')
+					.setValue(this.plugin.settings.stats_algorithm)
+					.onChange(async (value: 'sm2' | 'fsrs') => {
+						this.plugin.settings.stats_algorithm = value;
+						// Clean cache to force re-evaluation with new algorithm
+						this.plugin.statsCache = { concepts: {}, lastFetched: 0 };
+						await this.plugin.saveSettings();
+					}),
+			);
+		
+		new Setting(containerEl)
+			.setName('Lapse Threshold')
+			.setDesc('Cards with this many lapses or more are considered problematic.')
+			.addSlider((slider) => 
+				slider
+					.setLimits(1, 20, 1)
+					.setValue(this.plugin.settings.stats_lapse_threshold)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.stats_lapse_threshold = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		if (this.plugin.settings.stats_algorithm === 'sm2') {
+			new Setting(containerEl)
+				.setName('Ease Threshold (%)')
+				.setDesc('Cards with ease below this percentage are considered problematic (Ease Hell). Standard is 250%.')
+				.addSlider((slider) =>
+					slider
+						.setLimits(130, 300, 10)
+						.setValue(this.plugin.settings.stats_ease_threshold / 10)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							this.plugin.settings.stats_ease_threshold = value * 10;
+							await this.plugin.saveSettings();
+						})
+				);
+		} else {
+			new Setting(containerEl)
+				.setName('Difficulty Threshold (FSRS)')
+				.setDesc('Cards with FSRS difficulty above this value (0.0 to 1.0) are problematic.')
+				.addSlider((slider) =>
+					slider
+						.setLimits(50, 100, 5) // Slider 0-100%
+						.setValue(this.plugin.settings.stats_difficulty_threshold * 100)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							this.plugin.settings.stats_difficulty_threshold = value / 100;
+							await this.plugin.saveSettings();
+						})
+				);
+		}
+
 		// Test Button
 		new Setting(containerEl)
 			.setName('Test Configuration')
@@ -139,7 +201,7 @@ export class AreteSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		if (this.plugin.settings.debugMode) {
+		if (this.plugin.settings.debug_mode) {
 			new Setting(containerEl)
 				.setName('Check Results (Debug)')
 				.setDesc('Opens a sample result modal for testing.')
