@@ -96,7 +96,7 @@ export default class AretePlugin extends Plugin {
 
 		this.addCommand({
 			id: 'arete-check-integrity',
-			name: 'Debug: Check Vault Integrity (Obsidian vs Linter)',
+			name: 'Debug: Vault Integrity Check',
 			callback: () => {
 				this.checkVaultIntegrity();
 			},
@@ -104,7 +104,7 @@ export default class AretePlugin extends Plugin {
 
 		this.addCommand({
 			id: 'arete-sync-current-file',
-			name: 'Sync Current File (Force Update)',
+			name: 'Sync Current File',
 			callback: () => {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (activeFile) {
@@ -124,7 +124,7 @@ export default class AretePlugin extends Plugin {
 
 		this.addCommand({
 			id: 'arete-sync-prune',
-			name: 'Sync with Prune',
+			name: 'Sync (Prune Deleted Cards)',
 			callback: () => {
 				this.runSync(true);
 			},
@@ -132,7 +132,7 @@ export default class AretePlugin extends Plugin {
 
 		this.addCommand({
 			id: 'arete-sync-force-all',
-			name: 'Force Sync All (Clear Cache)',
+			name: 'Sync (Force Re-upload All)',
 			callback: () => {
 				this.runSync(false, null, true);
 			},
@@ -140,7 +140,7 @@ export default class AretePlugin extends Plugin {
 
 		this.addCommand({
 			id: 'arete-open-stats',
-			name: 'Open Statistics Dashboard',
+			name: 'Open Statistics',
 			callback: () => {
 				this.activateStatsView();
 			},
