@@ -1,5 +1,5 @@
-import { EditorView, gutter, GutterMarker } from '@codemirror/view';
-import { RangeSetBuilder, StateField } from '@codemirror/state';
+import { EditorView, gutter, GutterMarker, Decoration, DecorationSet } from '@codemirror/view';
+import { RangeSetBuilder, StateField, StateEffect } from '@codemirror/state';
 
 interface CardRange {
 	index: number;
@@ -12,6 +12,12 @@ interface ParseResult {
 	frontmatterEndLine: number | null;
 	hasCards: boolean;
 }
+
+// Effect to trigger card highlight
+export const highlightCardEffect = StateEffect.define<{ cardIndex: number } | null>();
+
+// Line decoration for highlighting
+const highlightDecoration = Decoration.line({ class: 'arete-card-highlight' });
 
 // Skip to bottom button marker
 class SkipToBottomMarker extends GutterMarker {
@@ -33,6 +39,10 @@ class SkipToBottomMarker extends GutterMarker {
 		marker.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
+			// Clear any card highlight
+			this.view.dispatch({
+				effects: highlightCardEffect.of(null),
+			});
 			// Scroll so the frontmatter end line is at the top
 			const line = this.view.state.doc.line(this.targetLine + 1);
 			this.view.dispatch({
@@ -62,6 +72,7 @@ class CardGutterMarker extends GutterMarker {
 	toDOM() {
 		const marker = document.createElement('div');
 		marker.className = 'arete-gutter-marker';
+		marker.dataset.cardIndex = String(this.index);
 
 		if (this.isStart) {
 			marker.classList.add('arete-gutter-start');
@@ -83,9 +94,33 @@ class CardGutterMarker extends GutterMarker {
 		bar.className = 'arete-gutter-bar';
 		marker.appendChild(bar);
 
+		// Hover handlers to highlight all markers of the same card
+		marker.addEventListener('mouseenter', () => {
+			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
+				el.classList.add('arete-gutter-hover');
+			});
+		});
+		
+		marker.addEventListener('mouseleave', () => {
+			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
+				el.classList.remove('arete-gutter-hover');
+			});
+		});
+
 		marker.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
+			
+			// Remove active class from all gutter markers
+			document.querySelectorAll('.arete-gutter-marker.arete-gutter-active').forEach((el) => {
+				el.classList.remove('arete-gutter-active');
+			});
+			
+			// Add active class to all markers of this card
+			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
+				el.classList.add('arete-gutter-active');
+			});
+			
 			this.onClick();
 		});
 
@@ -195,10 +230,47 @@ const cardRangesField = StateField.define<ParseResult>({
 	},
 });
 
+// State field to track highlighted card decorations
+const cardHighlightField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none;
+	},
+	update(decorations, tr) {
+		// Check for highlight effect
+		for (const e of tr.effects) {
+			if (e.is(highlightCardEffect)) {
+				if (e.value === null) {
+					// Clear highlight
+					return Decoration.none;
+				}
+				
+				const cardIndex = e.value.cardIndex;
+				const result = tr.state.field(cardRangesField);
+				const range = result.ranges.find((r) => r.index === cardIndex);
+				
+				if (range) {
+					const builder = new RangeSetBuilder<Decoration>();
+					for (let lineNum = range.startLine; lineNum <= range.endLine; lineNum++) {
+						if (lineNum >= tr.state.doc.lines) break;
+						const line = tr.state.doc.line(lineNum + 1);
+						builder.add(line.from, line.from, highlightDecoration);
+					}
+					return builder.finish();
+				}
+				return Decoration.none;
+			}
+		}
+		// Keep existing decorations if no effect
+		return decorations;
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
+
 // Create the gutter extension
 export function createCardGutter(onCardClick: (cardIndex: number) => void) {
 	return [
 		cardRangesField,
+		cardHighlightField,
 		gutter({
 			class: 'arete-card-gutter',
 			markers: (view) => {

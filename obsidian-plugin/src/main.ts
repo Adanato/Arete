@@ -1,4 +1,5 @@
 import { Editor, MarkdownView, Notice, Plugin, FileSystemAdapter } from 'obsidian';
+import { EditorView } from '@codemirror/view';
 import * as path from 'path';
 
 import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
@@ -7,7 +8,7 @@ import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
-import { createCardGutter } from '@presentation/extensions/CardGutterExtension';
+import { createCardGutter, highlightCardEffect } from '@presentation/extensions/CardGutterExtension';
 
 export default class AretePlugin extends Plugin {
 	settings: AretePluginSettings;
@@ -129,9 +130,25 @@ export default class AretePlugin extends Plugin {
 		// 6. Card Gutter Extension
 		this.registerEditorExtension(
 			createCardGutter((cardIndex) => {
+				this.highlightCardLines(cardIndex);
 				this.activateView(cardIndex);
 			}),
 		);
+	}
+
+	// Highlight card lines in editor (permanent until different card is clicked)
+	highlightCardLines(cardIndex: number) {
+		// Use getMostRecentLeaf to find the editor (works when called from sidebar)
+		const leaf = this.app.workspace.getMostRecentLeaf();
+		if (!leaf || !(leaf.view instanceof MarkdownView)) return;
+		
+		// @ts-expect-error - accessing internal editor
+		const cm = leaf.view.editor.cm as EditorView;
+		if (cm) {
+			cm.dispatch({
+				effects: highlightCardEffect.of({ cardIndex }),
+			});
+		}
 	}
 
 	async activateView(expandCardIndex?: number) {
@@ -152,13 +169,15 @@ export default class AretePlugin extends Plugin {
 
 		if (leaf) {
 			workspace.revealLeaf(leaf);
-			// If a card index was specified, expand that card
+			// If a card index was specified, expand that card and set active state
 			if (expandCardIndex !== undefined) {
 				const view = leaf.view as CardView;
 				if (view && view.expandedIndices) {
 					view.expandedIndices.clear();
 					view.expandedIndices.add(expandCardIndex);
 					view.render();
+					// Set active state after render completes
+					setTimeout(() => view.setActiveCard(expandCardIndex), 0);
 				}
 			}
 		}

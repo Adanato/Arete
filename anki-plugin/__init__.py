@@ -6,9 +6,18 @@ Features:
 1. Right-click context menu in Browse to open in Obsidian
 2. Button/shortcut during Review (Ctrl+Shift+O)
 
-Requires: Obsidian Advanced URI plugin for line-level navigation (optional).
+Requires: Obsidian Advanced URI plugin for line-level navigation.
+
+Config:
+Create a file called 'config.json' in the add-on folder with:
+{
+    "vault_name_override": "My Vault Name"
+}
+This will replace the vault name stored in cards when opening Obsidian.
 """
 
+import json
+import os
 import webbrowser
 from urllib.parse import quote
 
@@ -17,6 +26,25 @@ from aqt.browser import Browser
 from aqt.qt import QAction, QKeySequence, QMenu
 from aqt.reviewer import Reviewer
 from aqt.utils import showWarning, tooltip
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Config
+# ─────────────────────────────────────────────────────────────────────────────
+
+ADDON_PATH = os.path.dirname(__file__)
+CONFIG_PATH = os.path.join(ADDON_PATH, "config.json")
+CONFIG = {}
+
+def load_config():
+    global CONFIG
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                CONFIG = json.load(f)
+        except Exception:
+            CONFIG = {}
+
+load_config()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Core Logic
@@ -54,13 +82,16 @@ def open_obsidian_uri(vault: str, file_path: str, card_idx: int = 1) -> bool:
     Open Obsidian via URI scheme.
     Returns True on success, False on failure.
     """
-    encoded_vault = quote(vault)
+    # Allow config to override vault name
+    actual_vault = CONFIG.get("vault_name_override", vault) or vault
+    
+    encoded_vault = quote(actual_vault)
     encoded_path = quote(file_path)
 
-    # Use Advanced URI for line-level navigation (Recommended)
+    # Use Advanced URI for line-level navigation (requires Advanced URI plugin in Obsidian)
     uri = f"obsidian://advanced-uri?vault={encoded_vault}&filepath={encoded_path}&line={card_idx}"
 
-    # Fallback to standard URI if Advanced URI plugin is not installed
+    # Fallback: Standard URI (no line navigation, but works without plugins)
     # uri = f"obsidian://open?vault={encoded_vault}&file={encoded_path}"
 
     try:

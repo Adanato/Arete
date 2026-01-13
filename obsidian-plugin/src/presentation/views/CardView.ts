@@ -22,6 +22,7 @@ interface CardData {
 export class CardView extends ItemView {
 	previewMode = false;
 	expandedIndices: Set<number> = new Set();
+	activeCardIndex: number | null = null;
 	plugin: AretePlugin;
 
 	constructor(leaf: WorkspaceLeaf, plugin: AretePlugin) {
@@ -179,6 +180,10 @@ export class CardView extends ItemView {
 			setIcon(gotoBtn, 'map-pin');
 			gotoBtn.createSpan({ text: 'YAML' });
 			gotoBtn.onclick = () => {
+				// Set active card highlight in sidebar
+				this.setActiveCard(index);
+				// Trigger highlight in editor
+				this.plugin.highlightCardLines(index);
 				this.scrollToCard(index);
 			};
 
@@ -444,6 +449,27 @@ export class CardView extends ItemView {
 				{ from: { line: targetLine, ch: 0 }, to: { line: targetLine, ch: 0 } },
 				true,
 			);
+		}
+	}
+
+	// Set the active card (visual highlight in sidebar)
+	setActiveCard(index: number | null) {
+		this.activeCardIndex = index;
+		// Update visual state
+		const container = this.containerEl.querySelector('.arete-card-list');
+		if (!container) return;
+		
+		// Remove active class from all cards
+		container.querySelectorAll('.arete-card-item').forEach((el) => {
+			el.classList.remove('arete-card-active');
+		});
+		
+		// Add active class to selected card
+		if (index !== null) {
+			const cardEls = container.querySelectorAll('.arete-card-item');
+			if (cardEls[index]) {
+				cardEls[index].classList.add('arete-card-active');
+			}
 		}
 	}
 }
