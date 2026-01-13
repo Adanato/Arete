@@ -1,12 +1,13 @@
 import os
 
+
 def force_patch_ankiconnect():
     base = os.path.expanduser("~/Library/Application Support/Anki2/addons21/2055492159/__init__.py")
     if not os.path.exists(base):
         print(f"AnkiConnect not found at {base}")
         return
 
-    with open(base, 'r', encoding='utf-8') as f:
+    with open(base, encoding="utf-8") as f:
         content = f.read()
 
     # Define the verbose method clearly
@@ -16,7 +17,6 @@ def force_patch_ankiconnect():
         if cards is None:
             cards = []
         result = []
-        
         # Debug: Access collection
         try:
             col = self.collection()
@@ -33,7 +33,6 @@ def force_patch_ankiconnect():
                     cid = int(cid)
                 except:
                     item["debug"].append(f"Invalid CID type: {type(cid)}")
-                
                 card = None
                 try:
                     card = col.getCard(cid)
@@ -44,12 +43,10 @@ def force_patch_ankiconnect():
                          item["debug"].append("No get_card or getCard method")
                 except Exception as e:
                      item["debug"].append(f"get_card exception: {e}")
-                     
                 if not card:
                     item["debug"].append("Card not found")
                     result.append(item)
                     continue
-                
                 # Check attributes
                 found_data = False
                 if hasattr(card, 'memory_state'):
@@ -74,7 +71,7 @@ def force_patch_ankiconnect():
                                     item["difficulty"] = data['d']
                                     item["source"] = "data_json"
                                 else:
-                                    item["debug"].append(f"No 'd' in json keys: {list(data.keys())}")
+                                    item["debug"].append(f"No 'd' in keys: {list(data.keys())}")
                             except Exception as e:
                                 item["debug"].append(f"JSON parse error: {e}")
                          else:
@@ -85,24 +82,23 @@ def force_patch_ankiconnect():
                 result.append(item)
             except Exception as e:
                 result.append({"cardId": cid, "error": f"Outer loop error: {e}"})
-        
         return result
 """
 
-    # STRATEGY: 
+    # STRATEGY:
     # 1. Remove ANY existing implementation of getFSRSStats by splitting.
     # 2. Append the new one before the entry point.
 
     # 1. Remove old implementation if present
     # We look for the decorator or the def.
     # The file structure is: Class ... methods ... [Our Method] ... Entry Point.
-    
+
     # Let's find the Entry Point
     entry_marker = "\n#\n# Entry\n#"
     if entry_marker not in content:
         # fallback
         entry_marker = '\nif __name__ != "plugin":'
-    
+
     if entry_marker not in content:
         print("CRITICAL: Could not find entry marker in file. Aborting to avoid corrupting.")
         return
@@ -110,7 +106,8 @@ def force_patch_ankiconnect():
     # Split into Top and Bottom (Top contains Class, Bottom contains Entry)
     parts = content.split(entry_marker)
     top = parts[0]
-    bottom = entry_marker + "".join(parts[1:]) # Reassemble bottom if split multiple times (unlikely)
+    # Reassemble bottom if split multiple times (unlikely)
+    bottom = entry_marker + "".join(parts[1:])
 
     # Now clean up `top`. If it has `def getFSRSStats`, truncate it BEFORE that.
     if "def getFSRSStats" in top:
@@ -122,14 +119,15 @@ def force_patch_ankiconnect():
         clean_top = clean_top.rsplit("@util.api()", 1)[0]
         print("Removed existing getFSRSStats from top part.")
         top = clean_top
-    
+
     # Reassemble: Top + New Method + Bottom
     new_content = top.rstrip() + "\n\n" + verbose_method + "\n" + bottom
-    
-    with open(base, 'w', encoding='utf-8') as f:
+
+    with open(base, "w", encoding="utf-8") as f:
         f.write(new_content)
-    
+
     print("Force patched AnkiConnect successfully.")
+
 
 if __name__ == "__main__":
     force_patch_ankiconnect()
