@@ -12,9 +12,14 @@ export interface AretePluginSettings {
 	stats_ease_threshold: number; // 2100 = 210%
 	stats_difficulty_threshold: number; // For FSRS, e.g. 0.9 (90%)
 
+	// Sync Options
+	sync_on_save: boolean;
+	sync_on_save_delay: number; // ms debounce
+
 	// UI Persistence
 	ui_expanded_decks: string[];
 	ui_expanded_concepts: string[];
+	last_sync_time: number | null; // Unix timestamp
 }
 
 export const DEFAULT_SETTINGS: AretePluginSettings = {
@@ -31,6 +36,11 @@ export const DEFAULT_SETTINGS: AretePluginSettings = {
 	stats_ease_threshold: 2100, // 210%
 	stats_difficulty_threshold: 0.9, // 90% Max Difficulty
 
+	// Sync Options
+	sync_on_save: false,
+	sync_on_save_delay: 2000, // 2 second debounce
+
 	ui_expanded_decks: [],
 	ui_expanded_concepts: [],
+	last_sync_time: null,
 };

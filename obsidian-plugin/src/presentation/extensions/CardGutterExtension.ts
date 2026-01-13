@@ -148,7 +148,17 @@ class CardGutterMarker extends GutterMarker {
 
 				statsDiv.textContent = text;
 				statsDiv.style.color = color;
-				statsDiv.title = this.stats.issue;
+
+				// Enhanced tooltip with detailed stats
+				const tooltipLines = [];
+				if (this.stats.issue) tooltipLines.push(this.stats.issue);
+				if (this.stats.difficulty)
+					tooltipLines.push(`Difficulty: ${Math.round(this.stats.difficulty * 100)}%`);
+				if (this.stats.ease)
+					tooltipLines.push(`Ease: ${Math.round(this.stats.ease / 10)}%`);
+				if (this.stats.lapses) tooltipLines.push(`Lapses: ${this.stats.lapses}`);
+				statsDiv.title = tooltipLines.join('\n');
+
 				marker.appendChild(statsDiv);
 			}
 		}

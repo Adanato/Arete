@@ -27,6 +27,7 @@ export default class AretePlugin extends Plugin {
 	checkService: CheckService;
 	statsService: StatsService;
 	templateRenderer: TemplateRenderer;
+	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async onload() {
 		console.log('[Arete] Plugin Loading...');
@@ -52,6 +53,8 @@ export default class AretePlugin extends Plugin {
 
 		// 1. Status Bar Setup
 		this.statusBarItem = this.addStatusBarItem();
+		this.statusBarItem.addClass('mod-clickable');
+		this.statusBarItem.addEventListener('click', () => this.runSync());
 		this.updateStatusBar('idle');
 
 		// 2. Ribbon Icon
@@ -182,6 +185,32 @@ export default class AretePlugin extends Plugin {
 				},
 			),
 		);
+
+		// 7. Sync on Save (Debounced)
+		this.registerEvent(
+			this.app.vault.on('modify', (file) => {
+				if (!this.settings.sync_on_save) return;
+				if (!file.path.endsWith('.md')) return;
+
+				// Clear existing timeout
+				if (this.syncOnSaveTimeout) {
+					clearTimeout(this.syncOnSaveTimeout);
+				}
+
+				// Debounce sync
+				this.syncOnSaveTimeout = setTimeout(async () => {
+					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
+					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
+					if (basePath) {
+						const fullPath = path.join(basePath, file.path);
+						if (this.settings.debug_mode) {
+							console.log('[Arete] Sync on save triggered for:', file.path);
+						}
+						await this.runSync(false, fullPath, false);
+					}
+				}, this.settings.sync_on_save_delay);
+			}),
+		);
 	}
 
 	// Highlight card lines in editor (permanent until different card is clicked)
@@ -262,24 +291,56 @@ export default class AretePlugin extends Plugin {
 		this.statusBarItem.empty();
 
 		if (state === 'idle') {
+			// Show last sync time
+			const lastSync = this.settings.last_sync_time;
+			if (lastSync) {
+				const ago = this.formatTimeAgo(lastSync);
+				this.statusBarItem.setText(`🃏 ${ago}`);
+				this.statusBarItem.title = 'Click to sync to Anki';
+			} else {
+				this.statusBarItem.setText('🃏 Arete');
+				this.statusBarItem.title = 'Never synced. Click to sync.';
+			}
 			return;
 		}
 
 		if (state === 'syncing') {
 			this.statusBarItem.createSpan({ cls: 'arete-sb-icon', text: '🔄 ' });
-			this.statusBarItem.createSpan({ text: 'Anki Syncing...' });
+			this.statusBarItem.createSpan({ text: 'Syncing...' });
 		} else if (state === 'success') {
-			this.statusBarItem.setText('✅ Sync Complete');
+			this.statusBarItem.setText('✅ Synced');
 			setTimeout(() => this.updateStatusBar('idle'), 3000);
 		} else if (state === 'error') {
-			this.statusBarItem.setText('❌ Sync Error');
+			this.statusBarItem.setText('❌ Error');
 			this.statusBarItem.title = msg || 'Check logs';
 		}
+	}
+
+	private formatTimeAgo(timestamp: number): string {
+		const now = Date.now();
+		const diff = now - timestamp;
+		const minutes = Math.floor(diff / 60000);
+		const hours = Math.floor(diff / 3600000);
+		const days = Math.floor(diff / 86400000);
+
+		if (minutes < 1) return 'Just now';
+		if (minutes < 60) return `${minutes}m ago`;
+		if (hours < 24) return `${hours}h ago`;
+		return `${days}d ago`;
+	}
+
+	// Notification helper with severity-based duration
+	notify(message: string, severity: 'info' | 'success' | 'warning' | 'error' = 'info') {
+		const durations = { info: 4000, success: 3000, warning: 6000, error: 10000 };
+		new Notice(message, durations[severity]);
 	}
 
 	// Delegate to SyncService
 	async runSync(prune = false, targetPath: string | null = null, force = false) {
 		await this.syncService.runSync(prune, targetPath, force, this.updateStatusBar.bind(this));
+		// Update last sync time on success
+		this.settings.last_sync_time = Date.now();
+		await this.saveSettings();
 	}
 
 	// Delegate to CheckService

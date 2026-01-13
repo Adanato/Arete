@@ -29,8 +29,11 @@ describe('SyncService', () => {
 			stats_lapse_threshold: 3,
 			stats_ease_threshold: 2100,
 			stats_difficulty_threshold: 0.9,
+			sync_on_save: false,
+			sync_on_save_delay: 2000,
 			ui_expanded_decks: [],
 			ui_expanded_concepts: [],
+			last_sync_time: null,
 		};
 
 		updateStatusBar = jest.fn();

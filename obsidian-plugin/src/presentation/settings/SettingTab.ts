@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, requestUrl, Setting } from 'obsidian';
 import AretePlugin from '@/main';
 import { CheckResultModal } from '@presentation/modals/CheckResultModal';
 
@@ -46,6 +46,37 @@ export class AreteSettingTab extends PluginSettingTab {
 						this.plugin.templateRenderer.setMode(this.plugin.settings.renderer_mode);
 					}),
 			);
+
+		// ═══════════════════════════════════════════════════════════════════
+		// SYNC OPTIONS
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Sync Options' });
+
+		new Setting(containerEl)
+			.setName('Sync on Save')
+			.setDesc('Automatically sync the current file when you save (debounced).')
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.sync_on_save).onChange(async (value) => {
+					this.plugin.settings.sync_on_save = value;
+					await this.plugin.saveSettings();
+				}),
+			);
+
+		if (this.plugin.settings.sync_on_save) {
+			new Setting(containerEl)
+				.setName('Debounce Delay (ms)')
+				.setDesc('Wait this long after last edit before syncing.')
+				.addSlider((slider) =>
+					slider
+						.setLimits(500, 5000, 500)
+						.setValue(this.plugin.settings.sync_on_save_delay)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							this.plugin.settings.sync_on_save_delay = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
 
 		// ═══════════════════════════════════════════════════════════════════
 		// PYTHON ENVIRONMENT
@@ -132,6 +163,25 @@ export class AreteSettingTab extends PluginSettingTab {
 						this.plugin.settings.anki_connect_url = value;
 						await this.plugin.saveSettings();
 					}),
+			)
+			.addButton((button) =>
+				button.setButtonText('Test').onClick(async () => {
+					try {
+						const response = await requestUrl({
+							url: this.plugin.settings.anki_connect_url,
+							method: 'POST',
+							body: JSON.stringify({ action: 'version', version: 6 }),
+							contentType: 'application/json',
+						});
+						if (response.json?.result) {
+							new Notice(`✅ AnkiConnect v${response.json.result} connected!`, 3000);
+						} else {
+							new Notice('⚠️ AnkiConnect responded but version unknown', 5000);
+						}
+					} catch (e) {
+						new Notice('❌ Cannot connect to AnkiConnect. Is Anki running?', 8000);
+					}
+				}),
 			);
 
 		new Setting(containerEl)
