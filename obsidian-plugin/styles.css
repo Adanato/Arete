@@ -1,4 +1,169 @@
-/* Arete Plugin Styles */
+/* Arete Plugin Styles - Material Minimalist */
+
+/* --- Variables --- */
+:root {
+	--arete-card-bg: var(--background-primary);
+	--arete-card-border: var(--background-modifier-border);
+	--arete-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+	--arete-shadow-hover: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+	--arete-radius: 8px;
+	--arete-accent: var(--interactive-accent);
+	--arete-muted: var(--text-muted);
+}
+
+/* --- Card List Container --- */
+.arete-card-list {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	padding: 0.5rem;
+}
+
+/* --- Individual Card --- */
+.arete-card-item {
+	background-color: var(--arete-card-bg);
+	border: 1px solid var(--arete-card-border);
+	border-radius: var(--arete-radius);
+	box-shadow: var(--arete-shadow);
+	transition: all 0.2s ease-in-out;
+	padding: 0; /* Content handles padding */
+	overflow: hidden;
+}
+
+.arete-card-item:hover {
+	box-shadow: var(--arete-shadow-hover);
+	border-color: var(--arete-accent);
+}
+
+/* --- Card Header (Summary) --- */
+.arete-card-item summary {
+	padding: 1rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	cursor: pointer;
+	list-style: none; /* Hide default triangle */
+	font-weight: 500;
+}
+
+.arete-card-item summary::-webkit-details-marker {
+	display: none;
+}
+
+.arete-card-title {
+	font-size: 1.1em;
+	color: var(--text-normal);
+}
+
+/* --- Card Content --- */
+.arete-card-content {
+	padding: 1rem;
+	padding-top: 0;
+	border-top: 1px solid var(--arete-card-border);
+	background-color: var(--background-secondary-alt);
+}
+
+/* --- Fields --- */
+.arete-card-field {
+	margin-bottom: 1rem;
+}
+
+.arete-card-field label {
+	display: block;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--arete-muted);
+	margin-bottom: 0.25rem;
+	font-weight: 600;
+}
+
+.arete-card-field textarea {
+	width: 100%;
+	border: 1px solid var(--arete-card-border);
+	border-radius: 4px;
+	padding: 0.5rem;
+	font-family: var(--font-text);
+	background: var(--background-primary);
+	transition: border 0.15s;
+}
+
+.arete-card-field textarea:focus {
+	border-color: var(--arete-accent);
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+/* --- Preview Block --- */
+.arete-preview {
+	padding: 0.75rem;
+	background-color: var(--background-primary);
+	border: 1px solid var(--arete-card-border);
+	border-radius: 4px;
+	min-height: 2.5rem;
+}
+
+/* --- Actions Toolbar --- */
+.arete-card-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	flex-wrap: wrap;
+}
+
+/* --- Buttons & Badges --- */
+button.arete-icon-btn,
+button.arete-text-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.4rem 0.8rem;
+	border-radius: 20px; /* Pill shape */
+	font-size: 0.85rem;
+	cursor: pointer;
+	border: 1px solid var(--arete-card-border);
+	background-color: var(--background-primary);
+	color: var(--text-muted);
+	transition: all 0.15s;
+	height: 32px; /* Uniform height */
+}
+
+button.arete-icon-btn:hover,
+button.arete-text-btn:hover {
+	color: var(--text-normal);
+	border-color: var(--arete-muted);
+	background-color: var(--background-modifier-hover);
+}
+
+button.arete-primary-btn {
+	background-color: var(--button-primary);
+	color: var(--text-on-accent);
+	border: none;
+}
+
+button.arete-primary-btn:hover {
+	background-color: var(--button-primary-hover);
+}
+
+/* Icon Sizing within Buttons */
+.arete-icon-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* --- Header Controls --- */
+.arete-header-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem;
+	margin-bottom: 1rem;
+	border-bottom: 2px solid var(--background-modifier-border);
+}
+
+/* --- Utility Classes --- */
+.arete-hidden {
+	display: none;
+}
 
 /* Modal Container */
 .arete-modal {
@@ -115,4 +280,84 @@
 	color: var(--text-muted);
 	font-style: italic;
 	font-size: 0.9rem;
+}
+
+/* --- Skip to Bottom Button --- */
+.arete-skip-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: 12px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: all 0.15s ease-out;
+	margin: 2px;
+}
+
+.arete-skip-button:hover {
+	background: var(--interactive-accent-hover);
+	transform: scale(1.1);
+}
+
+/* --- Card Gutter Indicator --- */
+.arete-card-gutter {
+	width: 32px;
+}
+
+.arete-gutter-spacer {
+	width: 32px;
+}
+
+.arete-gutter-marker {
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-end;
+	width: 100%;
+	height: 100%;
+	cursor: pointer;
+	transition: all 0.15s ease-out;
+	position: relative;
+}
+
+.arete-gutter-bar {
+	width: 4px;
+	height: 100%;
+	background: var(--interactive-accent);
+	border-radius: 0;
+	transition: all 0.15s ease-out;
+}
+
+/* Gradient effect: fade out at bottom of each card */
+.arete-gutter-end .arete-gutter-bar {
+	background: linear-gradient(to bottom, var(--interactive-accent) 0%, transparent 100%);
+}
+
+.arete-gutter-marker:hover .arete-gutter-bar {
+	width: 8px;
+	background: var(--interactive-accent-hover);
+}
+
+.arete-gutter-start .arete-gutter-bar {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+}
+
+.arete-gutter-badge {
+	position: absolute;
+	left: 2px;
+	top: 0;
+	font-size: 10px;
+	font-weight: bold;
+	color: var(--text-muted);
+	min-width: 14px;
+	text-align: center;
+}
+
+.arete-gutter-marker:hover .arete-gutter-badge {
+	color: var(--text-normal);
 }
