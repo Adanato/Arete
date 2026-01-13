@@ -16,6 +16,42 @@ export class AreteSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Arete Settings' });
 
+		// ═══════════════════════════════════════════════════════════════════
+		// GENERAL
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'General' });
+
+		new Setting(containerEl)
+			.setName('Debug Mode')
+			.setDesc('Enable verbose logging and extra output.')
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.debug_mode).onChange(async (value) => {
+					this.plugin.settings.debug_mode = value;
+					await this.plugin.saveSettings();
+					this.display(); // Re-render to show/hide debug options
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName('Preview Renderer')
+			.setDesc('"Obsidian" renders Markdown/LaTeX (Recommended). "Anki" passes raw text.')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('obsidian', 'Obsidian (Markdown + LaTeX)')
+					.addOption('anki', 'Anki (Raw HTML/Text)')
+					.setValue(this.plugin.settings.renderer_mode)
+					.onChange(async (value) => {
+						this.plugin.settings.renderer_mode = value as 'obsidian' | 'anki';
+						await this.plugin.saveSettings();
+						this.plugin.templateRenderer.setMode(this.plugin.settings.renderer_mode);
+					}),
+			);
+
+		// ═══════════════════════════════════════════════════════════════════
+		// PYTHON ENVIRONMENT
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Python Environment' });
+
 		new Setting(containerEl)
 			.setName('Python Executable')
 			.setDesc('Path to python3 or arete executable')
@@ -31,9 +67,7 @@ export class AreteSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Arete Script Path')
-			.setDesc(
-				'Absolute path to arete/main.py. Leave empty if you are using a global binary.',
-			)
+			.setDesc('Absolute path to arete/main.py. Leave empty for global binary.')
 			.addText((text) =>
 				text
 					.setPlaceholder('/path/to/arete/main.py')
@@ -45,79 +79,8 @@ export class AreteSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Debug Mode')
-			.setDesc('Enable verbose logging and extra output.')
-			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.debug_mode).onChange(async (value) => {
-					this.plugin.settings.debug_mode = value;
-					await this.plugin.saveSettings();
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName('Preview Renderer Mode')
-			.setDesc(
-				'Choose how card fields are processed before previewing. "Obsidian" renders Markdown/LaTeX (Recommended). "Anki" passes raw text.',
-			)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption('obsidian', 'Obsidian (Markdown + LaTeX)')
-					.addOption('anki', 'Anki (Raw HTML/Text)')
-					.setValue(this.plugin.settings.renderer_mode)
-					.onChange(async (value) => {
-						this.plugin.settings.renderer_mode = value as 'obsidian' | 'anki';
-						await this.plugin.saveSettings();
-						// Update renderer instance
-						this.plugin.templateRenderer.setMode(this.plugin.settings.renderer_mode);
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName('Anki Backend')
-			.setDesc('Manual override for the Anki sync driver.')
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption('auto', 'Auto (Recommended)')
-					.addOption('apy', 'Apy (Direct DB Access, Faster)')
-					.addOption('ankiconnect', 'AnkiConnect (Requires Anki running)')
-					.setValue(this.plugin.settings.backend)
-					.onChange(async (value: 'auto' | 'apy' | 'ankiconnect') => {
-						this.plugin.settings.backend = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName('Anki Connect URL')
-			.setDesc('URL for AnkiConnect API (default: http://localhost:8765)')
-			.addText((text) =>
-				text
-					.setPlaceholder('http://localhost:8765')
-					.setValue(this.plugin.settings.anki_connect_url)
-					.onChange(async (value) => {
-						this.plugin.settings.anki_connect_url = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName('Anki Media Directory')
-			.setDesc('Custom path for Anki media uploads (optional)')
-			.addText((text) =>
-				text
-					.setPlaceholder('/path/to/Anki/collection.media')
-					.setValue(this.plugin.settings.anki_media_dir)
-					.onChange(async (value) => {
-						this.plugin.settings.anki_media_dir = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName('Parallel Workers')
-			.setDesc(
-				'Number of parallel sync workers. Higher is faster but may stress AnkiConnect.',
-			)
+			.setDesc('Number of sync workers. Higher is faster but may stress Anki.')
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 16, 1)
@@ -129,11 +92,69 @@ export class AreteSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		containerEl.createEl('h3', { text: 'Statistics Dashboard' });
+		new Setting(containerEl)
+			.setName('Test Configuration')
+			.setDesc('Verify Python executable is valid.')
+			.addButton((button) =>
+				button.setButtonText('Test').onClick(async () => {
+					await this.plugin.testConfig();
+				}),
+			);
+
+		// ═══════════════════════════════════════════════════════════════════
+		// ANKI CONNECTION
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Anki Connection' });
+
+		new Setting(containerEl)
+			.setName('Backend')
+			.setDesc('Sync driver for Anki.')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('auto', 'Auto (Recommended)')
+					.addOption('apy', 'Apy (Direct DB, Faster)')
+					.addOption('ankiconnect', 'AnkiConnect (Requires Anki running)')
+					.setValue(this.plugin.settings.backend)
+					.onChange(async (value: 'auto' | 'apy' | 'ankiconnect') => {
+						this.plugin.settings.backend = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('AnkiConnect URL')
+			.setDesc('URL for AnkiConnect API')
+			.addText((text) =>
+				text
+					.setPlaceholder('http://localhost:8765')
+					.setValue(this.plugin.settings.anki_connect_url)
+					.onChange(async (value) => {
+						this.plugin.settings.anki_connect_url = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Media Directory')
+			.setDesc('Custom path for Anki media uploads (optional)')
+			.addText((text) =>
+				text
+					.setPlaceholder('/path/to/Anki/collection.media')
+					.setValue(this.plugin.settings.anki_media_dir)
+					.onChange(async (value) => {
+						this.plugin.settings.anki_media_dir = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// ═══════════════════════════════════════════════════════════════════
+		// CARD HEALTH ANALYSIS
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Card Health Analysis' });
 
 		new Setting(containerEl)
 			.setName('Algorithm')
-			.setDesc('Choose the scoring algorithm used to identify problematic concepts.')
+			.setDesc('Scoring algorithm for identifying problematic cards.')
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption('sm2', 'Classic (SM-2)')
@@ -141,15 +162,15 @@ export class AreteSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.stats_algorithm)
 					.onChange(async (value: 'sm2' | 'fsrs') => {
 						this.plugin.settings.stats_algorithm = value;
-						// Clean cache to force re-evaluation with new algorithm
 						this.plugin.statsCache = { concepts: {}, lastFetched: 0 };
 						await this.plugin.saveSettings();
+						this.display(); // Re-render to show algorithm-specific options
 					}),
 			);
 
 		new Setting(containerEl)
 			.setName('Lapse Threshold')
-			.setDesc('Cards with this many lapses or more are considered problematic.')
+			.setDesc('Cards with this many lapses are marked problematic.')
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 20, 1)
@@ -164,9 +185,7 @@ export class AreteSettingTab extends PluginSettingTab {
 		if (this.plugin.settings.stats_algorithm === 'sm2') {
 			new Setting(containerEl)
 				.setName('Ease Threshold (%)')
-				.setDesc(
-					'Cards with ease below this percentage are considered problematic (Ease Hell). Standard is 250%.',
-				)
+				.setDesc('Cards with ease below this are in "Ease Hell". Default: 250%')
 				.addSlider((slider) =>
 					slider
 						.setLimits(130, 300, 10)
@@ -180,12 +199,10 @@ export class AreteSettingTab extends PluginSettingTab {
 		} else {
 			new Setting(containerEl)
 				.setName('Difficulty Threshold (FSRS)')
-				.setDesc(
-					'Cards with FSRS difficulty above this value (0.0 to 1.0) are problematic.',
-				)
+				.setDesc('Cards with difficulty above this (0-100%) are problematic.')
 				.addSlider((slider) =>
 					slider
-						.setLimits(50, 100, 5) // Slider 0-100%
+						.setLimits(50, 100, 5)
 						.setValue(this.plugin.settings.stats_difficulty_threshold * 100)
 						.setDynamicTooltip()
 						.onChange(async (value) => {
@@ -195,22 +212,17 @@ export class AreteSettingTab extends PluginSettingTab {
 				);
 		}
 
-		// Test Button
-		new Setting(containerEl)
-			.setName('Test Configuration')
-			.setDesc('Verifies that the Python Executable is valid.')
-			.addButton((button) =>
-				button.setButtonText('Test Config').onClick(async () => {
-					await this.plugin.testConfig();
-				}),
-			);
-
+		// ═══════════════════════════════════════════════════════════════════
+		// DEBUG (Conditional)
+		// ═══════════════════════════════════════════════════════════════════
 		if (this.plugin.settings.debug_mode) {
+			containerEl.createEl('h3', { text: 'Debug' });
+
 			new Setting(containerEl)
-				.setName('Check Results (Debug)')
+				.setName('Sample Check Modal')
 				.setDesc('Opens a sample result modal for testing.')
 				.addButton((button) =>
-					button.setButtonText('Open Sample Modal').onClick(() => {
+					button.setButtonText('Open').onClick(() => {
 						new CheckResultModal(
 							this.app,
 							this.plugin,
@@ -221,15 +233,20 @@ export class AreteSettingTab extends PluginSettingTab {
 				);
 		}
 
-		containerEl.createEl('h2', { text: 'Hotkeys' });
+		// ═══════════════════════════════════════════════════════════════════
+		// HOTKEYS
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Hotkeys' });
 		containerEl.createEl('p', {
-			text: 'To modify hotkeys, click the button to open Obsidian Hotkey settings.',
+			text: 'Click Configure to open Obsidian Hotkey settings.',
+			cls: 'setting-item-description',
 		});
 
 		const commands = [
 			{ id: 'obsidian-2-anki:arete-sync', name: 'Sync' },
 			{ id: 'obsidian-2-anki:arete-sync-current-file', name: 'Sync Current File' },
-			{ id: 'obsidian-2-anki:arete-sync-prune', name: 'Sync with Prune' },
+			{ id: 'obsidian-2-anki:arete-sync-prune', name: 'Sync (Prune Deleted Cards)' },
+			{ id: 'obsidian-2-anki:arete-sync-force-all', name: 'Sync (Force Re-upload All)' },
 		];
 
 		commands.forEach((cmd) => {
@@ -250,9 +267,7 @@ export class AreteSettingTab extends PluginSettingTab {
 				.setDesc(`Current: ${hotkeyStr}`)
 				.addButton((button) =>
 					button.setButtonText('Configure').onClick(() => {
-						// Open Hotkeys tab
 						(this.app as any).setting.openTabById('hotkeys');
-						// Optional: Try to set filter
 						const hotkeysTab = (this.app as any).setting.activeTab;
 						if (hotkeysTab && hotkeysTab.searchComponent) {
 							hotkeysTab.searchComponent.setValue('arete');
