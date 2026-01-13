@@ -1,10 +1,12 @@
 import { EditorView, gutter, GutterMarker, Decoration, DecorationSet } from '@codemirror/view';
 import { RangeSetBuilder, StateField, StateEffect } from '@codemirror/state';
+import { ProblematicCard } from '@application/services/StatsService';
 
 interface CardRange {
 	index: number;
 	startLine: number;
 	endLine: number;
+	nid: number | null;
 }
 
 interface ParseResult {
@@ -59,13 +61,27 @@ class CardGutterMarker extends GutterMarker {
 	index: number;
 	isStart: boolean;
 	isEnd: boolean;
+	lineIndex: number;
+	totalLines: number;
+	stats: ProblematicCard | null;
 	onClick: () => void;
 
-	constructor(index: number, isStart: boolean, isEnd: boolean, onClick: () => void) {
+	constructor(
+		index: number,
+		isStart: boolean,
+		isEnd: boolean,
+		lineIndex: number,
+		totalLines: number,
+		stats: ProblematicCard | null,
+		onClick: () => void
+	) {
 		super();
 		this.index = index;
 		this.isStart = isStart;
 		this.isEnd = isEnd;
+		this.lineIndex = lineIndex;
+		this.totalLines = totalLines;
+		this.stats = stats;
 		this.onClick = onClick;
 	}
 
@@ -73,6 +89,10 @@ class CardGutterMarker extends GutterMarker {
 		const marker = document.createElement('div');
 		marker.className = 'arete-gutter-marker';
 		marker.dataset.cardIndex = String(this.index);
+		marker.style.position = 'relative'; 
+		marker.style.height = '100%';       
+		marker.style.width = '100%';        
+		marker.style.minWidth = '20px';     
 
 		if (this.isStart) {
 			marker.classList.add('arete-gutter-start');
@@ -86,46 +106,146 @@ class CardGutterMarker extends GutterMarker {
 			const badge = document.createElement('span');
 			badge.className = 'arete-gutter-badge';
 			badge.textContent = String(this.index + 1);
+			
+			badge.style.position = 'absolute';
+			badge.style.top = '0';
+			badge.style.right = '6px'; 
+			badge.style.fontSize = '9px';
+			badge.style.lineHeight = '10px';
+			badge.style.fontWeight = 'bold';
+			badge.style.zIndex = '2';
 			marker.appendChild(badge);
+
+			// Add Stats Text if available
+			if (this.stats) {
+				const statsDiv = document.createElement('div');
+				statsDiv.className = 'arete-gutter-stats';
+				
+				statsDiv.style.position = 'absolute';
+				statsDiv.style.bottom = '1px';
+				statsDiv.style.right = '6px';
+				statsDiv.style.fontSize = '8px'; 
+				statsDiv.style.lineHeight = '8px';
+				statsDiv.style.fontWeight = 'bold';
+				statsDiv.style.textAlign = 'right';
+				statsDiv.style.zIndex = '2';
+				
+				let text = '';
+				let color = 'var(--text-muted)';
+				
+				if (this.stats.difficulty && this.stats.difficulty > 0) {
+					const diff = Math.round(this.stats.difficulty * 100);
+					text = `${diff}%`;
+					if (this.stats.difficulty > 0.9) color = 'var(--color-red)';
+					else if (this.stats.difficulty > 0.5) color = 'var(--color-orange)';
+				} else if (this.stats.lapses > 0) {
+					text = `${this.stats.lapses}L`;
+					if (this.stats.lapses > 5) color = 'var(--color-red)';
+					else color = 'var(--color-orange)';
+				} else {
+					text = `${Math.round(this.stats.ease / 10)}%`; 
+				}
+
+				statsDiv.textContent = text;
+				statsDiv.style.color = color;
+				statsDiv.title = this.stats.issue;
+				marker.appendChild(statsDiv);
+			}
 		}
 
 		// Add the colored bar
 		const bar = document.createElement('div');
 		bar.className = 'arete-gutter-bar';
+		
+		bar.style.position = 'absolute';
+		bar.style.right = '0';
+		bar.style.top = '0';
+		bar.style.width = '3px';
+		bar.style.height = '100%';
+		bar.style.marginTop = '-1px';
+		bar.style.paddingBottom = '1px';
+		
+		bar.style.transition = 'width 0.15s ease-out, box-shadow 0.15s ease-out';
+		
+		// Color Logic: Solid color for all lines, fade-out gradient on last line only
+		let barColor = 'var(--interactive-accent)';
+		let shadowColor = 'var(--interactive-accent)';
+		
+		if (this.stats && (this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))) {
+			barColor = 'var(--color-red)';
+			shadowColor = 'var(--color-red)';
+		} else if (this.stats && this.stats.difficulty && this.stats.difficulty > 0.5) {
+			barColor = 'var(--color-orange)';
+			shadowColor = 'var(--color-orange)';
+		}
+		
+		// Last line: fade from solid color to transparent
+		if (this.isEnd) {
+			bar.style.background = `linear-gradient(to bottom, ${barColor}, transparent)`;
+		} else {
+			bar.style.backgroundColor = barColor;
+		}
+
 		marker.appendChild(bar);
 
-		// Hover handlers to highlight all markers of the same card
-		marker.addEventListener('mouseenter', () => {
+		// Helper to update all segments of this card
+		const setCardState = (hover: boolean, active: boolean) => {
 			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
-				el.classList.add('arete-gutter-hover');
+				const b = el.querySelector('.arete-gutter-bar') as HTMLElement;
+				if (hover) el.classList.add('arete-gutter-hover');
+				else el.classList.remove('arete-gutter-hover');
+				
+				if (active) el.classList.add('arete-gutter-active');
+				
+				const isActive = el.classList.contains('arete-gutter-active');
+				const isHover = el.classList.contains('arete-gutter-hover');
+				
+				if (isActive || isHover) {
+					if (b) {
+						b.style.width = '6px';
+						b.style.boxShadow = `0 0 10px ${shadowColor}`;
+						b.style.zIndex = '10';
+					}
+				} else {
+					if (b) {
+						b.style.width = '3px';
+						b.style.boxShadow = 'none';
+						b.style.zIndex = '0';
+					}
+				}
 			});
-		});
-		
-		marker.addEventListener('mouseleave', () => {
-			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
-				el.classList.remove('arete-gutter-hover');
-			});
-		});
+		};
+
+		marker.addEventListener('mouseenter', () => setCardState(true, false));
+		marker.addEventListener('mouseleave', () => setCardState(false, false));
 
 		marker.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			
-			// Remove active class from all gutter markers
 			document.querySelectorAll('.arete-gutter-marker.arete-gutter-active').forEach((el) => {
 				el.classList.remove('arete-gutter-active');
+				const b = el.querySelector('.arete-gutter-bar') as HTMLElement;
+				if (b) {
+					b.style.width = '3px';
+					b.style.boxShadow = 'none';
+				}
 			});
-			
-			// Add active class to all markers of this card
-			document.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`).forEach((el) => {
-				el.classList.add('arete-gutter-active');
-			});
-			
+			setCardState(true, true);
 			this.onClick();
 		});
 
 		return marker;
 	}
+}
+
+// Helper: Find last non-blank line in a range
+function findLastContentLine(lines: string[], startLine: number, endLine: number): number {
+	for (let i = endLine; i >= startLine; i--) {
+		if (lines[i].trim().length > 0) {
+			return i;
+		}
+	}
+	return startLine; // Fallback to start if all blank
 }
 
 // Parse YAML to find card ranges and frontmatter end
@@ -136,7 +256,7 @@ function parseCardRanges(text: string): ParseResult {
 
 	let inFrontmatter = false;
 	let inCards = false;
-	let currentCard: { startLine: number; index: number } | null = null;
+	let currentCard: { startLine: number; index: number; nid: number | null } | null = null;
 	let cardIndex = 0;
 
 	for (let i = 0; i < lines.length; i++) {
@@ -155,7 +275,8 @@ function parseCardRanges(text: string): ParseResult {
 				ranges.push({
 					index: currentCard.index,
 					startLine: currentCard.startLine,
-					endLine: i - 1,
+					endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
+					nid: currentCard.nid,
 				});
 			}
 			break;
@@ -172,7 +293,6 @@ function parseCardRanges(text: string): ParseResult {
 		if (!inCards) continue;
 
 		// Detect new card (starts with "- " possibly with leading whitespace)
-		// Matches: "- model:", "  - model:", "- Front:", etc.
 		if (
 			trimmed.startsWith('- ') &&
 			(trimmed.includes('model:') || trimmed.includes('Front:') || trimmed.includes('front:'))
@@ -182,16 +302,24 @@ function parseCardRanges(text: string): ParseResult {
 				ranges.push({
 					index: currentCard.index,
 					startLine: currentCard.startLine,
-					endLine: i - 1,
+					endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
+					nid: currentCard.nid,
 				});
 			}
 			// Start new card
-			currentCard = { startLine: i, index: cardIndex };
+			currentCard = { startLine: i, index: cardIndex, nid: null };
 			cardIndex++;
 		}
+		
+		// Parse NID in current card
+		if (currentCard) {
+			const nidMatch = trimmed.match(/^nid:\s*['"]?(\d+)['"]?/);
+			if (nidMatch) {
+				currentCard.nid = parseInt(nidMatch[1]);
+			}
+		}
 
-		// Detect end of cards section (a new top-level key, not indented continuation)
-		// This is tricky - we stop when we hit a line that's a new YAML key at root level
+		// Detect end of cards section
 		if (
 			inCards &&
 			currentCard &&
@@ -203,7 +331,8 @@ function parseCardRanges(text: string): ParseResult {
 			ranges.push({
 				index: currentCard.index,
 				startLine: currentCard.startLine,
-				endLine: i - 1,
+				endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
+				nid: currentCard.nid,
 			});
 			currentCard = null;
 			inCards = false;
@@ -260,14 +389,16 @@ const cardHighlightField = StateField.define<DecorationSet>({
 				return Decoration.none;
 			}
 		}
-		// Keep existing decorations if no effect
 		return decorations;
 	},
 	provide: (f) => EditorView.decorations.from(f),
 });
 
 // Create the gutter extension
-export function createCardGutter(onCardClick: (cardIndex: number) => void) {
+export function createCardGutter(
+	onCardClick: (cardIndex: number) => void,
+	getCardStats: (nid: number) => ProblematicCard | null = () => null
+) {
 	return [
 		cardRangesField,
 		cardHighlightField,
@@ -277,7 +408,6 @@ export function createCardGutter(onCardClick: (cardIndex: number) => void) {
 				const result = view.state.field(cardRangesField);
 				const builder = new RangeSetBuilder<GutterMarker>();
 
-				// Add skip-to-bottom button on line 1 if there are cards
 				if (result.hasCards && result.frontmatterEndLine !== null) {
 					const firstLine = view.state.doc.line(1);
 					builder.add(
@@ -287,7 +417,6 @@ export function createCardGutter(onCardClick: (cardIndex: number) => void) {
 					);
 				}
 
-				// Add card markers
 				for (const range of result.ranges) {
 					for (let lineNum = range.startLine; lineNum <= range.endLine; lineNum++) {
 						if (lineNum >= view.state.doc.lines) break;
@@ -295,12 +424,26 @@ export function createCardGutter(onCardClick: (cardIndex: number) => void) {
 						const line = view.state.doc.line(lineNum + 1); // 1-indexed
 						const isStart = lineNum === range.startLine;
 						const isEnd = lineNum === range.endLine;
+						const totalLines = range.endLine - range.startLine + 1;
+						const lineIndex = lineNum - range.startLine;
+						
+						// Fix: Pass stats to ALL lines so the bar color is consistent opacity/gradient
+						let stats = null;
+						if (range.nid) {
+							stats = getCardStats(range.nid);
+						}
 
 						builder.add(
 							line.from,
 							line.from,
-							new CardGutterMarker(range.index, isStart, isEnd, () =>
-								onCardClick(range.index),
+							new CardGutterMarker(
+								range.index, 
+								isStart, 
+								isEnd, 
+								lineIndex, 
+								totalLines, 
+								stats, 
+								() => onCardClick(range.index),
 							),
 						);
 					}
