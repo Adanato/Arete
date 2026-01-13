@@ -1,9 +1,9 @@
 {
-	"id": "obsianki",
-	"name": "ObsiAnki",
+	"id": "arete",
+	"name": "Arete",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Sync Obsidian vault to Anki using the o2a CLI.",
+	"description": "Sync Obsidian vault to Anki using the Arete CLI.",
 	"author": "Adam Nguyen",
 	"authorUrl": "https://github.com/Adanato/obsidian_2_anki",
 	"isDesktopOnly": true

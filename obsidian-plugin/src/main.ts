@@ -1,0 +1,225 @@
+import { Editor, MarkdownView, Notice, Plugin, FileSystemAdapter } from 'obsidian';
+import * as path from 'path';
+
+import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
+import { CardView, CARD_VIEW_TYPE } from '@presentation/views/CardView';
+import { AreteSettingTab } from '@presentation/settings/SettingTab';
+import { SyncService } from '@application/services/SyncService';
+import { CheckService } from '@application/services/CheckService';
+import { TemplateRenderer } from '@application/services/TemplateRenderer';
+import { createCardGutter } from '@presentation/extensions/CardGutterExtension';
+
+export default class AretePlugin extends Plugin {
+	settings: AretePluginSettings;
+	statusBarItem: HTMLElement;
+	syncService: SyncService;
+	checkService: CheckService;
+	templateRenderer: TemplateRenderer;
+
+	async onload() {
+		console.log('[Arete] Plugin Loading...');
+
+		try {
+			await this.loadSettings();
+			console.log('[Arete] Settings loaded:', this.settings);
+
+			// Initialize Services
+			this.templateRenderer = new TemplateRenderer(this.app, this.settings.ankiConnectUrl);
+			this.templateRenderer.setMode(this.settings.rendererMode);
+			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
+				console.log(msg); // Default logger
+			});
+			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
+			console.log('[Arete] Services initialized');
+		} catch (e) {
+			console.error('[Arete] Failed to initialize plugin services:', e);
+			new Notice('Arete Plugin failed to initialize! Check console.');
+		}
+
+		// 1. Status Bar Setup
+		this.statusBarItem = this.addStatusBarItem();
+		this.updateStatusBar('idle');
+
+		// 2. Ribbon Icon
+		this.addRibbonIcon('sheets-in-box', 'Sync to Anki (Arete)', (evt: MouseEvent) => {
+			this.runSync();
+		});
+
+		// 3. Commands
+		this.addCommand({
+			id: 'arete-sync',
+			name: 'Sync',
+			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'A' }],
+			callback: () => {
+				this.runSync();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-check-file',
+			name: 'Check Current File',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				if (view.file) {
+					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
+					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
+					if (basePath) {
+						const fullPath = path.join(basePath, view.file.path);
+						this.runCheck(fullPath);
+					} else {
+						new Notice('Error: Cannot determine vault path.');
+					}
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-check-integrity',
+			name: 'Debug: Check Vault Integrity (Obsidian vs Linter)',
+			callback: () => {
+				this.checkVaultIntegrity();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-sync-current-file',
+			name: 'Sync Current File (Force Update)',
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile) {
+					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
+					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
+					if (basePath) {
+						const maxPath = path.join(basePath, activeFile.path);
+						this.runSync(false, maxPath, true);
+					} else {
+						new Notice('Error: Cannot resolve file path.');
+					}
+				} else {
+					new Notice('No active file to sync.');
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-sync-prune',
+			name: 'Sync with Prune',
+			callback: () => {
+				this.runSync(true);
+			},
+		});
+
+		// 4. Settings
+		this.addSettingTab(new AreteSettingTab(this.app, this));
+
+		// 5. Card Viewer
+		this.registerView(CARD_VIEW_TYPE, (leaf) => new CardView(leaf, this));
+
+		this.addRibbonIcon('layout-list', 'Open Card Viewer', () => {
+			this.activateView();
+		});
+
+		this.addCommand({
+			id: 'open-card-view',
+			name: 'Open Card Viewer',
+			callback: () => {
+				this.activateView();
+			},
+		});
+
+		// 6. Card Gutter Extension
+		this.registerEditorExtension(
+			createCardGutter((cardIndex) => {
+				this.activateView(cardIndex);
+			}),
+		);
+	}
+
+	async activateView(expandCardIndex?: number) {
+		const { workspace } = this.app;
+
+		let leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) {
+				await rightLeaf.setViewState({
+					type: CARD_VIEW_TYPE,
+					active: true,
+				});
+			}
+			leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+			// If a card index was specified, expand that card
+			if (expandCardIndex !== undefined) {
+				const view = leaf.view as CardView;
+				if (view && view.expandedIndices) {
+					view.expandedIndices.clear();
+					view.expandedIndices.add(expandCardIndex);
+					view.render();
+				}
+			}
+		}
+	}
+
+	onunload() {
+		if (this.statusBarItem) {
+			this.statusBarItem.empty();
+		}
+	}
+
+	updateStatusBar(state: 'idle' | 'syncing' | 'error' | 'success', msg?: string) {
+		if (!this.statusBarItem) return;
+		this.statusBarItem.empty();
+
+		if (state === 'idle') {
+			return;
+		}
+
+		if (state === 'syncing') {
+			this.statusBarItem.createSpan({ cls: 'arete-sb-icon', text: '🔄 ' });
+			this.statusBarItem.createSpan({ text: 'Anki Syncing...' });
+		} else if (state === 'success') {
+			this.statusBarItem.setText('✅ Sync Complete');
+			setTimeout(() => this.updateStatusBar('idle'), 3000);
+		} else if (state === 'error') {
+			this.statusBarItem.setText('❌ Sync Error');
+			this.statusBarItem.title = msg || 'Check logs';
+		}
+	}
+
+	// Delegate to SyncService
+	async runSync(prune = false, targetPath: string | null = null, force = false) {
+		await this.syncService.runSync(prune, targetPath, force, this.updateStatusBar.bind(this));
+	}
+
+	// Delegate to CheckService
+	async runCheck(filePath: string) {
+		await this.checkService.runCheck(filePath);
+	}
+
+	async runFix(filePath: string) {
+		await this.checkService.runFix(filePath);
+	}
+
+	async checkVaultIntegrity() {
+		await this.checkService.checkVaultIntegrity();
+	}
+
+	async testConfig() {
+		await this.checkService.testConfig();
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+		// Update services with new settings
+		this.syncService.settings = this.settings;
+		this.checkService.settings = this.settings;
+	}
+}

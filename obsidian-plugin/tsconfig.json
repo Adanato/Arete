@@ -11,7 +11,14 @@
 		"importHelpers": true,
 		"esModuleInterop": true,
 
-		"lib": ["dom", "es5", "scripthost", "es2015"]
+		"lib": ["dom", "es5", "scripthost", "es2015"],
+		"paths": {
+			"@/*": ["./src/*"],
+			"@domain/*": ["./src/domain/*"],
+			"@application/*": ["./src/application/*"],
+			"@infrastructure/*": ["./src/infrastructure/*"],
+			"@presentation/*": ["./src/presentation/*"]
+		}
 	},
 	"include": ["**/*.ts"]
 }
