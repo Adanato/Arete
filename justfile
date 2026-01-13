@@ -11,7 +11,7 @@ install:
 
 # Run all unit and functional tests (excludes integration)
 test:
-    uv run pytest tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
+    uv run pytest tests/application tests/interface tests/infrastructure tests/domain
 
 # Run integration tests (Anki must be running)
 test-integration:
@@ -51,7 +51,7 @@ clear-cache:
 
 # Run tests with coverage report
 coverage:
-    uv run pytest --cov=src/arete --cov-report=term-missing --cov-report=html tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
+    uv run pytest --cov=src/arete --cov-report=term-missing --cov-report=html tests/application tests/interface tests/infrastructure tests/domain
 
 # Wait for Anki to be ready
 wait-for-anki:
@@ -63,7 +63,7 @@ check:
     uv run ruff format src tests
     uv run ruff check src tests
     @echo "--- 🐍 Python: Testing ---"
-    uv run pytest tests/core tests/infrastructure tests/services tests/test_media.py tests/test_text.py
+    uv run pytest tests/application tests/interface tests/infrastructure tests/domain
     @echo "--- 🟦 TypeScript: Linting ---"
     cd obsidian-plugin && npm run lint
     @echo "--- 🟦 TypeScript: Testing ---"
