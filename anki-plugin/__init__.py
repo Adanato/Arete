@@ -197,6 +197,42 @@ def on_anki_connect_call(method: str, params: dict, context: dict):
         period = params.get("period", 3000)
         tooltip(msg, period=period)
         return True
+
+    if method == "getFSRSStats":
+        card_ids = params.get("cards", [])
+        results = []
+        for cid in card_ids:
+            try:
+                card = mw.col.get_card(cid)
+                difficulty = None
+                
+                # 1. Native FSRS (Anki 23.10+)
+                # card.memory_state might be available
+                if hasattr(card, "memory_state") and card.memory_state:
+                    # memory_state.difficulty is usually 0-10 or 1-10
+                    # Standard FSRS is 1-10.
+                    difficulty = card.memory_state.difficulty
+
+                # 2. Custom Data (JSON in .data field) - Legacy FSRS / Helper
+                if difficulty is None and card.data:
+                    import json
+                    try:
+                        data = json.loads(card.data)
+                        if 'd' in data: 
+                             difficulty = data['d']
+                        elif 'fsrs' in data and 'd' in data['fsrs']:
+                             difficulty = data['fsrs']['d']
+                        # Some versions use 'D' or other keys, but 'd' is standard.
+                    except:
+                        pass
+                
+                results.append({"cardId": cid, "difficulty": difficulty})
+            except Exception as e:
+                 # Card not found or other error
+                 results.append({"cardId": cid, "difficulty": None, "error": str(e)})
+        
+        return results
+
     return None
 
 
@@ -212,28 +248,6 @@ setup_reviewer_shortcut()
 gui_hooks.browser_will_show_context_menu.append(on_browser_context_menu)
 
 # Try to hook into AnkiConnect if it's installed
-try:
-    from anki_connect.anki_connect import AnkiConnect
-
-    def wrap_anki_connect():
-        # This is a bit hacky but works for adding custom actions to AnkiConnect
-        original_handler = AnkiConnect.handle_request
-
-        def custom_handler(self, request):
-            method = request.get("action")
-            params = request.get("params", {})
-
-            # Check if it's our custom action
-            res = on_anki_connect_call(method, params, {})
-            if res is not None:
-                return {"result": res, "error": None}
-
-            return original_handler(self, request)
-
-        AnkiConnect.handle_request = custom_handler
-
-    # We need to wait for AnkiConnect to be initialized
-    gui_hooks.main_window_did_init.append(wrap_anki_connect)
-except ImportError:
-    # AnkiConnect not found, skip custom actions
-    pass
+# AnkiConnect hook is now handled by direct patching of the AnkiConnect add-on.
+# This file only registers the custom actions if needed in future, but for now
+# we rely on the patched AnkiConnect to provide 'getFSRSStats'.
