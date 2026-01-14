@@ -1,7 +1,7 @@
 {
 	"id": "arete",
 	"name": "Arete",
-	"version": "1.1.22",
+	"version": "1.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "Sync Obsidian vault to Anki using the Arete CLI.",
 	"author": "Adam Nguyen",

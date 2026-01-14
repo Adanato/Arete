@@ -584,3 +584,57 @@
 }
 
 
+
+
+/* ─────────────────────────────────────────────────────────────
+   DASHBOARD VIEW STYLES
+   ───────────────────────────────────────────────────────────── */
+
+.arete-dashboard-container {
+	background: var(--background-primary);
+}
+
+.arete-dashboard-header {
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.arete-header-stats span {
+	font-weight: 500;
+}
+
+/* Tab Bar */
+.arete-tab-bar {
+	display: flex;
+	overflow-x: auto;
+}
+
+.arete-tab-btn {
+	transition: all 0.2s ease;
+}
+
+.arete-tab-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arete-tab-btn.is-active {
+	background: rgba(var(--interactive-accent-rgb), 0.1);
+}
+
+/* Leech Table */
+.arete-leech-table th {
+	padding: 8px;
+	border-bottom: 2px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 0.8em;
+	text-transform: uppercase;
+}
+
+.arete-leech-table td {
+	font-size: 0.9em;
+}
+
+.arete-leech-table tr:hover {
+	background: var(--background-primary-alt);
+}
