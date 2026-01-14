@@ -29,6 +29,8 @@ describe('SyncService', () => {
 			stats_lapse_threshold: 3,
 			stats_ease_threshold: 2100,
 			stats_difficulty_threshold: 0.9,
+			graph_coloring_enabled: false,
+			graph_tag_prefix: 'arete/retention',
 			sync_on_save: false,
 			sync_on_save_delay: 2000,
 			ui_expanded_decks: [],
@@ -51,7 +53,7 @@ describe('SyncService', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'arete', 'sync', '--force', '--workers', '4', '/mock/path/file.md'],
+			['-m', 'arete', 'sync', '--force', '--clear-cache', '--workers', '4', '/mock/path/file.md'],
 			expect.any(Object),
 		);
 		expect(updateStatusBar).toHaveBeenCalledWith('syncing');

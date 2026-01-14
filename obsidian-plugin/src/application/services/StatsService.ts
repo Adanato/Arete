@@ -12,6 +12,7 @@ export interface AnkiCardStats {
 	due: number; // Epoch
 	reps: number;
 	averageTime: number; // ms
+	front?: string; // Content from Obsidian
 }
 
 export interface ProblematicCard {
@@ -133,7 +134,9 @@ export class StatsService {
 			const concept = conceptMap[meta.file.path];
 			if (!concept) continue;
 
+
 			// Store by Card ID (Precise)
+			stat.front = meta.front;
 			concept.cardStats[stat.cardId] = stat;
 
 			// Store by Note ID (Fallback/Merged) - handle multiple cards per Note ID

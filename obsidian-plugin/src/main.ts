@@ -1,16 +1,20 @@
-import { Editor, MarkdownView, Notice, Plugin, FileSystemAdapter } from 'obsidian';
+import { Editor, MarkdownView, Notice, Plugin, FileSystemAdapter, TFile } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import * as path from 'path';
 
 import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
 
 import { CardYamlEditorView, YAML_EDITOR_VIEW_TYPE } from '@presentation/views/CardYamlEditorView';
-import { StatisticsView, STATS_VIEW_TYPE } from '@presentation/views/StatisticsView';
+import { DashboardView, DASHBOARD_VIEW_TYPE } from '@presentation/views/DashboardView';
 import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
 import { StatsService, StatsCache } from '@application/services/StatsService';
+import { GraphService } from '@application/services/GraphService';
+import { LinkCheckerService } from '@application/services/LinkCheckerService';
+import { LeechService } from '@application/services/LeechService';
+import { AnkiConnectRepository } from '@infrastructure/anki/AnkiConnectRepository';
 import {
 	createCardGutter,
 	highlightCardEffect,
@@ -27,6 +31,10 @@ export default class AretePlugin extends Plugin {
 	syncService: SyncService;
 	checkService: CheckService;
 	statsService: StatsService;
+	graphService: GraphService;
+	linkCheckerService: LinkCheckerService;
+	leechService: LeechService;
+	ankiRepo: AnkiConnectRepository;
 	templateRenderer: TemplateRenderer;
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -45,14 +53,33 @@ export default class AretePlugin extends Plugin {
 			});
 			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
 			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
+			this.graphService = new GraphService(this.app, this.settings);
 			
-			// Auto-refresh stats on startup to ensure cache is populated
+			// Initialize New Dashboard Services
+			this.ankiRepo = new AnkiConnectRepository(this.settings.anki_connect_url);
+			this.linkCheckerService = new LinkCheckerService(this.app);
+			this.leechService = new LeechService(this.app, this.ankiRepo);
+
+			// Auto-refresh stats on startup
 			this.app.workspace.onLayoutReady(() => {
 				console.log('[Arete] Refreshing stats on startup...');
 				this.statsService.refreshStats()
-					.then(() => {
+					.then(async (results) => { // Updated to receive results
 						console.log('[Arete] Stats refresh complete, notifying views...');
-						// Refresh the YAML Editor view if open
+						
+						// 1. Update Graph Tags (if enabled)
+						if (this.settings.graph_coloring_enabled) {
+							console.log('[Arete] Updating Graph Tags...');
+							for (const concept of results) {
+								const file = this.app.vault.getAbstractFileByPath(concept.filePath);
+								if (file instanceof TFile) {
+									await this.graphService.updateGraphTags(file, concept);
+								}
+							}
+							new Notice('Graph tags updated.');
+						}
+
+						// 2. Refresh YAML Editor
 						const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
 						if (yamlLeaf) {
 							const view = yamlLeaf.view as CardYamlEditorView;
@@ -87,8 +114,8 @@ export default class AretePlugin extends Plugin {
 			this.runSync(false, null, true);
 		});
 
-		this.addRibbonIcon('bar-chart-2', 'Arete Statistics', (evt: MouseEvent) => {
-			this.activateStatsView();
+		this.addRibbonIcon('layout-dashboard', 'Arete Dashboard', (evt: MouseEvent) => {
+			this.activateDashboardView();
 		});
 
 		// 3. Commands
@@ -163,10 +190,48 @@ export default class AretePlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'arete-open-stats',
-			name: 'Open Statistics',
+			id: 'arete-open-dashboard',
+			name: 'Open Dashboard',
 			callback: () => {
-				this.activateStatsView();
+				this.activateDashboardView();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-graph-clear',
+			name: 'Graph: Clear Retention Tags',
+			callback: async () => {
+				await this.graphService.clearAllTags();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-sync-stats',
+			name: 'Sync Stats (Refresh Anki Data)',
+			callback: async () => {
+				new Notice('Refreshing Arete stats...');
+				const results = await this.statsService.refreshStats();
+				
+				// Post-refresh updates (Graph Tags + YAML Editor)
+				if (this.settings.graph_coloring_enabled) {
+					for (const concept of results) {
+						const file = this.app.vault.getAbstractFileByPath(concept.filePath);
+						if (file instanceof TFile) {
+							await this.graphService.updateGraphTags(file, concept);
+						}
+					}
+					new Notice('Graph tags updated.');
+				}
+				
+				// Refresh YAML Toolbar
+				const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+				if (yamlLeaf) {
+					const view = yamlLeaf.view as CardYamlEditorView;
+					if (view.renderToolbar) {
+						view.renderToolbar();
+					}
+				}
+				new Notice('Stats refreshed.');
 			},
 		});
 
@@ -175,7 +240,7 @@ export default class AretePlugin extends Plugin {
 
 		// 5. Views
 
-		this.registerView(STATS_VIEW_TYPE, (leaf) => new StatisticsView(leaf, this));
+		this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
 		this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
 
 
@@ -267,6 +332,8 @@ export default class AretePlugin extends Plugin {
 		);
 	}
 
+
+
 	// Highlight card lines in editor (permanent until different card is clicked)
 	highlightCardLines(cardIndex: number) {
 		// Use getMostRecentLeaf to find the editor (works when called from sidebar)
@@ -282,19 +349,19 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
-	async activateStatsView() {
+	async activateDashboardView() {
 		const { workspace } = this.app;
-		let leaf = workspace.getLeavesOfType(STATS_VIEW_TYPE)[0];
+		let leaf = workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0];
 
 		if (!leaf) {
 			const rightLeaf = workspace.getRightLeaf(false);
 			if (rightLeaf) {
 				await rightLeaf.setViewState({
-					type: STATS_VIEW_TYPE,
+					type: DASHBOARD_VIEW_TYPE,
 					active: true,
 				});
 			}
-			leaf = workspace.getLeavesOfType(STATS_VIEW_TYPE)[0];
+			leaf = workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0];
 		}
 
 		if (leaf) {
@@ -432,6 +499,9 @@ export default class AretePlugin extends Plugin {
 		this.checkService.settings = this.settings;
 		if (this.statsService) {
 			this.statsService.settings = this.settings;
+		}
+		if (this.graphService) {
+			this.graphService.updateSettings(this.settings);
 		}
 	}
 

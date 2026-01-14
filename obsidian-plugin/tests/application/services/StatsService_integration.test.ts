@@ -5,13 +5,14 @@ import { AretePluginSettings } from '@domain/settings';
 import { requestUrl } from 'obsidian';
 
 // Mock requestUrl
-jest.mock('obsidian', () => {
-	return {
-		...jest.requireActual('obsidian'),
-		requestUrl: jest.fn(),
-		Notice: jest.fn(),
-	};
-});
+// Mock obsidian purely without requireActual
+jest.mock('obsidian', () => ({
+	App: class {},
+	TFile: class {},
+	Notice: jest.fn(),
+	requestUrl: jest.fn(),
+	FileSystemAdapter: class {},
+}));
 
 describe('StatsService Integration', () => {
 	let app: App;

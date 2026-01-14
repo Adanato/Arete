@@ -20,6 +20,10 @@ export interface AretePluginSettings {
 	ui_expanded_decks: string[];
 	ui_expanded_concepts: string[];
 	last_sync_time: number | null; // Unix timestamp
+
+	// Graph Coloring
+	graph_coloring_enabled: boolean;
+	graph_tag_prefix: string;
 }
 
 export const DEFAULT_SETTINGS: AretePluginSettings = {
@@ -43,4 +47,8 @@ export const DEFAULT_SETTINGS: AretePluginSettings = {
 	ui_expanded_decks: [],
 	ui_expanded_concepts: [],
 	last_sync_time: null,
+
+	// Graph Coloring
+	graph_coloring_enabled: false,
+	graph_tag_prefix: 'arete/retention',
 };

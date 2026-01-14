@@ -40,4 +40,16 @@ export class AnkiConnectRepository {
 	async version(): Promise<number> {
 		return this.invoke('version');
 	}
+
+	async suspendCards(cardIds: number[]): Promise<boolean> {
+		return this.invoke('suspend', { cards: cardIds });
+	}
+
+	async unsuspendCards(cardIds: number[]): Promise<boolean> {
+		return this.invoke('unsuspend', { cards: cardIds });
+	}
+
+	async getCardInfo(cardIds: number[]): Promise<any[]> {
+		return this.invoke('cardsInfo', { cards: cardIds });
+	}
 }

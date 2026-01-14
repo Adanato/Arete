@@ -24,6 +24,8 @@ describe('AretePlugin Lifecycle and Commands', () => {
 			stats_lapse_threshold: 3,
 			stats_ease_threshold: 2100,
 			stats_difficulty_threshold: 0.9,
+			graph_coloring_enabled: false,
+			graph_tag_prefix: 'arete/retention',
 			sync_on_save: false,
 			sync_on_save_delay: 2000,
 			ui_expanded_decks: [],

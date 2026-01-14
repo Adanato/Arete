@@ -260,6 +260,54 @@ export class AreteSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						}),
 				);
+
+		}
+
+		// ═══════════════════════════════════════════════════════════════════
+		// GRAPH OF FORGETTING
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Graph of Forgetting' });
+
+		new Setting(containerEl)
+			.setName('Enable Graph Coloring')
+			.setDesc('Automatically add status tags (#arete/retention/...) to notes based on Anki stats.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.graph_coloring_enabled)
+					.onChange(async (value) => {
+						this.plugin.settings.graph_coloring_enabled = value;
+						await this.plugin.saveSettings();
+						this.display();
+					}),
+			);
+
+		if (this.plugin.settings.graph_coloring_enabled) {
+			new Setting(containerEl)
+				.setName('Tag Prefix')
+				.setDesc('Prefix for retention tags. Examples: high, med, low will be appended.')
+				.addText((text) =>
+					text
+						.setPlaceholder('arete/retention')
+						.setValue(this.plugin.settings.graph_tag_prefix)
+						.onChange(async (value) => {
+							this.plugin.settings.graph_tag_prefix = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			new Setting(containerEl)
+				.setName('Clear All Tags')
+				.setDesc('Remove all Arete retention tags from all files.')
+				.addButton((button) =>
+					button
+						.setButtonText('Clear Tags')
+						.setWarning()
+						.onClick(async () => {
+							if (confirm('Are you sure you want to remove all retention tags?')) {
+								await this.plugin.graphService.clearAllTags();
+							}
+						}),
+				);
 		}
 
 		// ═══════════════════════════════════════════════════════════════════

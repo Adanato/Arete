@@ -12,6 +12,93 @@ jest.mock('fs', () => ({
 	existsSync: jest.fn(),
 }));
 
+// Mock CodeMirror packages to avoid DOM-dependency crashes
+jest.mock('@codemirror/view', () => ({
+	EditorView: class {
+		dispatch() {}
+		destroy() {}
+	},
+	lineNumbers: jest.fn(),
+	keymap: { of: jest.fn() },
+	Decoration: {
+		line: jest.fn().mockReturnValue({}),
+		set: jest.fn().mockReturnValue({}),
+	},
+	GutterMarker: class {},
+	gutter: jest.fn(),
+}));
+jest.mock('@codemirror/state', () => ({
+	EditorState: {
+		create: jest.fn().mockReturnValue({}),
+		transaction: jest.fn(),
+	},
+	Annotation: { define: jest.fn() },
+	Facet: { define: jest.fn() },
+	StateEffect: {
+		define: jest.fn().mockReturnValue({}),
+	},
+	StateField: {
+		define: jest.fn().mockReturnValue({}),
+	},
+}));
+jest.mock('@codemirror/commands', () => ({
+	defaultKeymap: [] as any[],
+	history: jest.fn(),
+	historyKeymap: [] as any[],
+}));
+jest.mock('@codemirror/lang-yaml', () => ({
+	yaml: jest.fn(),
+}));
+
+// Mock Document and Window for TemplateRenderer 
+if (typeof document === 'undefined') {
+	const mockDoc = {
+		createElement: jest.fn().mockImplementation(() => ({
+			style: { tabSize: '4' },
+			appendChild: jest.fn(),
+			removeChild: jest.fn(),
+			setAttribute: jest.fn(),
+			styleSheets: [],
+			ownerDocument: null,
+			innerHTML: '',
+		})),
+		createTextNode: jest.fn().mockReturnValue({}),
+		body: {
+			appendChild: jest.fn(),
+			removeChild: jest.fn(),
+		},
+		documentElement: {
+			style: { tabSize: '4' },
+		},
+		head: {
+			appendChild: jest.fn(),
+		},
+		addEventListener: jest.fn(),
+		removeEventListener: jest.fn(),
+	};
+	(global as any).document = mockDoc;
+	(global as any).window = {
+		document: mockDoc,
+		navigator: { userAgent: 'node' },
+		addEventListener: jest.fn(),
+		removeEventListener: jest.fn(),
+		requestAnimationFrame: jest.fn().mockImplementation((cb) => setTimeout(cb, 0)),
+		cancelAnimationFrame: jest.fn().mockImplementation((id) => clearTimeout(id)),
+		history: {},
+		performance: { now: jest.fn().mockReturnValue(0) },
+		location: {},
+		screen: {},
+		getComputedStyle: jest.fn().mockReturnValue({ tabSize: '4' }),
+	};
+	(global as any).navigator = (global as any).window.navigator;
+	(global as any).Node = class {};
+	(global as any).HTMLElement = class {};
+	(global as any).MutationObserver = class {
+		observe() {}
+		disconnect() {}
+	};
+}
+
 // Mock factories that return fresh instances
 export const createMockElement = (tag?: string, opts?: any): any => {
 	const el: any = {
@@ -126,6 +213,8 @@ jest.mock('obsidian', () => {
 				getActiveFile: jest.fn(),
 				getActiveViewOfType: jest.fn(),
 				on: jest.fn(),
+				onLayoutReady: jest.fn().mockImplementation((cb) => cb()),
+				getLeavesOfType: jest.fn().mockReturnValue([]),
 			},
 			metadataCache: {
 				getFileCache: jest.fn(),
