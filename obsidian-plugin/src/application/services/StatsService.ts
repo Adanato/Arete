@@ -33,6 +33,7 @@ export interface ConceptStats {
 	totalCards: number;
 	problematicCardsCount: number;
 	problematicCards: ProblematicCard[];
+	cardStats: Record<number, AnkiCardStats>; // New: Store all stats by Note ID
 	averageEase: number;
 	averageDifficulty: number | null; // Null if no FSRS data found
 	difficultyCount?: number; // Internal tracking
@@ -88,6 +89,7 @@ export class StatsService {
 						totalCards: 0,
 						problematicCardsCount: 0,
 						problematicCards: [],
+						cardStats: {}, // Init empty
 						averageEase: 0,
 						averageDifficulty: null, // Init as null
 						difficultyCount: 0, // NEW: Track valid difficulty
@@ -131,6 +133,44 @@ export class StatsService {
 			const concept = conceptMap[meta.file.path];
 			if (!concept) continue;
 
+			// Store by Card ID (Precise)
+			concept.cardStats[stat.cardId] = stat;
+
+			// Store by Note ID (Fallback/Merged) - handle multiple cards per Note ID
+			const existing = concept.cardStats[stat.noteId];
+			if (existing) {
+				let replace = false;
+
+				// 1. FSRS Difficulty: Prefer defined, then higher
+				if (this.settings.stats_algorithm === 'fsrs') {
+					if (stat.difficulty !== undefined) {
+						if (existing.difficulty === undefined) replace = true;
+						else if (stat.difficulty > existing.difficulty) replace = true;
+					}
+				}
+				// 2. SM-2 Ease: Prefer Lower (harder)
+				else {
+					if (stat.ease < existing.ease) replace = true;
+				}
+
+				// 3. Lapses: If stats are equal/comparable, prefer higher lapses
+				if (!replace && stat.lapses > existing.lapses) {
+					if (this.settings.stats_algorithm === 'fsrs') {
+						// Only override if difficulty logic didn't already decide (e.g. both undefined or equal)
+						if (stat.difficulty === existing.difficulty) replace = true;
+					} else {
+						// Only override if ease is equal
+						if (stat.ease === existing.ease) replace = true;
+					}
+				}
+
+				if (replace) {
+					concept.cardStats[stat.noteId] = stat;
+				}
+			} else {
+				concept.cardStats[stat.noteId] = stat;
+			}
+			
 			concept.totalCards++;
 			concept.totalLapses += stat.lapses;
 			// Accumulate metrics
@@ -277,6 +317,7 @@ export class StatsService {
 				const fsrsMap: Map<number, number> = new Map();
 				if (this.settings.stats_algorithm === 'fsrs') {
 					try {
+						console.log('[Arete] Fetching FSRS data for', cardIds.length, 'cards...');
 						const fsrsRes = await requestUrl({
 							url,
 							method: 'POST',
@@ -288,6 +329,7 @@ export class StatsService {
 						});
 
 						const fsrsResults = fsrsRes.json?.result;
+						console.log('[Arete] FSRS Response:', fsrsRes.json);
 
 						if (fsrsResults && Array.isArray(fsrsResults)) {
 							fsrsResults.forEach((item: any) => {
@@ -300,10 +342,13 @@ export class StatsService {
 									fsrsMap.set(item.cardId, item.difficulty / 10.0);
 								}
 							});
+							console.log('[Arete] FSRS map populated with', fsrsMap.size, 'entries');
+						} else {
+							console.warn('[Arete] FSRS response was empty or not an array');
 						}
 					} catch (e) {
 						// Custom action likely not available if Anki not updated/restarted
-						console.warn('FSRS Custom Fetch failed', e);
+						console.warn('[Arete] FSRS Custom Fetch failed - you may need the Arete Anki addon:', e);
 					}
 				}
 

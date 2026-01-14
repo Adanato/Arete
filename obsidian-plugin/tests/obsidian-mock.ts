@@ -65,6 +65,8 @@ export const createMockObsidian = () => {
 			},
 			workspace: {
 				getActiveFile: jest.fn(),
+				onLayoutReady: jest.fn().mockImplementation((cb) => cb()),
+				getLeavesOfType: jest.fn().mockReturnValue([]),
 			},
 			metadataCache: {
 				getFileCache: jest.fn(),

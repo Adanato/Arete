@@ -38,6 +38,8 @@ describe('AretePlugin Lifecycle and Commands', () => {
 		plugin.addStatusBarItem = jest.fn().mockImplementation(() => ({
 			empty: jest.fn(),
 			setText: jest.fn(),
+			addClass: jest.fn(),
+			addEventListener: jest.fn(),
 			createSpan: jest.fn().mockImplementation(() => ({ setText: jest.fn() })),
 		}));
 		plugin.addRibbonIcon = jest.fn().mockImplementation((icon, title, cb) => {
@@ -96,11 +98,11 @@ describe('AretePlugin Lifecycle and Commands', () => {
 
 		plugin.updateStatusBar('syncing');
 		expect(plugin.statusBarItem.createSpan).toHaveBeenCalledWith(
-			expect.objectContaining({ text: 'Anki Syncing...' }),
+			expect.objectContaining({ text: 'Syncing...' }),
 		);
 
 		plugin.updateStatusBar('error', 'Auth Failed');
-		expect(plugin.statusBarItem.setText).toHaveBeenCalledWith('❌ Sync Error');
+		expect(plugin.statusBarItem.setText).toHaveBeenCalledWith('❌ Error');
 		expect(plugin.statusBarItem.title).toBe('Auth Failed');
 	});
 

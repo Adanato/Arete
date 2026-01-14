@@ -1,6 +1,6 @@
 {
 	"name": "obsianki",
-	"version": "1.0.0",
+	"version": "1.1.22",
 	"description": "Sync Obsidian vault to Anki using o2a",
 	"main": "main.js",
 	"scripts": {
@@ -32,6 +32,10 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"@codemirror/commands": "^6.10.1",
+		"@codemirror/lang-yaml": "^6.1.1",
+		"@codemirror/state": "^6.5.4",
+		"@codemirror/view": "^6.39.11",
 		"mustache": "^4.2.0"
 	}
 }

@@ -3,7 +3,8 @@ import { EditorView } from '@codemirror/view';
 import * as path from 'path';
 
 import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
-import { CardView, CARD_VIEW_TYPE } from '@presentation/views/CardView';
+
+import { CardYamlEditorView, YAML_EDITOR_VIEW_TYPE } from '@presentation/views/CardYamlEditorView';
 import { StatisticsView, STATS_VIEW_TYPE } from '@presentation/views/StatisticsView';
 import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
@@ -44,6 +45,26 @@ export default class AretePlugin extends Plugin {
 			});
 			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
 			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
+			
+			// Auto-refresh stats on startup to ensure cache is populated
+			this.app.workspace.onLayoutReady(() => {
+				console.log('[Arete] Refreshing stats on startup...');
+				this.statsService.refreshStats()
+					.then(() => {
+						console.log('[Arete] Stats refresh complete, notifying views...');
+						// Refresh the YAML Editor view if open
+						const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+						if (yamlLeaf) {
+							const view = yamlLeaf.view as CardYamlEditorView;
+							if (view.renderToolbar) {
+								view.renderToolbar();
+							}
+						}
+					})
+					.catch(err => {
+						console.error('[Arete] Failed to auto-refresh stats:', err);
+					});
+			});
 
 			console.log('[Arete] Services initialized');
 		} catch (e) {
@@ -153,18 +174,23 @@ export default class AretePlugin extends Plugin {
 		this.addSettingTab(new AreteSettingTab(this.app, this));
 
 		// 5. Views
-		this.registerView(CARD_VIEW_TYPE, (leaf) => new CardView(leaf, this));
-		this.registerView(STATS_VIEW_TYPE, (leaf) => new StatisticsView(leaf, this));
 
-		this.addRibbonIcon('layout-list', 'Open Card Viewer', () => {
-			this.activateView();
+		this.registerView(STATS_VIEW_TYPE, (leaf) => new StatisticsView(leaf, this));
+		this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
+
+
+
+		this.addRibbonIcon('file-code', 'Open YAML Editor', () => {
+			this.activateYamlEditorView();
 		});
 
+
+
 		this.addCommand({
-			id: 'open-card-view',
-			name: 'Open Card Viewer',
+			id: 'open-yaml-editor',
+			name: 'Open YAML Editor',
 			callback: () => {
-				this.activateView();
+				this.activateYamlEditorView();
 			},
 		});
 
@@ -173,16 +199,44 @@ export default class AretePlugin extends Plugin {
 			createCardGutter(
 				(cardIndex) => {
 					this.highlightCardLines(cardIndex);
-					this.activateView(cardIndex);
+					this.activateYamlEditorView(cardIndex);
 				},
-				(nid) => {
+				(nid, cid) => {
 					// Lookup stats for this card
 					const activeFile = this.app.workspace.getActiveFile();
 					if (!activeFile) return null;
 					const stats = this.statsService.getCache().concepts[activeFile.path];
-					if (!stats || !stats.problematicCards) return null;
-					return stats.problematicCards.find((c) => c.noteId === nid) || null;
+					if (!stats) return null;
+
+					// 1. Try Problematic Cards (Priority: CID > NID)
+					let problem = null;
+					if (cid) {
+						problem = stats.problematicCards?.find((c) => c.cardId === cid);
+					}
+					if (!problem && nid) {
+						problem = stats.problematicCards?.find((c) => c.noteId === nid);
+					}
+					if (problem) return problem;
+
+					// 2. Try General Stats (Priority: CID > NID)
+					let cardStat = null;
+					if (cid && stats.cardStats?.[cid]) {
+						cardStat = stats.cardStats[cid];
+					} else if (nid && stats.cardStats?.[nid]) {
+						cardStat = stats.cardStats[nid];
+					}
+
+					if (cardStat) {
+						return {
+							...cardStat,
+							issue: '', // No issue
+							front: '', // Not needed for gutter
+							back: '',
+						};
+					}
+					return null;
 				},
+				this.settings.stats_algorithm,
 			),
 		);
 
@@ -228,38 +282,6 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
-	async activateView(expandCardIndex?: number) {
-		const { workspace } = this.app;
-
-		let leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
-
-		if (!leaf) {
-			const rightLeaf = workspace.getRightLeaf(false);
-			if (rightLeaf) {
-				await rightLeaf.setViewState({
-					type: CARD_VIEW_TYPE,
-					active: true,
-				});
-			}
-			leaf = workspace.getLeavesOfType(CARD_VIEW_TYPE)[0];
-		}
-
-		if (leaf) {
-			workspace.revealLeaf(leaf);
-			// If a card index was specified, expand that card and set active state
-			if (expandCardIndex !== undefined) {
-				const view = leaf.view as CardView;
-				if (view && view.expandedIndices) {
-					view.expandedIndices.clear();
-					view.expandedIndices.add(expandCardIndex);
-					view.render();
-					// Set active state after render completes
-					setTimeout(() => view.setActiveCard(expandCardIndex), 0);
-				}
-			}
-		}
-	}
-
 	async activateStatsView() {
 		const { workspace } = this.app;
 		let leaf = workspace.getLeavesOfType(STATS_VIEW_TYPE)[0];
@@ -277,6 +299,43 @@ export default class AretePlugin extends Plugin {
 
 		if (leaf) {
 			workspace.revealLeaf(leaf);
+		}
+	}
+
+	async activateYamlEditorView(focusCardIndex?: number) {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) {
+				await rightLeaf.setViewState({
+					type: YAML_EDITOR_VIEW_TYPE,
+					active: true,
+				});
+			}
+			leaf = workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+			if (focusCardIndex !== undefined) {
+				const view = leaf.view as CardYamlEditorView;
+				if (view?.focusCard) {
+					view.focusCard(focusCardIndex);
+				}
+			}
+		}
+	}
+
+	syncYamlEditorToCard(cardIndex: number) {
+		const { workspace } = this.app;
+		const leaf = workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+		if (leaf) {
+			const view = leaf.view as CardYamlEditorView;
+			if (view?.focusCard) {
+				view.focusCard(cardIndex);
+			}
 		}
 	}
 

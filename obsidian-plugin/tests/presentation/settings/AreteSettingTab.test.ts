@@ -74,7 +74,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 
 	test('Anki Backend dropdown updates correctly', async () => {
 		settingTab.display();
-		const setting = findSettingByName('Anki Backend');
+		const setting = findSettingByName('Backend');
 		expect(setting).toBeDefined();
 
 		await setting.mockDropdown._onChange('apy');
@@ -115,7 +115,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 
 	test('Anki Connect URL setting updates correctly', async () => {
 		settingTab.display();
-		const setting = findSettingByName('Anki Connect URL');
+		const setting = findSettingByName('AnkiConnect URL');
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('http://some-anki:1234');
@@ -125,7 +125,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 
 	test('Anki Media Directory setting updates correctly', async () => {
 		settingTab.display();
-		const setting = findSettingByName('Anki Media Directory');
+		const setting = findSettingByName('Media Directory');
 		expect(setting).toBeDefined();
 
 		await setting.mockText._onChange('/tmp/media');
@@ -144,7 +144,7 @@ describe('AreteSettingTab Interaction Tests', () => {
 	test('Open Sample Modal button works', async () => {
 		plugin.settings.debug_mode = true;
 		settingTab.display();
-		const debugSetting = findSettingByName('Check Results (Debug)');
+		const debugSetting = findSettingByName('Sample Check Modal');
 		expect(debugSetting).toBeDefined();
 
 		await debugSetting.mockButton._onClick();
