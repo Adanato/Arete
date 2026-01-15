@@ -388,7 +388,9 @@
 }
 
 .arete-yaml-editor-panel .cm-editor {
-	height: 100%;
+	min-height: 100px;
+	height: auto;
+	max-height: none;
 	font-size: 13px;
 }
 
@@ -417,6 +419,13 @@
 .arete-yaml-editor-panel .cm-content {
 	padding: 8px 0;
 	caret-color: transparent; /* Hide default native cursor to rely on CM cursor */
+	white-space: pre-wrap; /* Enable word wrap */
+	word-break: break-word;
+}
+
+.arete-yaml-editor-panel .cm-line {
+	word-wrap: break-word;
+	white-space: pre-wrap;
 }
 
 /* Custom Cursor */
@@ -563,8 +572,9 @@
 	color: var(--text-normal);
 	font-family: var(--font-text);
 	font-size: 14px;
-	resize: vertical;
-	min-height: 80px;
+	resize: none;
+	min-height: 60px;
+	overflow: hidden;
 }
 
 .arete-field-input:focus {
@@ -582,9 +592,6 @@
 	font-weight: 600;
 	margin-bottom: 20px;
 }
-
-
-
 
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD VIEW STYLES

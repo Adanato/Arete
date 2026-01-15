@@ -85,8 +85,7 @@ export class CardYamlEditorView extends ItemView {
 		
 		// 1. Source Mode (CodeMirror)
 		this.editorContainer = rightPanel.createDiv({ cls: 'arete-yaml-editor-wrapper' });
-		this.editorContainer.style.flex = '1';
-		this.editorContainer.style.overflow = 'hidden';
+		this.editorContainer.style.overflow = 'auto';
 		
 		// 2. Field Mode (Inputs)
 		this.fieldEditorContainer = rightPanel.createDiv({ cls: 'arete-field-editor' });
@@ -530,10 +529,20 @@ export class CardYamlEditorView extends ItemView {
 				text: String(value) 
 			});
 
+			// Auto-resize textarea to fit content
+			const autoResize = () => {
+				textarea.style.height = 'auto';
+				textarea.style.height = textarea.scrollHeight + 'px';
+			};
+			
+			// Initial resize
+			setTimeout(autoResize, 0);
+
 			// Auto-save on input (debounced could be better, but 'change' is safe for now)
 			// 'input' event for real-time feel, debounced
 			let debounceTimer: ReturnType<typeof setTimeout>;
 			textarea.addEventListener('input', () => {
+				autoResize();
 				clearTimeout(debounceTimer);
 				debounceTimer = setTimeout(() => {
 					this.updateCardField(this.currentCardIndex, key, textarea.value);
@@ -787,6 +796,7 @@ export class CardYamlEditorView extends ItemView {
 				lineNumbers(),
 				history(),
 				keymap.of([...defaultKeymap, ...historyKeymap]),
+				EditorView.lineWrapping,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {
 						const isSync = update.transactions.some((tr) => tr.annotation(syncAnnotation));
@@ -796,8 +806,8 @@ export class CardYamlEditorView extends ItemView {
 					}
 				}),
 				EditorView.theme({
-					'&': { height: '100%' },
-					'.cm-scroller': { overflow: 'auto' },
+					'&': { minHeight: '100px' },
+					'.cm-scroller': { overflow: 'visible' },
 				}),
 			],
 		});
