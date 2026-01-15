@@ -50,7 +50,7 @@ jest.mock('@codemirror/lang-yaml', () => ({
 	yaml: jest.fn(),
 }));
 
-// Mock Document and Window for TemplateRenderer 
+// Mock Document and Window for TemplateRenderer
 if (typeof document === 'undefined') {
 	const mockDoc = {
 		createElement: jest.fn().mockImplementation(() => ({

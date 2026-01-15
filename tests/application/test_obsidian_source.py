@@ -101,7 +101,7 @@ def test_parser_ignores_cache_when_forced(tmp_path):
 
     # Should be 1 note despite cache "hit" because ignore_cache=True
     assert len(notes) == 1
-    assert notes[0].fields["Front"] == "Q"
+    assert "<p>Q</p>" in notes[0].fields["Front"]
 
 
 def test_hashing_includes_obsidian_source():

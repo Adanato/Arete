@@ -70,7 +70,7 @@ describe('GraphService', () => {
 
 		it('should replace existing retention tags', async () => {
 			const stats = { score: 0.05 } as ConceptStats; // High
-			
+
 			// Mock existing frontmatter with 'low' tag
 			processFrontMatterMock.mockImplementation((file, cb) => {
 				const fm = { tags: ['arete/retention/low', 'other/tag'] };

@@ -49,7 +49,8 @@ def test_parse_simple_card(parser_fixture, mock_cache):
     assert note.source_file == md_file
     assert note.source_index == 1
     assert len(notes) == 1
-    assert notes[0].fields["Front"] == "Question"
+    # Parser now renders HTML. Markdown default behavior wraps text in <p>
+    assert "<p>Question</p>" in notes[0].fields["Front"]
 
 
 def test_parse_basic_missing_fields(parser_fixture):

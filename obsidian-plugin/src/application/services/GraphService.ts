@@ -52,7 +52,7 @@ export class GraphService {
 
 			// Remove all retention tags
 			const newTags = tags.filter((t: string) => !t.startsWith(prefix));
-			
+
 			// Only update if changes were made
 			if (newTags.length !== tags.length) {
 				frontmatter['tags'] = newTags;

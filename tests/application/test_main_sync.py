@@ -94,22 +94,22 @@ async def test_summary_output(mock_setup_logging, mock_run_pipeline, mock_config
     mock_stats.total_imported = 25
     mock_run_pipeline.return_value = mock_stats
 
-    # We must also mock the backend check here if we want to avoid timeouts,
-    # but let's see if we can just patch it globally in the logic or reuse the trick above.
-    # The fixture is shared but the patch is per-test.
-    # To act quickly, we'll just patch AnkiConnectAdapter.is_responsive here too or assume apy fallback.
-    # Actually, simpler to patch it here too.
+    # run_sync_logic now uses logging.getLogger("arete.main") for the summary log,
+    # so we need to mock that specific logger.
+    mock_summary_logger = MagicMock()
 
-    with patch(
-        "arete.infrastructure.adapters.anki_connect.AnkiConnectAdapter.is_responsive",
-        return_value=True,
+    with (
+        patch(
+            "arete.infrastructure.adapters.anki_connect.AnkiConnectAdapter.is_responsive",
+            return_value=True,
+        ),
+        patch("logging.getLogger", return_value=mock_summary_logger),
     ):
         await run_sync_logic(mock_config)
 
-    # Verify summary was logged
-    # Find the summary log call
+    # Verify summary was logged on the summary logger
     summary_calls = [
-        call for call in mock_logger.info.call_args_list if "=== summary ===" in str(call)
+        call for call in mock_summary_logger.info.call_args_list if "=== summary ===" in str(call)
     ]
     assert len(summary_calls) > 0
     summary_msg = str(summary_calls[0])

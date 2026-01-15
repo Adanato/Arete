@@ -133,6 +133,54 @@ export class AreteSettingTab extends PluginSettingTab {
 			);
 
 		// ═══════════════════════════════════════════════════════════════════
+		// EXECUTION MODE
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'Execution Mode' });
+
+		new Setting(containerEl)
+			.setName('Mode')
+			.setDesc(
+				'CLI (Classic) spawns a process for each sync. Server (Faster) keeps a background process running.',
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('cli', 'CLI (Run Once)')
+					.addOption('server', 'Server (Background)')
+					.setValue(this.plugin.settings.execution_mode)
+					.onChange(async (value: 'cli' | 'server') => {
+						const previousMode = this.plugin.settings.execution_mode;
+						this.plugin.settings.execution_mode = value;
+						await this.plugin.saveSettings();
+
+						// Handle mode transition
+						if (value === 'server' && previousMode === 'cli') {
+							this.plugin.serverManager.start();
+						} else if (value === 'cli' && previousMode === 'server') {
+							this.plugin.serverManager.stop();
+						}
+
+						this.display(); // Re-render defaults
+					}),
+			);
+
+		if (this.plugin.settings.execution_mode === 'server') {
+			new Setting(containerEl)
+				.setName('Server Port')
+				.setDesc('Port for the Arete persistent server.')
+				.addText((text) =>
+					text
+						.setValue(this.plugin.settings.server_port.toString())
+						.onChange(async (value) => {
+							const port = parseInt(value);
+							if (!isNaN(port)) {
+								this.plugin.settings.server_port = port;
+								await this.plugin.saveSettings();
+							}
+						}),
+				);
+		}
+
+		// ═══════════════════════════════════════════════════════════════════
 		// ANKI CONNECTION
 		// ═══════════════════════════════════════════════════════════════════
 		containerEl.createEl('h3', { text: 'Anki Connection' });
@@ -260,7 +308,6 @@ export class AreteSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						}),
 				);
-
 		}
 
 		// ═══════════════════════════════════════════════════════════════════
@@ -270,7 +317,9 @@ export class AreteSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Enable Graph Coloring')
-			.setDesc('Automatically add status tags (#arete/retention/...) to notes based on Anki stats.')
+			.setDesc(
+				'Automatically add status tags (#arete/retention/...) to notes based on Anki stats.',
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.graph_coloring_enabled)

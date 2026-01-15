@@ -7,7 +7,10 @@ import pytest
 from arete.application.config import AppConfig
 from arete.application.pipeline import _prune_orphans, run_pipeline
 from arete.domain.models import AnkiNote, UpdateItem
-from arete.infrastructure.adapters.anki_apy import AnkiApyAdapter
+
+# from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter # Imported inside test to avoid early load?
+# No, let's allow early load if mocked correctly.
+from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
 
 @pytest.fixture
@@ -145,7 +148,8 @@ async def test_run_pipeline_with_apy_sequential(logger, tmp_path):
     vault_service = MagicMock()
     vault_service.scan_for_compatible_files.return_value = []
 
-    # AnkiApyAdapter should force concurrency to 1
-    bridge = MagicMock(spec=AnkiApyAdapter)
+    # AnkiDirectAdapter is sequential (SQLite)
+
+    bridge = MagicMock(spec=AnkiDirectAdapter)
 
     await run_pipeline(config, logger, "run1", vault_service, MagicMock(), bridge, MagicMock())

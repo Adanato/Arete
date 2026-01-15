@@ -23,7 +23,7 @@ graph TD
     end
 
     subgraph "Anki"
-        AC["AnkiConnect / apy"]
+        AC["AnkiConnect / Direct DB"]
         CollectionMedia["collection.media (Filesystem)"]
         Cards["Anki Decks"]
     end

@@ -135,9 +135,13 @@ class CardGutterMarker extends GutterMarker {
 				// Difficulty
 				let diffText = '';
 				let diffColor = 'var(--text-muted)';
-				
+
 				if (this.algorithm === 'fsrs') {
-					if (this.stats.difficulty !== undefined && this.stats.difficulty !== null && this.stats.difficulty > 0) {
+					if (
+						this.stats.difficulty !== undefined &&
+						this.stats.difficulty !== null &&
+						this.stats.difficulty > 0
+					) {
 						const diff = Math.round(this.stats.difficulty * 100);
 						diffText = `${diff}%`; // Removed "D:" prefix
 						if (this.stats.difficulty > 0.9) diffColor = 'var(--color-red)';
@@ -169,11 +173,11 @@ class CardGutterMarker extends GutterMarker {
 					lapseSpan.style.fontSize = '8px';
 					lapseSpan.style.lineHeight = '9px';
 					lapseSpan.style.fontWeight = 'bold';
-					
+
 					let lapseColor = 'var(--color-orange)';
 					if (this.stats.lapses > 5) lapseColor = 'var(--color-red)';
 					lapseSpan.style.color = lapseColor;
-					
+
 					infoContainer.appendChild(lapseSpan);
 				}
 
@@ -187,7 +191,7 @@ class CardGutterMarker extends GutterMarker {
 				if (this.stats.lapses) tooltipLines.push(`Lapses: ${this.stats.lapses}`);
 				marker.title = tooltipLines.join('\n');
 			}
-			
+
 			marker.appendChild(infoContainer);
 		}
 
@@ -202,12 +206,15 @@ class CardGutterMarker extends GutterMarker {
 		bar.style.marginTop = '-1px';
 		bar.style.paddingBottom = '1px';
 		bar.style.transition = 'width 0.15s ease-out, box-shadow 0.15s ease-out';
-		
+
 		// Color logic
 		let barColor = 'var(--interactive-accent)';
 		let shadowColor = 'var(--interactive-accent)';
-		
-		if (this.stats && (this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))) {
+
+		if (
+			this.stats &&
+			(this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))
+		) {
 			barColor = 'var(--color-red)';
 			shadowColor = 'var(--color-red)';
 		} else if (this.stats && this.stats.difficulty && this.stats.difficulty > 0.5) {
@@ -294,7 +301,12 @@ function parseCardRanges(text: string): ParseResult {
 
 	let inFrontmatter = false;
 	let inCards = false;
-	let currentCard: { startLine: number; index: number; nid: number | null; cid: number | null } | null = null;
+	let currentCard: {
+		startLine: number;
+		index: number;
+		nid: number | null;
+		cid: number | null;
+	} | null = null;
 	let cardIndex = 0;
 
 	for (let i = 0; i < lines.length; i++) {

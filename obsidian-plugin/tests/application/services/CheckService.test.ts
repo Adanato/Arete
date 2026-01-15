@@ -37,6 +37,8 @@ describe('CheckService', () => {
 			ui_expanded_decks: [],
 			ui_expanded_concepts: [],
 			last_sync_time: null,
+			execution_mode: 'cli',
+			server_port: 8777,
 		};
 
 		service = new CheckService(app, plugin);

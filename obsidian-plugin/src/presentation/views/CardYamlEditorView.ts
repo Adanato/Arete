@@ -31,7 +31,7 @@ const syncAnnotation = Annotation.define<boolean>();
 enum ViewMode {
 	Source = 'source',
 	Fields = 'fields',
-	Preview = 'preview'
+	Preview = 'preview',
 }
 
 export class CardYamlEditorView extends ItemView {
@@ -42,10 +42,10 @@ export class CardYamlEditorView extends ItemView {
 	private fieldEditorContainer: HTMLElement | null = null;
 	private previewContainer: HTMLElement | null = null;
 	private toolbarContainer: HTMLElement | null = null;
-	
-	private currentCardIndex: number = 0;
+
+	private currentCardIndex = 0;
 	private cards: CardData[] = [];
-	
+
 	private currentFilePath: string | null = null;
 	private isUpdatingFromMain = false;
 	private viewMode: ViewMode = ViewMode.Fields; // Default to Fields as requested "Card Edit Mode"
@@ -75,18 +75,18 @@ export class CardYamlEditorView extends ItemView {
 
 		// Create split layout
 		this.indexContainer = container.createDiv({ cls: 'arete-yaml-index' });
-		
+
 		const rightPanel = container.createDiv({ cls: 'arete-yaml-editor-panel' });
-		
+
 		// Toolbar
 		this.toolbarContainer = rightPanel.createDiv({ cls: 'arete-editor-toolbar' });
-		
+
 		// Containers for different modes
-		
+
 		// 1. Source Mode (CodeMirror)
 		this.editorContainer = rightPanel.createDiv({ cls: 'arete-yaml-editor-wrapper' });
 		this.editorContainer.style.overflow = 'auto';
-		
+
 		// 2. Field Mode (Inputs)
 		this.fieldEditorContainer = rightPanel.createDiv({ cls: 'arete-field-editor' });
 		this.fieldEditorContainer.hide();
@@ -131,7 +131,6 @@ export class CardYamlEditorView extends ItemView {
 			clearTimeout(this.syncDebounceTimer);
 		}
 	}
-
 
 	private async loadCards() {
 		const activeFile = this.app.workspace.getActiveFile();
@@ -225,7 +224,10 @@ export class CardYamlEditorView extends ItemView {
 			// Tooltip with front preview
 			const frontText = card['front'] || card['Front'] || '';
 			if (frontText) {
-				item.setAttribute('title', frontText.substring(0, 50) + (frontText.length > 50 ? '...' : ''));
+				item.setAttribute(
+					'title',
+					frontText.substring(0, 50) + (frontText.length > 50 ? '...' : ''),
+				);
 			}
 
 			// Click handler
@@ -286,16 +288,18 @@ export class CardYamlEditorView extends ItemView {
 
 		// LEFT: Stats
 		const leftGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
-		
+
 		const card = this.cards[this.currentCardIndex];
-		const nid = card?.nid ? parseInt(card.nid) : (card?.id ? parseInt(card.id) : null);
+		const nid = card?.nid ? parseInt(card.nid) : card?.id ? parseInt(card.id) : null;
 		const cid = card?.cid ? parseInt(card.cid) : null;
 
 		if (nid || cid) {
 			// Get full concept stats
 			const filePath = this.currentFilePath;
-			const conceptStats = filePath ? this.plugin.statsService.getCache().concepts[filePath] : null;
-			
+			const conceptStats = filePath
+				? this.plugin.statsService.getCache().concepts[filePath]
+				: null;
+
 			// Priority Lookup: CID > NID
 			let stats = null;
 			let lookupSource = 'none';
@@ -309,90 +313,93 @@ export class CardYamlEditorView extends ItemView {
 					lookupSource = 'nid';
 				}
 			}
-			
+
 			if (this.plugin.settings.debug_mode) {
 				console.log(
 					`[Arete Toolbar] Card ${this.currentCardIndex + 1}: Found via ${lookupSource}`,
-					stats ? `(Diff: ${stats.difficulty})` : '(No Stats)'
+					stats ? `(Diff: ${stats.difficulty})` : '(No Stats)',
 				);
 			}
-			
+
 			if (stats) {
 				const statsContainer = leftGroup.createDiv({ cls: 'arete-toolbar-stats' });
-				
+
 				// Stats Badge (Based on Config)
 				const algo = this.plugin.settings.stats_algorithm;
-				
 
 				let badgeAdded = false;
-				
+
 				if (algo === 'fsrs') {
 					// FSRS mode
 					if (stats.difficulty !== undefined && stats.difficulty !== null) {
 						const diff = Math.round(stats.difficulty * 100);
 						// FSRS Difficulty
 						let cls = 'arete-stat-badge';
-						if (stats.difficulty > 0.9) cls += ' mod-warning'; // Red
-						else if (stats.difficulty > 0.5) cls += ' mod-orange'; // Orange
+						if (stats.difficulty > 0.9)
+							cls += ' mod-warning'; // Red
+						else if (stats.difficulty > 0.5)
+							cls += ' mod-orange'; // Orange
 						else cls += ' mod-success'; // Green (Easy)
 
-						statsContainer.createDiv({ 
-							cls: cls, 
+						statsContainer.createDiv({
+							cls: cls,
 							text: `D: ${diff}%`,
-							attr: { title: `FSRS Difficulty: ${diff}%` } 
+							attr: { title: `FSRS Difficulty: ${diff}%` },
 						});
 					} else {
 						// Null difficulty - show ?
-						statsContainer.createDiv({ 
-							cls: 'arete-stat-badge mod-muted', 
+						statsContainer.createDiv({
+							cls: 'arete-stat-badge mod-muted',
 							text: `D: ?`,
-							attr: { title: 'FSRS Difficulty not available (new or unsynced card)' }
+							attr: { title: 'FSRS Difficulty not available (new or unsynced card)' },
 						});
 					}
 					badgeAdded = true;
 				} else if (algo === 'sm2' || stats.ease !== undefined) {
 					// SM2 (Fallback if FSRS missing or SM2 selected)
 					const ease = Math.round(stats.ease / 10);
-					statsContainer.createDiv({ 
-						cls: 'arete-stat-badge', 
+					statsContainer.createDiv({
+						cls: 'arete-stat-badge',
 						text: `E: ${ease}%`,
-						attr: { title: `SM-2 Ease: ${ease}%` }
+						attr: { title: `SM-2 Ease: ${ease}%` },
 					});
 					badgeAdded = true;
 				}
 
 				// Lapses
 				if (stats.lapses > 0) {
-				// Lapses
-				if (stats.lapses > 0) {
-					let lapseCls = 'arete-stat-badge';
-					if (stats.lapses > 5) lapseCls += ' mod-warning';
-					else lapseCls += ' mod-orange';
+					// Lapses
+					if (stats.lapses > 0) {
+						let lapseCls = 'arete-stat-badge';
+						if (stats.lapses > 5) lapseCls += ' mod-warning';
+						else lapseCls += ' mod-orange';
 
-					statsContainer.createDiv({ 
-						cls: lapseCls, 
-						text: `${stats.lapses}L`,
-						attr: { title: `Lapses: ${stats.lapses}` }
-					});
+						statsContainer.createDiv({
+							cls: lapseCls,
+							text: `${stats.lapses}L`,
+							attr: { title: `Lapses: ${stats.lapses}` },
+						});
+						badgeAdded = true;
+					}
 					badgeAdded = true;
 				}
-					badgeAdded = true;
-				}
-				
+
 				// Due
 				if (stats.due) {
 					const dueDate = new Date(stats.due * 1000); // Anki uses seconds
 					const now = new Date();
-					const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+					const diffDays = Math.ceil(
+						(dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+					);
 					let dueText = '';
 					if (diffDays < 0) dueText = `${Math.abs(diffDays)}d ago`;
 					else if (diffDays === 0) dueText = 'Today';
 					else dueText = `${diffDays}d`;
-					
+
 					statsContainer.createDiv({
 						cls: 'arete-stat-badge mod-muted',
 						text: dueText,
-						attr: { title: `Due: ${dueDate.toLocaleDateString()}` }
+						attr: { title: `Due: ${dueDate.toLocaleDateString()}` },
 					});
 					badgeAdded = true;
 				}
@@ -401,7 +408,7 @@ export class CardYamlEditorView extends ItemView {
 					statsContainer.createDiv({
 						cls: 'arete-stat-badge mod-muted',
 						text: 'No Data',
-						attr: { title: 'Stats object found but values are empty/undefined' }
+						attr: { title: 'Stats object found but values are empty/undefined' },
 					});
 				}
 			} else {
@@ -409,7 +416,9 @@ export class CardYamlEditorView extends ItemView {
 				leftGroup.createDiv({
 					cls: 'arete-stat-badge mod-muted',
 					text: 'No Stats',
-					attr: { title: `Stats not found for NID ${nid}. Try running "Arete: Refresh Anki Stats"` }
+					attr: {
+						title: `Stats not found for NID ${nid}. Try running "Arete: Refresh Anki Stats"`,
+					},
 				});
 				console.log('[Arete] Stats miss for NID:', nid);
 			}
@@ -468,7 +477,7 @@ export class CardYamlEditorView extends ItemView {
 
 	private setViewMode(mode: ViewMode) {
 		this.viewMode = mode;
-		
+
 		// Hide all
 		this.editorContainer?.style.setProperty('display', 'none');
 		this.fieldEditorContainer?.hide();
@@ -478,7 +487,7 @@ export class CardYamlEditorView extends ItemView {
 		if (mode === ViewMode.Source) {
 			this.editorContainer?.style.setProperty('display', 'block');
 			// Refresh content if needed - usually synchronized
-			this.updateEditorContent(); 
+			this.updateEditorContent();
 		} else if (mode === ViewMode.Fields) {
 			this.fieldEditorContainer?.show();
 			this.renderFieldEditor();
@@ -504,29 +513,29 @@ export class CardYamlEditorView extends ItemView {
 		}
 
 		const card = this.cards[this.currentCardIndex];
-		
+
 		// Model Badge
 		const model = card['model'] || card['Model'] || 'Basic';
-		this.fieldEditorContainer.createDiv({ 
-			cls: 'arete-field-model-badge', 
-			text: String(model) 
+		this.fieldEditorContainer.createDiv({
+			cls: 'arete-field-model-badge',
+			text: String(model),
 		});
 
 		// Determine fields based on model
 		// For now, support Basic (Front/Back) and Cloze (Text/Extra) generically
 		// Any other keys in the card object (excluding nid, cid, model) are fields
-		
+
 		const hiddenKeys = ['nid', 'cid', 'id', 'model', 'tags'];
-		
+
 		// Helper to render field
 		const renderField = (key: string, label: string) => {
 			const group = this.fieldEditorContainer!.createDiv({ cls: 'arete-field-group' });
 			group.createEl('label', { cls: 'arete-field-label', text: label });
-			
+
 			const value = card[key] || '';
-			const textarea = group.createEl('textarea', { 
-				cls: 'arete-field-input', 
-				text: String(value) 
+			const textarea = group.createEl('textarea', {
+				cls: 'arete-field-input',
+				text: String(value),
 			});
 
 			// Auto-resize textarea to fit content
@@ -534,7 +543,7 @@ export class CardYamlEditorView extends ItemView {
 				textarea.style.height = 'auto';
 				textarea.style.height = textarea.scrollHeight + 'px';
 			};
-			
+
 			// Initial resize
 			setTimeout(autoResize, 0);
 
@@ -557,14 +566,14 @@ export class CardYamlEditorView extends ItemView {
 		} else {
 			// Basic and others
 			// Try to find Front/Back case-insensitively
-			const frontKey = Object.keys(card).find(k => k.toLowerCase() === 'front') || 'Front';
-			const backKey = Object.keys(card).find(k => k.toLowerCase() === 'back') || 'Back';
-			
+			const frontKey = Object.keys(card).find((k) => k.toLowerCase() === 'front') || 'Front';
+			const backKey = Object.keys(card).find((k) => k.toLowerCase() === 'back') || 'Back';
+
 			renderField(frontKey, 'Front');
 			renderField(backKey, 'Back');
 		}
 
-		// Render other fields? Maybe too cluttered for now. 
+		// Render other fields? Maybe too cluttered for now.
 		// User asked for "just looks at the fields not the entire card yaml code"
 		// Start with core fields.
 	}
@@ -611,17 +620,21 @@ export class CardYamlEditorView extends ItemView {
 		// Front
 		const frontSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
 		frontSection.createDiv({ cls: 'arete-preview-label', text: 'Front' });
-		const frontContent = frontSection.createDiv({ cls: 'arete-preview-content markdown-rendered' });
+		const frontContent = frontSection.createDiv({
+			cls: 'arete-preview-content markdown-rendered',
+		});
 		const frontText = card['front'] || card['Front'] || '';
 		await MarkdownRenderer.render(this.app, frontText, frontContent, path, this);
 
 		// Back
 		const backSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
 		backSection.createDiv({ cls: 'arete-preview-label', text: 'Back' });
-		const backContent = backSection.createDiv({ cls: 'arete-preview-content markdown-rendered' });
+		const backContent = backSection.createDiv({
+			cls: 'arete-preview-content markdown-rendered',
+		});
 		const backText = card['back'] || card['Back'] || '';
 		await MarkdownRenderer.render(this.app, backText, backContent, path, this);
-		
+
 		// Metadata
 		if (card.nid || card.id) {
 			const metaSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
@@ -670,11 +683,11 @@ export class CardYamlEditorView extends ItemView {
 		if (leaf && leaf.view instanceof MarkdownView) {
 			const editor = leaf.view.editor;
 			const fileContent = editor.getValue();
-			
-			// This is a naive scroll implementation. 
+
+			// This is a naive scroll implementation.
 			// For robustness, ideally we reuse the parser logic from CardGutterExtension
 			// But simple grep-like search works for now as in CardView.ts
-			
+
 			const lines = fileContent.split('\n');
 			let cardsStartLine = -1;
 
@@ -740,7 +753,9 @@ export class CardYamlEditorView extends ItemView {
 		const item = target.closest('.arete-yaml-index-item') as HTMLElement;
 		if (item) {
 			// Remove previous indicators
-			this.indexContainer?.querySelectorAll('.drag-over').forEach((el) => el.removeClass('drag-over'));
+			this.indexContainer
+				?.querySelectorAll('.drag-over')
+				.forEach((el) => el.removeClass('drag-over'));
 			item.addClass('drag-over');
 		}
 	}
@@ -799,7 +814,9 @@ export class CardYamlEditorView extends ItemView {
 				EditorView.lineWrapping,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {
-						const isSync = update.transactions.some((tr) => tr.annotation(syncAnnotation));
+						const isSync = update.transactions.some((tr) =>
+							tr.annotation(syncAnnotation),
+						);
 						if (!isSync) {
 							this.debouncedSyncToMain();
 						}
@@ -981,18 +998,24 @@ export class CardYamlEditorView extends ItemView {
 
 		// 1. Update visual selection without full re-render if possible
 		if (this.indexContainer) {
-			const prevActive = this.indexContainer.querySelector(`.arete-yaml-index-item[data-index="${this.currentCardIndex}"]`);
+			const prevActive = this.indexContainer.querySelector(
+				`.arete-yaml-index-item[data-index="${this.currentCardIndex}"]`,
+			);
 			if (prevActive) prevActive.removeClass('is-active');
 
-			const newActive = this.indexContainer.querySelector(`.arete-yaml-index-item[data-index="${index}"]`);
+			const newActive = this.indexContainer.querySelector(
+				`.arete-yaml-index-item[data-index="${index}"]`,
+			);
 			if (newActive) {
 				newActive.addClass('is-active');
 				if (requestFocus) {
 					// We need to focus the ITEM itself or the container?
 					// The container has tabindex=0, but maybe we want to keep focus on container
-					// and just visually select. 
+					// and just visually select.
 					// Actually, let's keep focus on the list container to capture arrow keys.
-					const list = this.indexContainer.querySelector('.arete-yaml-index-list') as HTMLElement;
+					const list = this.indexContainer.querySelector(
+						'.arete-yaml-index-list',
+					) as HTMLElement;
 					if (list) list.focus();
 					newActive.scrollIntoView({ block: 'nearest' });
 				}
@@ -1004,7 +1027,7 @@ export class CardYamlEditorView extends ItemView {
 
 		this.currentCardIndex = index;
 		// Do NOT call renderIndex() here, it kills focus!
-		
+
 		this.refreshActiveView();
 
 		// Sync with main editor highlight

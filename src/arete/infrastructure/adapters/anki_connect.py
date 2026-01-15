@@ -2,12 +2,10 @@ import json
 import logging
 import os
 import platform
-import re
 import shutil
 from typing import Any
 
 import httpx
-import markdown
 
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
@@ -129,14 +127,12 @@ class AnkiConnectAdapter(AnkiBridge):
         for item in work_items:
             note = item.note
             try:
-                # Convert fields to HTML while preserving MathJax
-                # Skip HTML conversion for internal fields like _obsidian_source
+                # Fields are already HTML from parser
+                # Skip _obsidian_source from being treated as content field if model is strict
                 html_fields = {}
                 for k, v in note.fields.items():
-                    if k == "_obsidian_source":
-                        html_fields[k] = v
-                    else:
-                        html_fields[k] = self._to_html(v)
+                    # _obsidian_source is passed through as-is (it's plain text anyway)
+                    html_fields[k] = v
 
                 # Ensure deck exists
                 if not await self.ensure_deck(note.deck):
@@ -298,39 +294,6 @@ class AnkiConnectAdapter(AnkiBridge):
                     )
                 )
         return results
-
-    def _to_html(self, text: str) -> str:
-        r"""
-        Convert Markdown to HTML, but protect MathJax blocks delimiters
-        \( ... \) and \[ ... \] from being escaped/mangled.
-        """
-        # Store protected blocks
-        protected = {}
-
-        def protect(m):
-            key = f"MATHJAXBLOCK{len(protected)}"
-            protected[key] = m.group(0)
-            return key
-
-        # Regex for \( ... \) and \[ ... \]
-        # We need to be careful with backslashes in regex
-        # Pattern: \\\[.*?\\\]  and \\\((.*?)\\\)
-        # flags=re.DOTALL to match newlines in blocks
-
-        # Protect block math \[ ... \]
-        text = re.sub(r"\\\[.*?\\\]", protect, text, flags=re.DOTALL)
-
-        # Protect inline math \( ... \)
-        text = re.sub(r"\\\(.*?\\\)", protect, text, flags=re.DOTALL)
-
-        # Convert to HTML
-        html = markdown.markdown(text, extensions=["tables", "fenced_code"])
-
-        # Restore protected blocks
-        for key, val in protected.items():
-            html = html.replace(key, val)
-
-        return html
 
     async def _invoke(self, action: str, **params) -> Any:
         payload = {"action": action, "version": 6, "params": params}

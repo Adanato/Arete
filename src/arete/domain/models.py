@@ -39,7 +39,7 @@ class AnkiNote:
     Attributes:
         model: The Anki model name (e.g., 'Basic', 'Cloze').
         deck: The destination deck name (supporting nested '::' syntax).
-        fields: Mapping of Anki field names to HTML/Text content.
+        fields: Mapping of Anki field names to HTML content (pre-rendered by Parser).
         tags: List of tags to associate with the note.
         start_line: First line of the card in the source Markdown.
         end_line: Last line of the card in the source Markdown.

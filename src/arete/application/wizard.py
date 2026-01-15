@@ -22,13 +22,14 @@ def run_init_wizard():
     print("\nSelect Anki Backend:")
     print("  1. auto (Try AnkiConnect, fall back to apy) [Default]")
     print("  2. ankiconnect (Requires Anki running + AnkiConnect add-on)")
-    print("  3. apy (Direct DB access, requires Anki closed)")
-    backend_choice = input("Choice [1]: ").strip()
+    print("  3. direct (Direct DB access, requires Anki closed)")
+    choice = input("Select backend [1]: ") or "1"
+
     backend = "auto"
-    if backend_choice == "2":
+    if choice == "2":
         backend = "ankiconnect"
-    elif backend_choice == "3":
-        backend = "apy"
+    elif choice == "3":
+        backend = "direct"
 
     # Generate config content
     config_content = f"""# arete Configuration

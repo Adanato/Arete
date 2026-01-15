@@ -48,7 +48,7 @@ def sync(
         ),
     ] = None,
     backend: Annotated[
-        str | None, typer.Option(help="Anki backend: auto, ankiconnect, apy.")
+        str | None, typer.Option(help="Anki backend: auto, ankiconnect, direct.")
     ] = None,
     prune: Annotated[
         bool, typer.Option("--prune/--no-prune", help="Prune orphaned cards from Anki.")
@@ -140,6 +140,21 @@ def config_open():
         os.startfile(str(cfg_path))
     else:
         subprocess.run(["xdg-open", str(cfg_path)])
+
+
+@app.command("server")
+def server(
+    port: Annotated[int, typer.Option(help="Port to bind the server to.")] = 8000,
+    host: Annotated[str, typer.Option(help="Host to bind the server to.")] = "127.0.0.1",
+    reload: Annotated[bool, typer.Option(help="Enable auto-reload.")] = False,
+):
+    """
+    Start the persistent background server (Daemon).
+    """
+    import uvicorn
+
+    typer.secho(f"🚀 Starting Arete Server on http://{host}:{port}", fg="green")
+    uvicorn.run("arete.server:app", host=host, port=port, reload=reload)
 
 
 @app.command()

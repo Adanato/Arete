@@ -4,10 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from arete.domain.models import AnkiNote
+from arete.infrastructure.anki.converter import markdown_to_anki_html
 from arete.infrastructure.persistence.cache import ContentCache
 from arete.infrastructure.utils.common import sanitize, to_list
 from arete.infrastructure.utils.media import transform_images_in_text
-from arete.infrastructure.utils.text import convert_math_to_tex_delimiters, make_editor_note
+from arete.infrastructure.utils.text import make_editor_note
 
 
 class MarkdownParser:
@@ -87,8 +88,13 @@ class MarkdownParser:
                 # 1) Convert math + images
                 for fk, fv in list(fields.items()):
                     if isinstance(fv, str) and fv:
-                        txt = convert_math_to_tex_delimiters(fv)
-                        fields[fk] = transform_images_in_text(
+                        # 1. Math normalization (Obsidian -> TeX)
+                        # REMOVED: convert_math_to_tex_delimiters(fv) is handled by
+                        # converter.markdown_to_anki_html to avoid double processing.
+                        txt = fv
+
+                        # 2. Image copying
+                        txt = transform_images_in_text(
                             txt,
                             md_path,
                             self.vault_root,
@@ -96,6 +102,10 @@ class MarkdownParser:
                             self.logger,
                             name_index=name_index,
                         )
+
+                        # 3. Markdown -> HTML (Render here to unblock Consumer)
+                        # We use the converter which includes MathJax protection
+                        fields[fk] = markdown_to_anki_html(txt)
 
                 # 2) IDs
                 nid = sanitize(card.get("nid", "")).strip() or None

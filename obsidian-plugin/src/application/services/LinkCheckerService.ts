@@ -29,7 +29,7 @@ export class LinkCheckerService {
 			// 1. Check Links & Embeds
 			const brokenRefs = this.getBrokenReferences(file);
 			allBroken.push(...brokenRefs);
-			
+
 			// 2. Check Invalid Frontmatter (User Request)
 			const invalidYaml = await this.getInvalidFrontmatter(file);
 			if (invalidYaml) {
@@ -46,24 +46,34 @@ export class LinkCheckerService {
 
 		const broken: BrokenReference[] = [];
 
-		const hasYamlCards = cache.frontmatter && cache.frontmatter.cards && Array.isArray(cache.frontmatter.cards);
+		const hasYamlCards =
+			cache.frontmatter && cache.frontmatter.cards && Array.isArray(cache.frontmatter.cards);
 
 		if (hasYamlCards) {
 			// 1. Deep Scan YAML Cards (User Request: "Only report inside the card list")
 			const cards = cache.frontmatter.cards;
 			cards.forEach((card: any, idx: number) => {
 				// Fields to check: Front, Back, Text, Extra
-				const fields = [card.Front, card.front, card.Back, card.back, card.Text, card.text, card.Extra, card.extra];
-				
-				fields.forEach(content => {
+				const fields = [
+					card.Front,
+					card.front,
+					card.Back,
+					card.back,
+					card.Text,
+					card.text,
+					card.Extra,
+					card.extra,
+				];
+
+				fields.forEach((content) => {
 					if (typeof content === 'string') {
-						this.scanTextForBrokenLinks(content, file, broken, `Card #${idx+1}`);
+						this.scanTextForBrokenLinks(content, file, broken, `Card #${idx + 1}`);
 					}
 				});
 			});
 		} else {
 			// 2. Standard Body Scan (Only if NOT a YAML card file)
-			
+
 			// Check Links
 			if (cache.links) {
 				for (const link of cache.links) {
@@ -79,7 +89,7 @@ export class LinkCheckerService {
 					}
 				}
 			}
-	
+
 			// Check Embeds (Images, Transclusions)
 			if (cache.embeds) {
 				for (const embed of cache.embeds) {
@@ -100,7 +110,12 @@ export class LinkCheckerService {
 		return broken;
 	}
 
-	private scanTextForBrokenLinks(text: string, file: TFile, brokenList: BrokenReference[], context: string) {
+	private scanTextForBrokenLinks(
+		text: string,
+		file: TFile,
+		brokenList: BrokenReference[],
+		context: string,
+	) {
 		// Regex for [[wikilinks]] and ![[embeds]]
 		const linkRegex = /(!?)\[\[([^|\]]+)(?:\|[^\]]+)?\]\]/g;
 		let match;
@@ -111,31 +126,30 @@ export class LinkCheckerService {
 			const original = match[0];
 
 			const dest = this.app.metadataCache.getFirstLinkpathDest(linkPath, file.path);
-			
+
 			if (!dest) {
 				brokenList.push({
 					sourceFile: file,
 					linkText: `${context}: ${original}`, // Add context since we lack line numbers
 					linkPath: linkPath,
 					type: isEmbed ? 'image' : 'link',
-					position: null // Cannot determining exact line in YAML easily
+					position: null, // Cannot determining exact line in YAML easily
 				});
 			}
 		}
-
 	}
 
 	async getInvalidFrontmatter(file: TFile): Promise<BrokenReference | null> {
 		const cache = this.app.metadataCache.getFileCache(file);
-		
+
 		// If cache parses frontmatter fine, we are good.
 		if (cache && cache.frontmatter) return null;
 
 		// If no frontmatter in cache, check if file actually HAS valid-looking YAML start
-		// Only read file if cache implies no frontmatter to save IO? 
+		// Only read file if cache implies no frontmatter to save IO?
 		// Actually cache is always loaded in memory but file content might be read.
 		// Obsidian API: valid frontmatter means `cache.frontmatter` exists.
-		
+
 		const content = await this.app.vault.read(file);
 		const trimmed = content.trimStart();
 		if (trimmed.startsWith('---\n') || trimmed.startsWith('---\r\n')) {
@@ -145,7 +159,7 @@ export class LinkCheckerService {
 				linkText: 'INVALID YAML',
 				linkPath: 'Frontmatter',
 				type: 'invalid-yaml',
-				position: null // Info not available from cache failure
+				position: null, // Info not available from cache failure
 			};
 		}
 		return null;

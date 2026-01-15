@@ -1,9 +1,9 @@
 {
 	"id": "arete",
 	"name": "Arete",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"minAppVersion": "0.15.0",
-	"description": "Sync Obsidian vault to Anki using the Arete CLI.",
+	"description": "Professional one-way sync from Obsidian to Anki. Supports media, MathJax, and automatic card management.",
 	"author": "Adam Nguyen",
 	"authorUrl": "https://github.com/Adanato/obsidian_2_anki",
 	"isDesktopOnly": true

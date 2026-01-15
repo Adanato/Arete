@@ -38,12 +38,12 @@ class AppConfig(BaseSettings):
     log_dir: Path = Field(default_factory=lambda: Path.home() / ".config/arete/logs")
 
     # Execution Settings
-    backend: Literal["auto", "apy", "ankiconnect"] = "auto"
+    backend: Literal["auto", "direct", "ankiconnect"] = "auto"
     anki_connect_url: str = "http://127.0.0.1:8765"
-    apy_bin: str = "apy"
 
     # Flags
-    run_apy: bool = Field(default=False, alias="run")
+    # Renamed from run_apy for clarity
+    sync_enabled: bool = Field(default=False, alias="run")
     keep_going: bool = False
     no_move_deck: bool = False
     dry_run: bool = False
@@ -202,8 +202,11 @@ def resolve_config(
                 config.root_input if config.root_input.is_dir() else config.root_input.parent
             ).resolve()
 
-    if config.anki_media_dir is None:
-        _, detected_media = detect_anki_paths()
-        config.anki_media_dir = detected_media
+    if config.anki_media_dir is None or config.anki_base is None:
+        detected_base, detected_media = detect_anki_paths()
+        if config.anki_media_dir is None:
+            config.anki_media_dir = detected_media
+        if config.anki_base is None:
+            config.anki_base = detected_base
 
     return config

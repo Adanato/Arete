@@ -65,9 +65,11 @@ async def run_pipeline(
 
     # Concurrency control:
     # AnkiConnect can handle multiple requests, but apy (SQLite/CLI) should be sequential.
-    from arete.infrastructure.adapters.anki_apy import AnkiApyAdapter
+    from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
-    max_sync_concurrency = 1 if isinstance(anki_bridge, AnkiApyAdapter) else max(1, config.workers)
+    max_sync_concurrency = (
+        1 if isinstance(anki_bridge, AnkiDirectAdapter) else max(1, config.workers)
+    )
     sync_semaphore = asyncio.Semaphore(max_sync_concurrency)
 
     async def producer_file(md_file: Path, meta: dict[str, Any]):

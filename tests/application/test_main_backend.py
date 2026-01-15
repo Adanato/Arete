@@ -93,57 +93,71 @@ async def test_backend_selection_apy_fallback(
     mock_config.backend = "auto"
     await run_sync_logic(mock_config)
 
-    # Verify pipeline was called with AnkiApy adapter
+    # Verify pipeline was called with AnkiDirect adapter (fallback)
     call_args = mock_run_pipeline.call_args.args
-    from arete.infrastructure.adapters.anki_apy import AnkiApyAdapter
+    from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
-    assert isinstance(call_args[5], AnkiApyAdapter)  # anki_bridge is 6th arg
+    assert isinstance(call_args[5], AnkiDirectAdapter)  # anki_bridge is 6th arg
 
 
 @pytest.mark.asyncio
-@patch("arete.infrastructure.adapters.anki_connect.AnkiConnectAdapter.is_responsive")
+@patch("arete.main.AnkiConnectAdapter")
 @patch("arete.main.run_pipeline")
 @patch("arete.main.setup_logging")
-async def test_backend_manual_ankiconnect(
-    mock_setup_logging, mock_run_pipeline, mock_is_responsive, mock_config
+async def test_backend_manual_ankiconnect_and_fallback(
+    mock_setup_logging, mock_run_pipeline, mock_anki_connect_adapter_cls, mock_config
 ):
-    """Test manual selection of AnkiConnect backend."""
+    """Test manual selection of AnkiConnect backend and its fallback."""
+    from unittest.mock import AsyncMock
+
     mock_logger = MagicMock()
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
-    mock_is_responsive.return_value = True
 
     mock_run_pipeline.return_value = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
 
-    # Force AnkiConnect
+    # Mock an instance of AnkiConnectAdapter
+    mock_ac_instance = MagicMock()
+    mock_ac_instance.is_responsive = AsyncMock(return_value=True)
+    mock_anki_connect_adapter_cls.return_value = mock_ac_instance
+
+    # 1. Force AnkiConnect (should succeed)
     mock_config.backend = "ankiconnect"
     await run_sync_logic(mock_config)
 
-    # Verify AnkiConnect was used
-    call_args = mock_run_pipeline.call_args.args
-    from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
+    call_args = mock_run_pipeline.call_args_list[0].args
+    # We cannot use isinstance because the class is mocked
+    assert call_args[5] is mock_ac_instance  # anki_bridge is 6th arg
 
-    assert isinstance(call_args[5], AnkiConnectAdapter)  # anki_bridge is 6th arg
+    # 2. Fallback (AnkiConnect not responsive -> Anki Direct)
+    from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
+
+    mock_ac_instance.is_responsive = AsyncMock(return_value=False)
+    # So let's test AUTO fallback.
+    mock_config.backend = "auto"
+    await run_sync_logic(mock_config)
+    call_args = mock_run_pipeline.call_args_list[1].args  # This is the second call to run_pipeline
+    assert isinstance(call_args[5], AnkiDirectAdapter)  # Should use Direct
 
 
 @pytest.mark.asyncio
 @patch("arete.main.run_pipeline")
 @patch("arete.main.setup_logging")
-async def test_backend_manual_apy(mock_setup_logging, mock_run_pipeline, mock_config):
-    """Test manual selection of apy backend."""
+async def test_backend_manual_direct(mock_setup_logging, mock_run_pipeline, mock_config):
+    """Test manual selection of direct backend."""
     mock_logger = MagicMock()
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
     mock_run_pipeline.return_value = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
 
-    # Force apy
-    mock_config.backend = "apy"
+    # Force direct
+    mock_config.backend = "direct"
     await run_sync_logic(mock_config)
 
-    # Verify apy was used
+    # Verify AnkiDirect was used
     call_args = mock_run_pipeline.call_args.args
-    from arete.infrastructure.adapters.anki_apy import AnkiApyAdapter
+    from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
-    assert isinstance(call_args[5], AnkiApyAdapter)  # anki_bridge is 6th arg
+    assert isinstance(call_args[5], AnkiDirectAdapter)  # anki_bridge is 6th arg

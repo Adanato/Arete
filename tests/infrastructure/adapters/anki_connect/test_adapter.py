@@ -70,11 +70,19 @@ async def test_sync_notes_create_new(adapter, sample_note):
     data = add_note_call
 
     # 1. Bold works (HTML)
-    assert "**bold**" not in data["params"]["note"]["fields"]["Front"]
-    assert "<strong>bold</strong>" in data["params"]["note"]["fields"]["Front"]
+    # The adapter receives PRE-RENDERED HTML from the parser.
+    # So we expect the mocked parser to have sent HTML.
+    # WAIT: This test constructs 'sample_note' manually with RAW fields in the fixture.
+    # In the REAL pipeline, parser converts it.
+    # In this UNIT TEST, we pass raw fields.
+    # If the adapter NO LONGER converts, then the output params will match input fields exactly.
 
-    # 2. Math works (Preserved)
+    assert "**bold**" in data["params"]["note"]["fields"]["Front"]
     assert r"\(\frac{1}{2}\)" in data["params"]["note"]["fields"]["Front"]
+
+    # NOTE: In v1.3.1, the Adapter is NOT responsible for conversion.
+    # So passing "**bold**" means it sends "**bold**".
+    # This verifies the Adapter is a dumb passthrough.
 
 
 @pytest.mark.asyncio

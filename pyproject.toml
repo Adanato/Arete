@@ -1,6 +1,6 @@
 [project]
 name = "arete"
-version = "1.2.0"
+version = "1.3.0"
 description = "A robust, fast, and feature-rich CLI for syncing Obsidian vault to Anki."
 readme = "README.md"
 license = "MIT"
@@ -26,6 +26,10 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings[toml]>=2.12.0",
     "typer[all]>=0.21.0",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "watchdog>=4.0.0",
+    "anki>=24.04",
 ]
 
 [project.urls]
@@ -35,8 +39,6 @@ Repository = "https://github.com/Adanato/obsidian_2_anki"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv.sources]
-apyanki = { git = "https://github.com/Adanato/apy", branch = "master" }
 
 [dependency-groups]
 dev = [

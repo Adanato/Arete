@@ -134,7 +134,6 @@ export class StatsService {
 			const concept = conceptMap[meta.file.path];
 			if (!concept) continue;
 
-
 			// Store by Card ID (Precise)
 			stat.front = meta.front;
 			concept.cardStats[stat.cardId] = stat;
@@ -173,7 +172,7 @@ export class StatsService {
 			} else {
 				concept.cardStats[stat.noteId] = stat;
 			}
-			
+
 			concept.totalCards++;
 			concept.totalLapses += stat.lapses;
 			// Accumulate metrics
@@ -351,7 +350,10 @@ export class StatsService {
 						}
 					} catch (e) {
 						// Custom action likely not available if Anki not updated/restarted
-						console.warn('[Arete] FSRS Custom Fetch failed - you may need the Arete Anki addon:', e);
+						console.warn(
+							'[Arete] FSRS Custom Fetch failed - you may need the Arete Anki addon:',
+							e,
+						);
 					}
 				}
 

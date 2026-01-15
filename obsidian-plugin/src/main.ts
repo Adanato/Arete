@@ -14,6 +14,7 @@ import { StatsService, StatsCache } from '@application/services/StatsService';
 import { GraphService } from '@application/services/GraphService';
 import { LinkCheckerService } from '@application/services/LinkCheckerService';
 import { LeechService } from '@application/services/LeechService';
+import { ServerManager } from '@application/services/ServerManager';
 import { AnkiConnectRepository } from '@infrastructure/anki/AnkiConnectRepository';
 import {
 	createCardGutter,
@@ -34,6 +35,7 @@ export default class AretePlugin extends Plugin {
 	graphService: GraphService;
 	linkCheckerService: LinkCheckerService;
 	leechService: LeechService;
+	serverManager: ServerManager;
 	ankiRepo: AnkiConnectRepository;
 	templateRenderer: TemplateRenderer;
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -54,19 +56,25 @@ export default class AretePlugin extends Plugin {
 			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
 			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
 			this.graphService = new GraphService(this.app, this.settings);
-			
+
 			// Initialize New Dashboard Services
 			this.ankiRepo = new AnkiConnectRepository(this.settings.anki_connect_url);
 			this.linkCheckerService = new LinkCheckerService(this.app);
 			this.leechService = new LeechService(this.app, this.ankiRepo);
+			this.serverManager = new ServerManager(this.app, this.settings, this.manifest);
+
+			// Start Server (background) if enabled
+			this.serverManager.start();
 
 			// Auto-refresh stats on startup
 			this.app.workspace.onLayoutReady(() => {
 				console.log('[Arete] Refreshing stats on startup...');
-				this.statsService.refreshStats()
-					.then(async (results) => { // Updated to receive results
+				this.statsService
+					.refreshStats()
+					.then(async (results) => {
+						// Updated to receive results
 						console.log('[Arete] Stats refresh complete, notifying views...');
-						
+
 						// 1. Update Graph Tags (if enabled)
 						if (this.settings.graph_coloring_enabled) {
 							console.log('[Arete] Updating Graph Tags...');
@@ -80,7 +88,8 @@ export default class AretePlugin extends Plugin {
 						}
 
 						// 2. Refresh YAML Editor
-						const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+						const yamlLeaf =
+							this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
 						if (yamlLeaf) {
 							const view = yamlLeaf.view as CardYamlEditorView;
 							if (view.renderToolbar) {
@@ -88,7 +97,7 @@ export default class AretePlugin extends Plugin {
 							}
 						}
 					})
-					.catch(err => {
+					.catch((err) => {
 						console.error('[Arete] Failed to auto-refresh stats:', err);
 					});
 			});
@@ -211,7 +220,7 @@ export default class AretePlugin extends Plugin {
 			callback: async () => {
 				new Notice('Refreshing Arete stats...');
 				const results = await this.statsService.refreshStats();
-				
+
 				// Post-refresh updates (Graph Tags + YAML Editor)
 				if (this.settings.graph_coloring_enabled) {
 					for (const concept of results) {
@@ -222,7 +231,7 @@ export default class AretePlugin extends Plugin {
 					}
 					new Notice('Graph tags updated.');
 				}
-				
+
 				// Refresh YAML Toolbar
 				const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
 				if (yamlLeaf) {
@@ -243,13 +252,9 @@ export default class AretePlugin extends Plugin {
 		this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
 		this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
 
-
-
 		this.addRibbonIcon('file-code', 'Open YAML Editor', () => {
 			this.activateYamlEditorView();
 		});
-
-
 
 		this.addCommand({
 			id: 'open-yaml-editor',
@@ -332,8 +337,6 @@ export default class AretePlugin extends Plugin {
 		);
 	}
 
-
-
 	// Highlight card lines in editor (permanent until different card is clicked)
 	highlightCardLines(cardIndex: number) {
 		// Use getMostRecentLeaf to find the editor (works when called from sidebar)
@@ -409,6 +412,9 @@ export default class AretePlugin extends Plugin {
 	onunload() {
 		if (this.statusBarItem) {
 			this.statusBarItem.empty();
+		}
+		if (this.serverManager) {
+			this.serverManager.stop();
 		}
 	}
 

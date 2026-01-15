@@ -1,20 +1,14 @@
+---
+"anki_template_version": 1
 model: Basic
-deck: test
-tags: [basic, test]
-markdown: true
-
-# Note
-
-## Front
-What is the capital of France?
-
-## Back
-Paris
-
-# Note
-
-## Front
-What is 2 + 2?
-
-## Back
-4
+deck: Test::Basic
+cards:
+- Front: What is the capital of France?
+  Back: Paris
+  nid: '1768446524168'
+- Front: What is 2 + 2?
+  Back: 4
+  nid: '1768446524174'
+---
+# Basic Test Note
+This note is now valid for the YAML parser.

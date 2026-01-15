@@ -31,7 +31,7 @@ def test_config_file_override(mock_home, mock_vault):
 
     cfg = resolve_config(overrides, config_file=config_dir / "config.toml")
     assert cfg.verbose == 2  # From config
-    assert cfg.run_apy is True  # From config file
+    assert cfg.sync_enabled is True  # From config file
 
 
 def test_config_default_cwd_when_no_path(mock_home):

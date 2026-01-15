@@ -36,6 +36,8 @@ describe('SyncService', () => {
 			ui_expanded_decks: [],
 			ui_expanded_concepts: [],
 			last_sync_time: null,
+			execution_mode: 'cli',
+			server_port: 8777,
 		};
 
 		updateStatusBar = jest.fn();
@@ -53,7 +55,16 @@ describe('SyncService', () => {
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'arete', 'sync', '--force', '--clear-cache', '--workers', '4', '/mock/path/file.md'],
+			[
+				'-m',
+				'arete',
+				'sync',
+				'--force',
+				'--clear-cache',
+				'--workers',
+				'4',
+				'/mock/path/file.md',
+			],
 			expect.any(Object),
 		);
 		expect(updateStatusBar).toHaveBeenCalledWith('syncing');
