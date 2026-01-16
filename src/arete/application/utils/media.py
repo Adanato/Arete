@@ -5,8 +5,8 @@ import shutil
 from pathlib import Path
 from urllib.parse import unquote
 
-from arete.infrastructure.adapters.fs import file_md5
-from arete.infrastructure.utils.consts import MARKDOWN_IMG_RE, WIKILINK_IMG_RE
+from arete.application.utils.consts import MARKDOWN_IMG_RE, WIKILINK_IMG_RE
+from arete.application.utils.fs import file_md5
 
 
 def unique_media_name(dest_dir: Path, src: Path) -> str:

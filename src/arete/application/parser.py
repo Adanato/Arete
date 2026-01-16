@@ -3,12 +3,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from arete.application.converter import markdown_to_anki_html
+from arete.application.utils.common import sanitize, to_list
+from arete.application.utils.media import transform_images_in_text
+from arete.application.utils.text import make_editor_note
+from arete.domain.interfaces import ContentCache
 from arete.domain.models import AnkiNote
-from arete.infrastructure.anki.converter import markdown_to_anki_html
-from arete.infrastructure.persistence.cache import ContentCache
-from arete.infrastructure.utils.common import sanitize, to_list
-from arete.infrastructure.utils.media import transform_images_in_text
-from arete.infrastructure.utils.text import make_editor_note
 
 
 class MarkdownParser:
@@ -30,16 +30,16 @@ class MarkdownParser:
         meta: dict[str, Any],
         cache: ContentCache,
         name_index: dict[str, list[Path]] | None = None,
+        is_fresh: bool = True,
     ) -> tuple[list[AnkiNote], list[int], list[dict[str, str | None]]]:
+        import json
+
         deck_frontmatter = sanitize(meta.get("deck", "")) or None
         default_model = sanitize(meta.get("model", "Basic"))
         base_tags = [t.strip() for t in to_list(meta.get("tags", [])) if t and t.strip()]
         cards = meta.get("cards", [])
 
-        self.logger.debug(
-            f"[parser] Parsing {md_path.name}. Frontmatter deck={deck_frontmatter}, "
-            f"model={default_model}, cards={len(cards)}"
-        )
+        self.logger.debug(f"[parser] Parsing {md_path.name}. cards={len(cards)} fresh={is_fresh}")
 
         notes: list[AnkiNote] = []
         skipped_indices: list[int] = []
@@ -47,6 +47,27 @@ class MarkdownParser:
 
         for idx, card in enumerate(cards, start=1):
             try:
+                # OPTIMIZATION: Hot Cache Lookup
+                # If file metadata hasn't changed (is_fresh=False), check if we have a fully
+                # rendered note in the 'cards' table. If so, we can skip parsing/rendering.
+                if not is_fresh and not self.ignore_cache:
+                    cached_note_data = cache.get_note(md_path, idx)
+                    if cached_note_data:
+                        try:
+                            # cached_note_data is (hash, note_json)
+                            _, note_json = cached_note_data
+                            if note_json:
+                                cached_note = AnkiNote.from_dict(json.loads(note_json))
+                                notes.append(cached_note)
+                                # Also need to track inventory for prune logic
+                                inventory.append({"nid": cached_note.nid, "deck": cached_note.deck})
+                                # Log as deep cache hit (maybe trace level)
+                                continue
+                        except Exception as e:
+                            self.logger.warning(
+                                f"Failed to load hot cache for {md_path}#{idx}: {e}"
+                            )
+
                 model = sanitize(card.get("model", default_model))
                 mlow = model.lower()
                 fields = {}
@@ -152,21 +173,30 @@ class MarkdownParser:
                     self.logger.debug(f"[cache-hit] {md_path} card#{idx}: skipping")
                     continue
 
-                notes.append(
-                    AnkiNote(
-                        model=model,
-                        deck=deck_this,
-                        fields=fields,
-                        tags=base_tags,
-                        start_line=start_line,
-                        end_line=start_line,  # Frontmatter cards are single-block usually
-                        nid=nid,
-                        cid=cid,
-                        content_hash=content_hash,
-                        source_file=md_path,
-                        source_index=idx,
-                    )
+                note_obj = AnkiNote(
+                    model=model,
+                    deck=deck_this,
+                    fields=fields,
+                    tags=base_tags,
+                    start_line=start_line,
+                    end_line=start_line,  # Frontmatter cards are single-block usually
+                    nid=nid,
+                    cid=cid,
+                    content_hash=content_hash,
+                    source_file=md_path,
+                    source_index=idx,
                 )
+                notes.append(note_obj)
+
+                # OPTIMIZATION: Save Deep Cache
+                # We save the fully rendered object so next time we can skip everything
+                try:
+                    if not self.ignore_cache:
+                        note_json = json.dumps(note_obj.to_dict())
+                        cache.set_note(md_path, idx, content_hash, note_json)
+                except Exception as e_cache:
+                    self.logger.warning(f"Failed to save deep cache for {md_path}: {e_cache}")
+
             except Exception as e:
                 self.logger.error(f"[error] {md_path} card#{idx}: {e}")
                 skipped_indices.append(idx)

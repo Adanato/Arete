@@ -5,12 +5,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from arete.application.utils.common import sanitize
+from arete.application.utils.fs import iter_markdown_files
+from arete.application.utils.text import parse_frontmatter, rebuild_markdown_with_frontmatter
 from arete.consts import CURRENT_TEMPLATE_VERSION
+from arete.domain.interfaces import ContentCache
 from arete.domain.models import UpdateItem
-from arete.infrastructure.adapters.fs import iter_markdown_files
-from arete.infrastructure.persistence.cache import ContentCache
-from arete.infrastructure.utils.common import sanitize
-from arete.infrastructure.utils.text import parse_frontmatter, rebuild_markdown_with_frontmatter
 
 
 class VaultService:
@@ -20,45 +20,66 @@ class VaultService:
         self.ignore_cache = ignore_cache
         self.logger = logging.getLogger(__name__)
 
-    def scan_for_compatible_files(self) -> Iterable[tuple[Path, dict[str, Any]]]:
+    def scan_for_compatible_files(self) -> Iterable[tuple[Path, dict[str, Any], bool]]:
         """
         Iterates over all markdown files in the vault, checks them for validity
         (frontmatter, version), and yields valid files.
+        Returns: (path, meta, is_fresh)
+                 is_fresh=True means we just parsed it (cache was cold/dirty).
+                 is_fresh=False means we loaded meta from stat-cache (cache was warm).
         """
         for p in iter_markdown_files(self.root):
-            ok, _, reason, meta = self._quick_check_file(p)
+            ok, _, reason, meta, is_fresh = self._quick_check_file(p)
             if ok and meta:
                 cards_count = len(meta.get("cards", []))
                 self.logger.debug(
                     f"[vault] Accepted {p.name} (v{meta.get('anki_template_version')}) "
-                    f"cards={cards_count}"
+                    f"cards={cards_count} fresh={is_fresh}"
                 )
-                yield p, meta
+                yield p, meta, is_fresh
             else:
                 self.logger.debug(f"[vault] Skipped {p.name}: {reason}")
 
     def _quick_check_file(
         self, md_file: Path
-    ) -> tuple[bool, int, str | None, dict[str, Any] | None]:
-        # Logic adapted from logic._quick_check_file
+    ) -> tuple[bool, int, str | None, dict[str, Any] | None, bool]:
+        # Returns: (ok, num_cards, reason, meta, is_fresh)
+        try:
+            st = md_file.stat()
+            mtime = st.st_mtime
+            size = st.st_size
+        except Exception as e:
+            return (False, 0, f"stat_error:{e}", None, True)
+
+        if self.cache and not self.ignore_cache:
+            try:
+                cached_meta = self.cache.get_file_meta_by_stat(md_file, mtime, size)
+                if cached_meta:
+                    cards = cached_meta.get("cards", [])
+                    return (True, len(cards), None, cached_meta, False)
+            except Exception:
+                pass
+
         try:
             text = md_file.read_text(encoding="utf-8", errors="strict")
             file_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
         except Exception as e:
-            return (False, 0, f"read_error:{e}", None)
+            return (False, 0, f"read_error:{e}", None, True)
 
-        if self.cache and not self.ignore_cache:
-            try:
-                cached_meta = self.cache.get_file_meta(md_file, file_hash)
-                if cached_meta:
-                    cards = cached_meta.get("cards", [])
-                    return (True, len(cards), None, cached_meta)
-            except Exception:
-                pass
+        # Heuristic: only parse if it looks like an arete file
+        # We check the first 2KB for efficiency
+        header = text[:2048].lower()
+        if (
+            "arete:" not in header
+            and "anki_template_version:" not in header
+            and "anki_plugin_version:" not in header
+            and "cards:" not in header
+        ):
+            return (False, 0, "not_arete_file", None, True)
 
         meta, _body = parse_frontmatter(text)
         if not meta or "__yaml_error__" in meta:
-            return (False, 0, "no_or_bad_yaml", None)
+            return (False, 0, "no_or_bad_yaml", None, True)
 
         is_explicit_arete = meta.get("arete") is True
         v = meta.get("anki_template_version") or meta.get("anki_plugin_version")
@@ -68,7 +89,7 @@ class VaultService:
             try:
                 v = int(str(v).strip().strip('"').strip("'"))
             except Exception:
-                return (False, 0, "bad_template_version", None)
+                return (False, 0, "bad_template_version", None, True)
 
             if v != CURRENT_TEMPLATE_VERSION:
                 return (
@@ -76,23 +97,24 @@ class VaultService:
                     0,
                     f"wrong_template_version_got_{v}_expected_{CURRENT_TEMPLATE_VERSION}",
                     None,
+                    True,
                 )
 
         cards = meta.get("cards", [])
         if not isinstance(cards, list) or not cards:
-            return (False, 0, "no_cards", None)
+            return (False, 0, "no_cards", None, True)
 
         deck = meta.get("deck")
         # basic check
         has_any_card_deck = any(isinstance(c, dict) and c.get("deck") for c in cards)
         if not deck and not has_any_card_deck:
-            return (False, 0, "no_deck", None)
+            return (False, 0, "no_deck", None, True)
 
         # Save to cache
         if self.cache:
-            self.cache.set_file_meta(md_file, file_hash, meta)
+            self.cache.set_file_meta(md_file, file_hash, meta, mtime=mtime, size=size)
 
-        return (True, len(cards), None, meta)
+        return (True, len(cards), None, meta, True)
 
     def apply_updates(self, updates: list[UpdateItem]):
         """
@@ -114,12 +136,12 @@ class VaultService:
                 for u in ups:
                     i = u.source_index - 1
                     if 0 <= i < len(cards):
-                        c = cards[i]
-                        if u.new_nid and sanitize(c.get("nid", "")) != u.new_nid:
-                            c["nid"] = u.new_nid
+                        card_data = cards[i]
+                        if u.new_nid and sanitize(card_data.get("nid", "")) != u.new_nid:
+                            card_data["nid"] = u.new_nid
                             changed = True
-                        if u.new_cid and sanitize(c.get("cid", "")) != u.new_cid:
-                            c["cid"] = u.new_cid
+                        if u.new_cid and sanitize(card_data.get("cid", "")) != u.new_cid:
+                            card_data["cid"] = u.new_cid
                             changed = True
                 if changed:
                     meta["cards"] = cards
@@ -127,5 +149,18 @@ class VaultService:
                     if new_text != text:
                         md_path.write_text(new_text, encoding="utf-8")
                         self.logger.debug(f"[write] {md_path}: persisted nid/cid into frontmatter")
+
+                        # Fix for Hot Sync: Update cache immediately since we changed mtime!
+                        if self.cache:
+                            try:
+                                new_hash = hashlib.md5(new_text.encode("utf-8")).hexdigest()
+                                st = md_path.stat()
+                                self.cache.set_file_meta(
+                                    md_path, new_hash, meta, mtime=st.st_mtime, size=st.st_size
+                                )
+                            except Exception as e:
+                                self.logger.warning(
+                                    f"Failed to update cache after write for {md_path}: {e}"
+                                )
             except Exception as e:
                 self.logger.error(f"[error] write-updates {md_path}: {e}")

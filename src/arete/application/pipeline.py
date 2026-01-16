@@ -12,12 +12,12 @@ except ImportError:
 
 from arete.application.config import AppConfig
 from arete.application.parser import MarkdownParser
+from arete.application.utils.logging import RunRecorder
+from arete.application.utils.media import build_filename_index
 from arete.application.vault_service import VaultService
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
 from arete.infrastructure.persistence.cache import ContentCache
-from arete.infrastructure.utils.logging import RunRecorder
-from arete.infrastructure.utils.media import build_filename_index
 
 
 @dataclass
@@ -44,12 +44,14 @@ async def run_pipeline(
 
     # -------- Stage 1: filter --------
     logger.info("[pipeline] Scanning vault...")
-    compatible: list[tuple[Path, dict[str, Any]]] = list(vault_service.scan_for_compatible_files())
+    compatible: list[tuple[Path, dict[str, Any], bool]] = list(
+        vault_service.scan_for_compatible_files()
+    )
 
     logger.info(f"[filter] compatible files: {len(compatible)}")
     logger.debug("Compatible files:")
     for c in compatible:
-        logger.debug(f"  - {c[0]}")
+        logger.debug(f"  - {c[0]} (fresh={c[2]})")
     if not compatible:
         logger.info("No compatible markdown files found.")
         return RunStats(0, 0, 0, [])
@@ -59,25 +61,24 @@ async def run_pipeline(
     name_index = build_filename_index(config.vault_root, logger)
 
     # -------- Stage 3: Producers + Consumer --------
-    work_q: asyncio.Queue[WorkItem] = asyncio.Queue(maxsize=max(1, config.queue_size))
+    work_q: asyncio.Queue[WorkItem | None] = asyncio.Queue(maxsize=max(1, config.queue_size))
     updates: list[UpdateItem] = []
     updates_lock = asyncio.Lock()
 
     # Concurrency control:
     # AnkiConnect can handle multiple requests, but apy (SQLite/CLI) should be sequential.
-    from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
-    max_sync_concurrency = (
-        1 if isinstance(anki_bridge, AnkiDirectAdapter) else max(1, config.workers)
-    )
+    max_sync_concurrency = 1 if anki_bridge.is_sequential else max(1, config.workers)
     sync_semaphore = asyncio.Semaphore(max_sync_concurrency)
 
-    async def producer_file(md_file: Path, meta: dict[str, Any]):
+    async def producer_file(md_file: Path, meta: dict[str, Any], is_fresh: bool):
         recorder.files_scanned += 1
         try:
             # Parsing is mostly CPU bound and tiny disk I/O, sync is fine
             # We run it in a thread if it's slow, but for now, it's ok.
-            notes, skipped_indices, inventory = parser.parse_file(md_file, meta, cache, name_index)
+            notes, skipped_indices, inventory = parser.parse_file(
+                md_file, meta, cache, name_index, is_fresh
+            )
             recorder.cards_generated += len(notes) + len(skipped_indices)
             recorder.cards_cached_content += len(inventory) - len(notes)
 
@@ -92,10 +93,31 @@ async def run_pipeline(
 
     async def consumer():
         while True:
-            item = await work_q.get()
+            # Wait for at least one item
+            first_item = await work_q.get()
+            if first_item is None:
+                work_q.task_done()
+                break
+
+            batch = [first_item]
+
+            # Non-blocking peek for more items to batch them (up to 50)
+            while len(batch) < 50:
+                try:
+                    next_item = work_q.get_nowait()
+                    if next_item is None:
+                        # Put it back so it can terminate other consumers or we handle it next
+                        # But actually a single consumer can just stop.
+                        # However, we have multiple consumers.
+                        await work_q.put(None)
+                        break
+                    batch.append(next_item)
+                except asyncio.QueueEmpty:
+                    break
+
             try:
                 async with sync_semaphore:
-                    batch_updates = await anki_bridge.sync_notes([item])
+                    batch_updates = await anki_bridge.sync_notes(batch)
 
                 async with updates_lock:
                     for u in batch_updates:
@@ -111,11 +133,13 @@ async def run_pipeline(
                             )
             except Exception as e:
                 logger.error(f"[consumer-error] {e}")
-                recorder.add_error(
-                    item.source_file, f"Consumer crash: {e}", f"#{item.source_index}"
-                )
+                for wi in batch:
+                    recorder.add_error(
+                        wi.source_file, f"Consumer batch crash: {e}", f"#{wi.source_index}"
+                    )
             finally:
-                work_q.task_done()
+                for _ in range(len(batch)):
+                    work_q.task_done()
 
     # Create consumers
     consumers = [asyncio.create_task(consumer()) for _ in range(max_sync_concurrency)]
@@ -124,11 +148,14 @@ async def run_pipeline(
     # Limit producer concurrency as well to avoid overwhelming memory if vault is huge
     prod_semaphore = asyncio.Semaphore(max(1, config.workers))
 
-    async def bounded_producer(p, m):
+    async def bounded_producer(p, m, f):
         async with prod_semaphore:
-            await producer_file(p, m)
+            await producer_file(p, m, f)
 
-    producer_tasks = [asyncio.create_task(bounded_producer(p, meta)) for (p, meta) in compatible]
+    producer_tasks = [
+        asyncio.create_task(bounded_producer(p, meta, is_fresh))
+        for (p, meta, is_fresh) in compatible
+    ]
 
     if use_tqdm and tqdm:
         with tqdm(total=len(producer_tasks), desc="Processing", unit="file") as pbar:
@@ -144,6 +171,10 @@ async def run_pipeline(
                 )
     else:
         await asyncio.gather(*producer_tasks)
+
+    # Signal consumers to stop
+    for _ in range(max_sync_concurrency):
+        await work_q.put(None)
 
     # Wait for all work to be processed
     await work_q.join()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     pass
@@ -41,6 +41,10 @@ class AnkiDirectAdapter(AnkiBridge):
                 repo.col.decks.id(deck_name)
                 return True
         return False
+
+    @property
+    def is_sequential(self) -> bool:
+        return True
 
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
         results = []
@@ -318,7 +322,7 @@ class AnkiDirectAdapter(AnkiBridge):
             if not repo.col:
                 return False
             try:
-                repo.col.sched.suspend_cards(cids)
+                repo.col.sched.suspend_cards(cast(Any, cids))
                 return True
             except Exception as e:
                 self.logger.error(f"Failed to suspend cards: {e}")
@@ -332,7 +336,7 @@ class AnkiDirectAdapter(AnkiBridge):
             if not repo.col:
                 return False
             try:
-                repo.col.sched.unsuspend_cards(cids)
+                repo.col.sched.unsuspend_cards(cast(Any, cids))
                 return True
             except Exception as e:
                 self.logger.error(f"Failed to unsuspend cards: {e}")
@@ -425,3 +429,7 @@ class AnkiDirectAdapter(AnkiBridge):
 
         self.logger.error("Anki launched but search query could not be applied via AnkiConnect.")
         return False
+
+    async def close(self) -> None:
+        """No long-lived resources to clean up in Direct backend."""
+        pass

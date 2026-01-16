@@ -72,20 +72,28 @@ class MathPostprocessor(Postprocessor):
         return text
 
 
+_md_instance: markdown.Markdown | None = None
+
+
 def markdown_to_anki_html(text: str, latex_mode: str = "mathjax") -> str:
     """
     Convert markdown text to Anki-compatible HTML.
     Includes special handling for MathJax protection.
     """
-    md = markdown.Markdown(
-        extensions=[
-            "fenced_code",
-            "tables",
-            MathProtectExtension(latex_mode),
-        ]
-    )
-    html = md.convert(text)
-    # Add apy's marker comment for consistency detection if needed
+    global _md_instance
+    if _md_instance is None:
+        _md_instance = markdown.Markdown(
+            extensions=[
+                "fenced_code",
+                "tables",
+                MathProtectExtension(latex_mode),
+            ]
+        )
+    else:
+        _md_instance.reset()
+
+    html = _md_instance.convert(text)
+    # Add arete's marker comment for consistency detection if needed
     # but strictly speaking we don't need it if we trust our DB.
     # We'll add it to match apy behavior for now.
     return f"<!-- arete markdown -->\n{html}"

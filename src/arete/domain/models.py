@@ -65,6 +65,18 @@ class AnkiNote:
 
     content_hash: str | None = None
 
+    def to_dict(self) -> dict:
+        from dataclasses import asdict
+
+        d = asdict(self)
+        d["source_file"] = str(self.source_file)
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "AnkiNote":
+        d["source_file"] = Path(d["source_file"])
+        return cls(**d)
+
 
 @dataclass
 class AnkiCardStats:

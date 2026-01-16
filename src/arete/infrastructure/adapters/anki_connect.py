@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -19,7 +20,9 @@ class AnkiConnectAdapter(AnkiBridge):
     def __init__(self, url: str = "http://127.0.0.1:8765"):
         self.logger = logging.getLogger(__name__)
         self._known_decks = set()
+        self._model_fields_cache = {}
         self.use_windows_curl = False
+        self._client: httpx.AsyncClient | None = None
 
         # 1. Environment Variable Override (Highest Priority)
         env_host = os.environ.get("ANKI_CONNECT_HOST")
@@ -70,6 +73,10 @@ class AnkiConnectAdapter(AnkiBridge):
             f"AnkiConnectAdapter initialized with url={self.url} "
             f"(curl_bridge={self.use_windows_curl})"
         )
+
+    @property
+    def is_sequential(self) -> bool:
+        return False
 
     async def is_responsive(self) -> bool:
         """Check if AnkiConnect is reachable and has the expected API version."""
@@ -129,88 +136,124 @@ class AnkiConnectAdapter(AnkiBridge):
             return False
 
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
-        results = []
-        for item in work_items:
-            note = item.note
+        # Batch preparation: Ensure decks and models exist once per batch
+        unique_decks = {item.note.deck for item in work_items}
+        unique_models = {item.note.model for item in work_items}
+
+        for deck_name in unique_decks:
+            if not await self.ensure_deck(deck_name):
+                # We could fail the whole batch, or just mark them as failed later.
+                # For now, failures in ensure_deck will be caught by individual item try-blocks
+                # But it's better to log here.
+                self.logger.warning(f"Failed to ensure deck '{deck_name}' for batch")
+
+        for model_name in unique_models:
             try:
-                # Fields are already HTML from parser
-                # Skip _obsidian_source from being treated as content field if model is strict
-                html_fields = {}
-                for k, v in note.fields.items():
-                    # _obsidian_source is passed through as-is (it's plain text anyway)
-                    html_fields[k] = v
+                await self.ensure_model_has_source_field(model_name)
+            except Exception as e:
+                self.logger.warning(f"Failed to ensure source field for '{model_name}': {e}")
 
-                # Ensure deck exists
-                if not await self.ensure_deck(note.deck):
-                    raise Exception(f"Failed to ensure deck '{note.deck}'")
+        tasks = [self._sync_single_note(item) for item in work_items]
+        return list(await asyncio.gather(*tasks))
 
-                # Ensure model has _obsidian_source field (backwards compatibility)
-                await self.ensure_model_has_source_field(note.model)
+    async def _sync_single_note(self, item: WorkItem) -> UpdateItem:
+        note = item.note
+        try:
+            # Fields are already HTML from parser
+            # Skip _obsidian_source from being treated as content field if model is strict
+            html_fields = {}
+            for k, v in note.fields.items():
+                # _obsidian_source is passed through as-is (it's plain text anyway)
+                html_fields[k] = v
 
-                target_nid = None
-                info = None
-                if note.nid:
-                    # check existence
-                    info = await self._invoke("notesInfo", notes=[int(note.nid)])
-                    if info and info[0].get("noteId"):
-                        target_nid = int(note.nid)
+            target_nid = None
+            info = None
+            if note.nid:
+                # check existence
+                info = await self._invoke("notesInfo", notes=[int(note.nid)])
+                if info and info[0].get("noteId"):
+                    target_nid = int(note.nid)
 
-                if target_nid:
-                    # UPDATE
-                    await self._invoke(
-                        "updateNoteFields", note={"id": target_nid, "fields": html_fields}
-                    )
+            if target_nid:
+                # UPDATE
+                await self._invoke(
+                    "updateNoteFields", note={"id": target_nid, "fields": html_fields}
+                )
 
-                    # Update Tags
-                    # 1. Get current tags
-                    # 2. Add/Remove difference OR just replace?
-                    # AnkiConnect 'updateNoteTags' (if exists) or 'removeTags' + 'addTags'
-                    # More robust: 'replaceTags' action? No.
-                    # "notesInfo" returns "tags": ["tag1", ...]
+                # Update Tags
+                if info and "tags" in info[0]:
+                    current_tags = set(info[0]["tags"])
+                    new_tags = set(note.tags)
 
-                    if info and "tags" in info[0]:
-                        current_tags = set(info[0]["tags"])
-                        new_tags = set(note.tags)
+                    to_add = list(new_tags - current_tags)
+                    to_remove = list(current_tags - new_tags)
 
-                        to_add = list(new_tags - current_tags)
-                        to_remove = list(current_tags - new_tags)
-
-                        if to_add:
-                            await self._invoke("addTags", notes=[target_nid], tags=" ".join(to_add))
-                        if to_remove:
-                            await self._invoke(
-                                "removeTags", notes=[target_nid], tags=" ".join(to_remove)
-                            )
-
-                    # Move cards if needed
-                    # ... [existing move logic] ...
-                    if info and "cards" in info[0]:
-                        cids = info[0]["cards"]
-                        # self.logger.debug(f"[anki] Moving cards {cids} to deck '{note.deck}'")
-                        await self._invoke("changeDeck", cards=cids, deck=note.deck)
-                        # self.logger.debug(f"[anki] changeDeck result: {res}")
-                    else:
-                        self.logger.warning(
-                            f"[anki] Cannot move cards for nid={target_nid}. "
-                            f"Info missing cards: {info}"
+                    if to_add:
+                        await self._invoke("addTags", notes=[target_nid], tags=" ".join(to_add))
+                    if to_remove:
+                        await self._invoke(
+                            "removeTags", notes=[target_nid], tags=" ".join(to_remove)
                         )
 
-                    results.append(
-                        UpdateItem(
-                            source_file=item.source_file,
-                            source_index=item.source_index,
-                            new_nid=str(target_nid),
-                            new_cid=None,
-                            ok=True,
-                            note=note,
-                        )
-                    )
-                    self.logger.debug(
-                        f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}"
-                    )
-
+                # Move cards if needed
+                if info and "cards" in info[0]:
+                    cids = info[0]["cards"]
+                    await self._invoke("changeDeck", cards=cids, deck=note.deck)
                 else:
-                    # ADD
+                    self.logger.warning(
+                        f"[anki] Cannot move cards for nid={target_nid}. Info missing cards: {info}"
+                    )
+
+                self.logger.debug(
+                    f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}"
+                )
+                return UpdateItem(
+                    source_file=item.source_file,
+                    source_index=item.source_index,
+                    new_nid=str(target_nid),
+                    new_cid=None,
+                    ok=True,
+                    note=note,
+                )
+
+            else:
+                # ADD / HEAL
+                # Proactive Healing: Check if content already exists to avoid creation
+                import re
+
+                first_field_val = list(html_fields.values())[0]
+                # Clean for search query
+                cleaned_val = re.sub(r"<[^>]+>", "", first_field_val)
+                cleaned_val = cleaned_val.translate(
+                    str.maketrans({"\r": " ", "\n": " ", "\t": " ", "\v": " ", "\f": " "})
+                ).strip()
+                cleaned_val = cleaned_val.replace("\\", "\\\\").replace('"', '\\"')
+                if len(cleaned_val) > 100:
+                    cleaned_val = cleaned_val[:100]
+
+                existing_nid = None
+                if cleaned_val:
+                    query = f'"deck:{note.deck}" "{cleaned_val}"'
+                    try:
+                        candidates = await self._invoke("findNotes", query=query)
+                        if candidates and len(candidates) >= 1:
+                            existing_nid = candidates[0]
+                            self.logger.info(
+                                " -> Healed! matched existing note ID via proactive search: "
+                                f"{existing_nid}"
+                            )
+                    except Exception as e_search:
+                        self.logger.warning(f"Healing search failed: {e_search}")
+
+                if existing_nid:
+                    new_id = existing_nid
+                    # We might want to update fields even if we found it?
+                    # Ideally yes, let's treat it as an update now that we found it.
+                    await self._invoke(
+                        "updateNoteFields", note={"id": new_id, "fields": html_fields}
+                    )
+                else:
+                    # CREATE
                     params = {
                         "note": {
                             "deckName": note.deck,
@@ -223,83 +266,59 @@ class AnkiConnectAdapter(AnkiBridge):
                             },
                         }
                     }
-                    try:
-                        new_id = await self._invoke("addNote", **params)
-                        if not new_id:
-                            raise Exception("addNote returned null ID")
-                    except Exception as e:
-                        # HEALING LOGIC: If duplicate, try to find the existing card
-                        if "duplicate" in str(e).lower():
-                            self.logger.warning(
-                                f"Duplicate detected for {item.source_file.name}. "
-                                "Attempting to identify existing note..."
-                            )
+                    new_id = await self._invoke("addNote", **params)
+                    if not new_id:
+                        raise Exception("addNote returned null ID")
 
-                            first_field_val = list(html_fields.values())[0]
-                            cleaned_val = first_field_val.translate(
-                                str.maketrans(
-                                    {"\r": " ", "\n": " ", "\t": " ", "\v": " ", "\f": " "}
-                                )
-                            )
-                            cleaned_val = cleaned_val.replace("\\", "\\\\").replace('"', '\\"')
-                            if len(cleaned_val) > 100:
-                                cleaned_val = cleaned_val[:100]
+                # FETCH CID Logic
+                new_cid_val = None
+                try:
+                    info_new = await self._invoke("notesInfo", notes=[new_id])
+                    if info_new and info_new[0].get("cards"):
+                        new_cid_val = str(info_new[0]["cards"][0])
+                except Exception as e_cid:
+                    self.logger.warning(f"Failed to fetch CID for nid={new_id}: {e_cid}")
 
-                            query = f'"deck:{note.deck}" "{cleaned_val}"'
-                            try:
-                                candidates = await self._invoke("findNotes", query=query)
-                                if candidates and len(candidates) >= 1:
-                                    new_id = candidates[0]
-                                    self.logger.info(
-                                        f" -> Healed! matched existing note ID: {new_id}"
-                                    )
-                                else:
-                                    raise e
-                            except Exception:
-                                raise e from None
-
-                        else:
-                            raise e
-
-                    # FETCH CID Logic
-                    new_cid_val = None
-                    try:
-                        info_new = await self._invoke("notesInfo", notes=[new_id])
-                        if info_new and info_new[0].get("cards"):
-                            new_cid_val = str(info_new[0]["cards"][0])
-                    except Exception as e_cid:
-                        self.logger.warning(f"Failed to fetch CID for nid={new_id}: {e_cid}")
-
-                    results.append(
-                        UpdateItem(
-                            source_file=item.source_file,
-                            source_index=item.source_index,
-                            new_nid=str(new_id),
-                            new_cid=new_cid_val,
-                            ok=True,
-                            note=note,
+                # Post-creation: Populate 'nid' field if it exists in the model
+                try:
+                    if note.model not in self._model_fields_cache:
+                        self._model_fields_cache[note.model] = await self._invoke(
+                            "modelFieldNames", modelName=note.model
                         )
-                    )
-                    self.logger.info(
-                        f"[create] {item.source_file} #{item.source_index} -> "
-                        f"nid={new_id} cid={new_cid_val}"
-                    )
+                    model_fields = self._model_fields_cache[note.model]
+                    if "nid" in model_fields:
+                        await self._invoke(
+                            "updateNoteFields",
+                            note={"id": new_id, "fields": {"nid": str(new_id)}},
+                        )
+                except Exception as e_field:
+                    self.logger.warning(f"Failed to populate 'nid' field: {e_field}")
 
-            except Exception as e:
-                msg = f"ERR file={item.source_file} card={item.source_index} error={e}"
-                self.logger.error(msg)
-                results.append(
-                    UpdateItem(
-                        source_file=item.source_file,
-                        source_index=item.source_index,
-                        new_nid=None,
-                        new_cid=None,
-                        ok=False,
-                        error=str(e),
-                        note=note,
-                    )
+                self.logger.info(
+                    f"[create] {item.source_file} #{item.source_index} -> "
+                    f"nid={new_id} cid={new_cid_val}"
                 )
-        return results
+                return UpdateItem(
+                    source_file=item.source_file,
+                    source_index=item.source_index,
+                    new_nid=str(new_id),
+                    new_cid=new_cid_val,
+                    ok=True,
+                    note=note,
+                )
+
+        except Exception as e:
+            msg = f"ERR file={item.source_file} card={item.source_index} error={e}"
+            self.logger.error(msg)
+            return UpdateItem(
+                source_file=item.source_file,
+                source_index=item.source_index,
+                new_nid=None,
+                new_cid=None,
+                ok=False,
+                error=str(e),
+                note=note,
+            )
 
     async def _invoke(self, action: str, **params) -> Any:
         payload = {"action": action, "version": 6, "params": params}
@@ -323,11 +342,13 @@ class AnkiConnectAdapter(AnkiBridge):
 
                 data = json.loads(stdout.decode("utf-8"))
             else:
-                # Standard httpx (Async)
-                async with httpx.AsyncClient() as client:
-                    resp = await client.post(self.url, json=payload, timeout=30.0)
-                    resp.raise_for_status()
-                    data = resp.json()
+                # Standard httpx (Async) - Reuse client
+                if self._client is None:
+                    self._client = httpx.AsyncClient(timeout=30.0)
+
+                resp = await self._client.post(self.url, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
 
             if len(data) != 2:
                 raise ValueError("response has an unexpected number of fields")
@@ -378,6 +399,7 @@ class AnkiConnectAdapter(AnkiBridge):
         return result
 
     async def delete_notes(self, nids: list[int]) -> bool:
+        self.logger.info(f"Deleting notes: {nids}")
         await self._invoke("deleteNotes", notes=nids)
         return True
 
@@ -504,3 +526,8 @@ class AnkiConnectAdapter(AnkiBridge):
         except Exception as e:
             self.logger.error(f"Failed to open Anki browser: {e}")
             return False
+
+    async def close(self) -> None:
+        if self._client:
+            await self._client.aclose()
+            self._client = None

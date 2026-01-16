@@ -67,7 +67,7 @@ def setup_logging(log_dir: Path, verbose: int) -> tuple[logging.Logger, Path, st
     )
 
     # Main logger: Capture EVERYTHING at root, handlers will filter.
-    logger = logging.getLogger("obsidian2apy")
+    logger = logging.getLogger("arete")
     logger.setLevel(logging.DEBUG)
     logger.handlers.clear()
 

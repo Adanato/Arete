@@ -197,8 +197,8 @@ async def _get_status() -> list[TextContent]:
 async def _get_stats(args: dict[str, Any]) -> list[TextContent]:
     """Fetch learning insights from Anki."""
     from arete.application.config import resolve_config
+    from arete.application.factory import get_anki_bridge
     from arete.application.stats_service import StatsService
-    from arete.infrastructure.adapters.factory import get_anki_bridge
 
     lapse_threshold = args.get("lapse_threshold", 3)
 

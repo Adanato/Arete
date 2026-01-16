@@ -225,7 +225,7 @@ def check_file(
 
     from yaml import YAMLError
 
-    from arete.infrastructure.utils.text import validate_frontmatter
+    from arete.application.utils.text import validate_frontmatter
 
     # Type hint the result dictionary
     result: dict[str, Any] = {
@@ -520,7 +520,7 @@ def fix_file(
     """
     Attempts to automatically fix common format errors in a file.
     """
-    from arete.infrastructure.utils.text import apply_fixes, validate_frontmatter
+    from arete.application.utils.text import apply_fixes, validate_frontmatter
 
     if not path.exists():
         typer.secho("File not found.", fg="red")
@@ -601,8 +601,8 @@ def migrate(
     """
     import re
 
-    from arete.infrastructure.adapters.fs import iter_markdown_files
-    from arete.infrastructure.utils.text import (
+    from arete.application.utils.fs import iter_markdown_files
+    from arete.application.utils.text import (
         apply_fixes,
         fix_mathjax_escapes,
         parse_frontmatter,
@@ -665,13 +665,16 @@ def migrate(
                 # AUTO-HEALING: Strip redundant blocks from body (--- blocks after frontmatter)
                 # Re-match body in case apply_fixes changed things or there are trailing dashes
                 while body.lstrip().startswith("---"):
-                    # Find the end of this block
-                    try:
-                        _, body = parse_frontmatter(body)
-                    except Exception:
-                        # If it's just a single dash line, strip it
-                        lines = body.split("\n", 1)
+                    stripped = body.lstrip()
+                    _, next_body = parse_frontmatter(stripped)
+                    if next_body == stripped:
+                        # Could not parse as frontmatter block, maybe just a
+                        # horizontal rule or single ---
+                        # Consume one line to avoid infinite loop
+                        lines = stripped.split("\n", 1)
                         body = lines[1] if len(lines) > 1 else ""
+                    else:
+                        body = next_body
 
                 normalized = rebuild_markdown_with_frontmatter(meta, body)
 
@@ -727,7 +730,9 @@ def mcp_server():
 def anki_stats(
     ctx: typer.Context,
     nids: Annotated[str, typer.Option(help="Comma-separated list of Note IDs (or JSON list).")],
-    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON.")] = True,
+    json_output: Annotated[
+        bool, typer.Option("--json/--no-json", help="Output results as JSON.")
+    ] = True,
     backend: Annotated[
         str | None, typer.Option(help="Force backend (auto|apy|ankiconnect)")
     ] = None,
@@ -742,7 +747,7 @@ def anki_stats(
     from dataclasses import asdict
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     # Parse NIDs
     nids_list = []
@@ -809,7 +814,7 @@ def suspend_cards(
     import json
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     cids_list = []
     if cids.startswith("["):
@@ -844,7 +849,7 @@ def unsuspend_cards(
     import json
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     cids_list = []
     if cids.startswith("["):
@@ -879,7 +884,7 @@ def model_styling(
     import json
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     async def run():
         overrides = {
@@ -908,7 +913,7 @@ def model_templates(
     import json
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     async def run():
         overrides = {
@@ -938,7 +943,7 @@ def anki_browse(
     import json
 
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     if not query and not nid:
         typer.secho("Must specify --query or --nid", fg="red")

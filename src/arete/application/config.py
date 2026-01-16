@@ -9,7 +9,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-from arete.infrastructure.utils.common import detect_anki_paths
+from arete.application.utils.common import detect_anki_paths
 
 
 class AppConfig(BaseSettings):
@@ -35,6 +35,7 @@ class AppConfig(BaseSettings):
     vault_root: Path | None = None
     anki_media_dir: Path | None = None
     anki_base: Path | None = None
+    cache_db: str | None = None
     log_dir: Path = Field(default_factory=lambda: Path.home() / ".config/arete/logs")
 
     # Execution Settings

@@ -1,13 +1,15 @@
 import logging
 import platform
 import sys
+from pathlib import Path
 
 from arete.application.config import AppConfig
+from arete.application.factory import get_anki_bridge
 from arete.application.parser import MarkdownParser
 from arete.application.pipeline import RunStats, run_pipeline
+from arete.application.utils.logging import setup_logging
 from arete.application.vault_service import VaultService
 from arete.infrastructure.persistence.cache import ContentCache
-from arete.infrastructure.utils.logging import setup_logging
 
 
 async def execute_sync(config: AppConfig) -> RunStats:
@@ -29,7 +31,8 @@ async def execute_sync(config: AppConfig) -> RunStats:
     )
 
     # 0. Initialize Services
-    cache = ContentCache()
+    cache_path = Path(config.cache_db) if config.cache_db else None
+    cache = ContentCache(db_path=cache_path)
 
     if config.clear_cache:
         logger.info("Clearing content cache as requested...")
@@ -47,13 +50,16 @@ async def execute_sync(config: AppConfig) -> RunStats:
     )
 
     # Anki Adapter Selection
-    from arete.infrastructure.adapters.factory import get_anki_bridge
 
     anki_bridge = await get_anki_bridge(config)
-
-    # Execute
-    stats = await run_pipeline(config, logger, run_id, vault_service, parser, anki_bridge, cache)
-    return stats
+    try:
+        # Execute
+        stats = await run_pipeline(
+            config, logger, run_id, vault_service, parser, anki_bridge, cache
+        )
+        return stats
+    finally:
+        await anki_bridge.close()
 
 
 async def run_sync_logic(config: AppConfig):

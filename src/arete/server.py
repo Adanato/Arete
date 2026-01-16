@@ -132,7 +132,7 @@ class CardsRequest(BaseModel):
 async def suspend_cards(req: CardsRequest):
     """Suspend cards by Card IDs."""
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         overrides = {
@@ -152,7 +152,7 @@ async def suspend_cards(req: CardsRequest):
 async def unsuspend_cards(req: CardsRequest):
     """Unsuspend cards by Card IDs."""
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         overrides = {
@@ -176,7 +176,7 @@ async def get_model_styling(
     anki_base: str | None = None,
 ):
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         overrides = {
@@ -200,7 +200,7 @@ async def get_model_templates(
     anki_base: str | None = None,
 ):
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         overrides = {
@@ -315,7 +315,7 @@ async def get_stats(req: StatsRequest):
     Uses the configured backend (Auto/Direct/Connect).
     """
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         # Pass overrides from request to config
@@ -349,7 +349,7 @@ async def browse_anki(req: BrowseRequest):
     Open the Anki browser with a query.
     """
     from arete.application.config import resolve_config
-    from arete.infrastructure.adapters.factory import get_anki_bridge
+    from arete.application.factory import get_anki_bridge
 
     try:
         overrides = {

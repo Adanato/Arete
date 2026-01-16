@@ -1,7 +1,38 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 
 from .models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
+
+
+@runtime_checkable
+class ContentCache(Protocol):
+    """Protocol for the file-content cache."""
+
+    def get_file_meta_by_stat(
+        self, md_path: Path, mtime: float, size: int
+    ) -> dict[str, Any] | None: ...
+
+    def set_file_meta(
+        self,
+        md_path: Path,
+        current_hash: str,
+        meta: dict[str, Any],
+        mtime: float = 0.0,
+        size: int = 0,
+    ) -> None: ...
+
+    def set_hash(self, md_path: Path, card_index: int, content_hash: str) -> None: ...
+
+    def get_hash(self, md_path: Path, card_index: int) -> str | None: ...
+
+    def get_note(self, md_path: Path, card_index: int) -> tuple[str, str | None] | None: ...
+
+    def set_note(
+        self, md_path: Path, card_index: int, content_hash: str, note_json: str
+    ) -> None: ...
+
+    def clear(self) -> None: ...
 
 
 class AnkiBridge(ABC):
@@ -12,6 +43,12 @@ class AnkiBridge(ABC):
     WorkItems into backend-specific commands (e.g., HTTP for AnkiConnect
     or SQLite/CLI for apy).
     """
+
+    @property
+    @abstractmethod
+    def is_sequential(self) -> bool:
+        """Whether this bridge requires sequential access."""
+        pass
 
     @abstractmethod
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
@@ -83,5 +120,32 @@ class AnkiBridge(ABC):
     async def gui_browse(self, query: str) -> bool:
         """
         Open the Anki browser with the specified search query.
+        """
+        pass
+
+    @abstractmethod
+    async def suspend_cards(self, cids: list[int]) -> bool:
+        """Suspend specified card IDs in Anki."""
+        pass
+
+    @abstractmethod
+    async def unsuspend_cards(self, cids: list[int]) -> bool:
+        """Unsuspend specified card IDs in Anki."""
+        pass
+
+    @abstractmethod
+    async def get_model_styling(self, model_name: str) -> str:
+        """Fetch CSS styling for a specific Anki model."""
+        pass
+
+    @abstractmethod
+    async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
+        """Fetch front/back templates for all cards in an Anki model."""
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        """
+        Release any held resources (e.g. HTTP clients, DB connections).
         """
         pass
