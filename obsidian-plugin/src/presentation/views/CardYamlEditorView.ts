@@ -694,7 +694,7 @@ export class CardYamlEditorView extends ItemView {
 		const nid = card?.['nid'];
 		if (nid) {
 			try {
-				const success = await this.plugin.ankiRepo.browse(`nid:${nid}`);
+				const success = await this.plugin.areteClient.browse(`nid:${nid}`);
 				if (!success) {
 					new Notice('Failed to open Anki browser.');
 				}

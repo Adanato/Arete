@@ -47,7 +47,7 @@ export default class AretePlugin extends Plugin {
 	leechService: LeechService;
 	serverManager: ServerManager;
 	agentService: AgentService;
-	ankiRepo: AreteClient;
+	areteClient: AreteClient;
 	templateRenderer: TemplateRenderer;
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -60,8 +60,8 @@ export default class AretePlugin extends Plugin {
 
 			// Initialize Services
 			// Initialize Services
-			this.ankiRepo = new AreteClient(this.settings);
-			this.templateRenderer = new TemplateRenderer(this.app, this.ankiRepo);
+			this.areteClient = new AreteClient(this.settings);
+			this.templateRenderer = new TemplateRenderer(this.app, this.areteClient);
 			this.templateRenderer.setMode(this.settings.renderer_mode);
 			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
 				console.log(msg); // Default logger
@@ -72,7 +72,7 @@ export default class AretePlugin extends Plugin {
 
 			// Initialize New Dashboard Services
 			this.linkCheckerService = new LinkCheckerService(this.app, this);
-			this.leechService = new LeechService(this.app, this.ankiRepo);
+			this.leechService = new LeechService(this.app, this.areteClient);
 			this.serverManager = new ServerManager(this.app, this.settings, this.manifest);
 			this.agentService = new AgentService(this.settings);
 

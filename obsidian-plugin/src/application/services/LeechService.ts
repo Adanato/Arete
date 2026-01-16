@@ -10,11 +10,11 @@ export interface LeechCard extends ProblematicCard {
 
 export class LeechService {
 	private app: App;
-	private ankiRepo: AreteClient;
+	private areteClient: AreteClient;
 
-	constructor(app: App, ankiRepo: AreteClient) {
+	constructor(app: App, areteClient: AreteClient) {
 		this.app = app;
-		this.ankiRepo = ankiRepo;
+		this.areteClient = areteClient;
 	}
 
 	/**
@@ -44,10 +44,10 @@ export class LeechService {
 	}
 
 	async suspendCard(cardId: number): Promise<boolean> {
-		return this.ankiRepo.suspendCards([cardId]);
+		return this.areteClient.suspendCards([cardId]);
 	}
 
 	async unsuspendCard(cardId: number): Promise<boolean> {
-		return this.ankiRepo.unsuspendCards([cardId]);
+		return this.areteClient.unsuspendCards([cardId]);
 	}
 }
