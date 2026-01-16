@@ -30,20 +30,19 @@ import anki.exporting
 import anki.storage
 from anki.cards import Card
 from anki.consts import MODEL_CLOZE
+from anki.errors import NotFoundError
 from anki.exporting import AnkiPackageExporter
 from anki.importing import AnkiPackageImporter
 from anki.notes import Note
-from anki.errors import NotFoundError
-from aqt.qt import Qt, QTimer, QMessageBox, QCheckBox, QAction, QKeySequence, QMenu
 from aqt import gui_hooks, mw
 from aqt.browser import Browser
+from aqt.qt import QAction, QCheckBox, QKeySequence, QMenu, QMessageBox, Qt, QTimer
 from aqt.reviewer import Reviewer
 from aqt.utils import showWarning, tooltip
 
-from .web import format_exception_reply, format_success_reply
+from . import util, web
 from .edit import Edit
-from . import web, util
-
+from .web import format_exception_reply, format_success_reply
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Arete Config & Logic
@@ -57,7 +56,7 @@ def load_config():
     global CONFIG
     if os.path.exists(CONFIG_PATH):
         try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(CONFIG_PATH, encoding="utf-8") as f:
                 CONFIG = json.load(f)
         except Exception:
             CONFIG = {}
@@ -97,7 +96,7 @@ def open_obsidian_uri(vault: str, file_path: str, card_idx: int = 1) -> bool:
     """
     # Allow config to override vault name
     actual_vault = CONFIG.get("vault_name_override", vault) or vault
-    
+
     encoded_vault = quote(actual_vault)
     encoded_path = quote(file_path)
 
@@ -220,7 +219,7 @@ class AnkiConnect:
 
     def logEvent(self, name, data):
         if self.log is not None:
-            self.log.write('[{}]\n'.format(name))
+            self.log.write(f'[{name}]\n')
             json.dump(data, self.log, indent=4, sort_keys=True)
             self.log.write('\n\n')
             self.log.flush()
@@ -329,7 +328,7 @@ class AnkiConnect:
     def getModel(self, modelName):
         model = self.collection().models.byName(modelName)
         if model is None:
-            raise Exception('model was not found: {}'.format(modelName))
+            raise Exception(f'model was not found: {modelName}')
         return model
 
 
@@ -501,13 +500,13 @@ class AnkiConnect:
         try:
             return self.collection().getCard(card_id)
         except NotFoundError:
-            self.raiseNotFoundError('Card was not found: {}'.format(card_id))
+            self.raiseNotFoundError(f'Card was not found: {card_id}')
 
     def getNote(self, note_id: int) -> Note:
         try:
             return self.collection().getNote(note_id)
         except NotFoundError:
-            self.raiseNotFoundError('Note was not found: {}'.format(note_id))
+            self.raiseNotFoundError(f'Note was not found: {note_id}')
 
     def deckStatsToJson(self, due_tree):
         deckStats = {'deck_id': due_tree.deck_id,
@@ -555,13 +554,13 @@ class AnkiConnect:
         else:  # prompt the user
             msg = QMessageBox(None)
             msg.setWindowTitle("A website wants to access to Anki")
-            msg.setText('"{}" requests permission to use Anki through AnkiConnect. Do you want to give it access?'.format(origin))
+            msg.setText(f'"{origin}" requests permission to use Anki through AnkiConnect. Do you want to give it access?')
             msg.setInformativeText("By granting permission, you'll allow the website to modify your collection on your behalf, including the execution of destructive actions such as deck deletion.")
             msg.setWindowIcon(self.window().windowIcon())
             msg.setIcon(QMessageBox.Question)
             msg.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
             msg.setDefaultButton(QMessageBox.No)
-            msg.setCheckBox(QCheckBox(text='Ignore further requests from "{}"'.format(origin), parent=msg))
+            msg.setCheckBox(QCheckBox(text=f'Ignore further requests from "{origin}"', parent=msg))
             msg.setWindowFlags(Qt.WindowStaysOnTopHint)
             pressedButton = msg.exec_()
 
@@ -761,7 +760,7 @@ class AnkiConnect:
     def setDeckConfigId(self, decks, configId):
         configId = int(configId)
         for deck in decks:
-            if not deck in self.deckNames():
+            if deck not in self.deckNames():
                 return False
 
         collection = self.collection()
@@ -803,7 +802,7 @@ class AnkiConnect:
         collection = self.collection()
         scheduler = self.scheduler()
         responseDict = {}
-        deckIds = list(map(lambda d: collection.decks.id(d), decks))
+        deckIds = [collection.decks.id(d) for d in decks]
 
         allDeckNodes = self.collectDeckTreeChildren(scheduler.deck_due_tree())
         for deckId, deckNode in allDeckNodes.items():
@@ -918,9 +917,9 @@ class AnkiConnect:
                         for field in media['fields']:
                             if field in ankiNote:
                                 if mediaType is util.MediaType.Picture:
-                                    ankiNote[field] += u'<img src="{}">'.format(mediaFilename)
+                                    ankiNote[field] += f'<img src="{mediaFilename}">'
                                 elif mediaType is util.MediaType.Audio or mediaType is util.MediaType.Video:
-                                    ankiNote[field] += u'[sound:{}]'.format(mediaFilename)
+                                    ankiNote[field] += f'[sound:{mediaFilename}]'
 
                 except Exception as e:
                     errorMessage = str(e).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -1058,14 +1057,14 @@ class AnkiConnect:
                     item["debug"].append("Card not found")
                     result.append(item)
                     continue
-                
+
                 found_data = False
                 if hasattr(card, 'memory_state'):
                     if card.memory_state:
                          item["difficulty"] = card.memory_state.difficulty
                          item["source"] = "memory_state"
                          found_data = True
-                
+
                 if not found_data:
                     if hasattr(card, 'data'):
                          if card.data:
@@ -1077,7 +1076,7 @@ class AnkiConnect:
                                     item["source"] = "data_json"
                             except Exception:
                                 pass
-                
+
                 result.append(item)
             except Exception as e:
                 result.append({"cardId": cid, "error": f"Outer loop error: {e}"})
@@ -1095,7 +1094,7 @@ if __name__ != "plugin":
         util.patch_anki_2_1_50_having_null_stdout_on_windows()
 
     Edit.register_with_anki()
-    
+
     # Start AnkiConnect
     ac = AnkiConnect()
     ac.initLogging()

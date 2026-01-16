@@ -15,7 +15,7 @@ def test_basic_sync_flow(tmp_path, anki_url, setup_anki, test_deck):
     md_file = tmp_path / "hello.md"
     content = f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     Front: Hello Integration

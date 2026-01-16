@@ -22,7 +22,7 @@ def test_model_migration_basic_to_cloze(tmp_path, anki_url, setup_anki, run_aret
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - model: Basic
     Front: Migration Test
@@ -45,7 +45,7 @@ cards:
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: {nid1}
     model: Cloze
@@ -92,7 +92,7 @@ def test_tag_sync(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 tags: [tag_v1]
 cards:
   - Front: Tag Test
@@ -120,7 +120,7 @@ cards:
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 tags: [tag_v2, tag_complex_👍]
 cards:
   - nid: {nid}

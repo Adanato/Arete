@@ -49,14 +49,16 @@ def test_parser_extracts_correct_line_number(tmp_path):
 
     # Create valid markdown with cards at specific lines
     # Line 1: ---
-    # Line 2: anki_template_version: 1
+    # Line 2: arete: true
     # Line 3: deck: Default
     # Line 4: cards:
     # Line 5:   - model: Basic
     # Line 6:     Front: Q
     # Line 7:     Back: A
     # Line 8: ---
-    content = "---\nanki_template_version: 1\ndeck: Default\ncards:\n  - model: Basic\n    Front: Q\n    Back: A\n---"
+    content = (
+        "---\narete: true\ndeck: Default\ncards:\n  - model: Basic\n    Front: Q\n    Back: A\n---"
+    )
     md_file.write_text(content)
 
     from arete.infrastructure.utils.text import parse_frontmatter
@@ -84,7 +86,9 @@ def test_parser_ignores_cache_when_forced(tmp_path):
     # 1. Setup parser with ignore_cache=True
     parser = MarkdownParser(vault_root, media_dir, ignore_cache=True)
     md_file = vault_root / "test.md"
-    content = "---\nanki_template_version: 1\ndeck: Default\ncards:\n  - model: Basic\n    Front: Q\n    Back: A\n---"
+    content = (
+        "---\narete: true\ndeck: Default\ncards:\n  - model: Basic\n    Front: Q\n    Back: A\n---"
+    )
     md_file.write_text(content)
 
     from arete.infrastructure.utils.text import parse_frontmatter

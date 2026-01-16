@@ -85,7 +85,8 @@ export class CardYamlEditorView extends ItemView {
 
 		// 1. Source Mode (CodeMirror)
 		this.editorContainer = rightPanel.createDiv({ cls: 'arete-yaml-editor-wrapper' });
-		this.editorContainer.style.overflow = 'auto';
+		this.editorContainer.style.flex = '1';
+		this.editorContainer.style.overflow = 'hidden';
 
 		// 2. Field Mode (Inputs)
 		this.fieldEditorContainer = rightPanel.createDiv({ cls: 'arete-field-editor' });
@@ -160,7 +161,6 @@ export class CardYamlEditorView extends ItemView {
 	}
 
 	private handleActiveFileChange() {
-		// loadCards now handles the logic of whether to reset index or not
 		this.loadCards().then(() => {
 			this.renderIndex();
 			this.refreshActiveView();
@@ -168,7 +168,7 @@ export class CardYamlEditorView extends ItemView {
 	}
 
 	private refreshActiveView() {
-		this.renderToolbar(); // Ensure toolbar stats update when card changes
+		this.renderToolbar();
 		if (this.viewMode === ViewMode.Source) {
 			this.updateEditorContent();
 		} else if (this.viewMode === ViewMode.Fields) {
@@ -178,23 +178,15 @@ export class CardYamlEditorView extends ItemView {
 		}
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// Index Sidebar
-	// ─────────────────────────────────────────────────────────────
-
 	private renderIndex() {
 		if (!this.indexContainer) return;
 		this.indexContainer.empty();
 
-		const activeFile = this.app.workspace.getActiveFile();
-
-		// Header
 		const header = this.indexContainer.createDiv({ cls: 'arete-yaml-index-header' });
 		header.createSpan({ text: `${this.cards.length}`, cls: 'arete-yaml-index-count' });
 
-		// Card list
 		const listContainer = this.indexContainer.createDiv({ cls: 'arete-yaml-index-list' });
-		listContainer.setAttribute('tabindex', '0'); // For keyboard nav
+		listContainer.setAttribute('tabindex', '0');
 
 		this.cards.forEach((card, index) => {
 			const item = listContainer.createDiv({
@@ -205,7 +197,6 @@ export class CardYamlEditorView extends ItemView {
 				},
 			});
 
-			// Status indicator
 			const hasWarning = this.getCardWarning(index);
 			if (hasWarning) {
 				item.addClass('has-warning');
@@ -213,15 +204,12 @@ export class CardYamlEditorView extends ItemView {
 				setIcon(warningIcon, 'alert-triangle');
 			}
 
-			// Card number
 			item.createSpan({ text: `${index + 1}`, cls: 'arete-yaml-index-number' });
 
-			// Active state
 			if (index === this.currentCardIndex) {
 				item.addClass('is-active');
 			}
 
-			// Tooltip with front preview
 			const frontText = card['front'] || card['Front'] || '';
 			if (frontText) {
 				item.setAttribute(
@@ -230,133 +218,119 @@ export class CardYamlEditorView extends ItemView {
 				);
 			}
 
-			// Click handler
 			item.addEventListener('click', () => {
 				this.selectCard(index, true);
 			});
 
-			// Right-click context menu
 			item.addEventListener('contextmenu', (e) => this.showCardContextMenu(e, index));
-
-			// Drag handlers
 			item.addEventListener('dragstart', (e) => this.handleDragStart(e, index));
 			item.addEventListener('dragover', (e) => this.handleDragOver(e));
 			item.addEventListener('drop', (e) => this.handleDrop(e, index));
 			item.addEventListener('dragend', () => this.handleDragEnd());
 		});
 
-		// Add button
 		const addBtn = this.indexContainer.createDiv({ cls: 'arete-yaml-index-add' });
 		setIcon(addBtn, 'plus');
-		addBtn.setAttribute('title', 'Add new card');
 		addBtn.addEventListener('click', () => this.addCard());
 	}
 
-	private getCardWarning(index: number): ProblematicCard | null {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile || !this.plugin.statsService) return null;
+	private handleKeyNavigation(e: KeyboardEvent) {
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			this.selectCard(Math.min(this.cards.length - 1, this.currentCardIndex + 1), true);
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			this.selectCard(Math.max(0, this.currentCardIndex - 1), true);
+		}
+	}
 
-		const stats = this.plugin.statsService.getCache().concepts[activeFile.path];
-		if (!stats?.problematicCards) return null;
+	private handleDragStart(e: DragEvent, index: number) {
+		if (e.dataTransfer) {
+			e.dataTransfer.setData('text/plain', String(index));
+			e.dataTransfer.effectAllowed = 'move';
+		}
+		const el = e.target as HTMLElement;
+		el.addClass('is-dragging');
+	}
 
-		const card = this.cards[index];
-		if (!card?.nid) return null;
+	private handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) {
+			e.dataTransfer.dropEffect = 'move';
+		}
+		const el = (e.target as HTMLElement).closest('.arete-yaml-index-item');
+		if (el) el.addClass('drag-over');
+	}
 
-		return stats.problematicCards.find((c) => c.noteId === card.nid) || null;
+	private handleDragEnd() {
+		const items = this.indexContainer?.querySelectorAll('.arete-yaml-index-item');
+		items?.forEach((item) => {
+			item.removeClass('is-dragging');
+			item.removeClass('drag-over');
+		});
+	}
+
+	private async handleDrop(e: DragEvent, toIndex: number) {
+		e.preventDefault();
+		const fromIndex = Number(e.dataTransfer?.getData('text/plain'));
+		if (isNaN(fromIndex) || fromIndex === toIndex) return;
+
+		await this.reorderCards(fromIndex, toIndex);
 	}
 
 	private showCardContextMenu(e: MouseEvent, index: number) {
-		e.preventDefault();
 		const menu = new Menu();
-
 		menu.addItem((item) => {
 			item.setTitle('Delete Card')
-				.setIcon('trash-2')
+				.setIcon('trash')
+				.setWarning(true)
 				.onClick(() => this.deleteCard(index));
 		});
-
 		menu.showAtMouseEvent(e);
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// Toolbar & Preview
-	// ─────────────────────────────────────────────────────────────
-
-	public renderToolbar() {
+	renderToolbar() {
 		if (!this.toolbarContainer) return;
 		this.toolbarContainer.empty();
 
-		// LEFT: Stats
 		const leftGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
 
+		const activeFile = this.app.workspace.getActiveFile();
 		const card = this.cards[this.currentCardIndex];
-		const nid = card?.nid ? parseInt(card.nid) : card?.id ? parseInt(card.id) : null;
-		const cid = card?.cid ? parseInt(card.cid) : null;
+		const nid = card?.['nid'];
 
-		if (nid || cid) {
-			// Get full concept stats
-			const filePath = this.currentFilePath;
-			const conceptStats = filePath
-				? this.plugin.statsService.getCache().concepts[filePath]
-				: null;
-
-			// Priority Lookup: CID > NID
-			let stats = null;
-			let lookupSource = 'none';
-
-			if (conceptStats?.cardStats) {
-				if (cid && conceptStats.cardStats[cid]) {
-					stats = conceptStats.cardStats[cid];
-					lookupSource = 'cid';
-				} else if (nid && conceptStats.cardStats[nid]) {
-					stats = conceptStats.cardStats[nid];
-					lookupSource = 'nid';
-				}
-			}
-
-			if (this.plugin.settings.debug_mode) {
-				console.log(
-					`[Arete Toolbar] Card ${this.currentCardIndex + 1}: Found via ${lookupSource}`,
-					stats ? `(Diff: ${stats.difficulty})` : '(No Stats)',
-				);
-			}
-
-			if (stats) {
+		if (activeFile && nid) {
+			const cache = this.plugin.statsService.getCache().concepts[activeFile.path];
+			if (cache && cache.cardStats && cache.cardStats[nid]) {
+				const stats = cache.cardStats[nid];
 				const statsContainer = leftGroup.createDiv({ cls: 'arete-toolbar-stats' });
-
-				// Stats Badge (Based on Config)
 				const algo = this.plugin.settings.stats_algorithm;
 
 				let badgeAdded = false;
 
-				if (algo === 'fsrs') {
-					// FSRS mode
-					if (stats.difficulty !== undefined && stats.difficulty !== null) {
-						const diff = Math.round(stats.difficulty * 100);
-						// FSRS Difficulty
-						let cls = 'arete-stat-badge';
-						if (stats.difficulty > 0.9)
-							cls += ' mod-warning'; // Red
-						else if (stats.difficulty > 0.5)
-							cls += ' mod-orange'; // Orange
-						else cls += ' mod-success'; // Green (Easy)
+				if (algo === 'fsrs' && stats.difficulty !== undefined) {
+					if (stats.difficulty !== null) {
+						let diffCls = 'arete-stat-badge';
+						if (stats.difficulty > 8) diffCls += ' mod-warning';
+						else if (stats.difficulty > 5) diffCls += ' mod-orange';
+						else diffCls += ' mod-success';
 
 						statsContainer.createDiv({
-							cls: cls,
-							text: `D: ${diff}%`,
-							attr: { title: `FSRS Difficulty: ${diff}%` },
+							cls: diffCls,
+							text: `D: ${Math.round(stats.difficulty * 10)}%`,
+							attr: {
+								title: `FSRS Difficulty: ${Math.round(stats.difficulty * 10)}%`,
+							},
 						});
 					} else {
-						// Null difficulty - show ?
 						statsContainer.createDiv({
 							cls: 'arete-stat-badge mod-muted',
 							text: `D: ?`,
-							attr: { title: 'FSRS Difficulty not available (new or unsynced card)' },
+							attr: { title: 'FSRS Difficulty not available' },
 						});
 					}
 					badgeAdded = true;
 				} else if (algo === 'sm2' || stats.ease !== undefined) {
-					// SM2 (Fallback if FSRS missing or SM2 selected)
 					const ease = Math.round(stats.ease / 10);
 					statsContainer.createDiv({
 						cls: 'arete-stat-badge',
@@ -366,27 +340,21 @@ export class CardYamlEditorView extends ItemView {
 					badgeAdded = true;
 				}
 
-				// Lapses
 				if (stats.lapses > 0) {
-					// Lapses
-					if (stats.lapses > 0) {
-						let lapseCls = 'arete-stat-badge';
-						if (stats.lapses > 5) lapseCls += ' mod-warning';
-						else lapseCls += ' mod-orange';
+					let lapseCls = 'arete-stat-badge';
+					if (stats.lapses > 5) lapseCls += ' mod-warning';
+					else lapseCls += ' mod-orange';
 
-						statsContainer.createDiv({
-							cls: lapseCls,
-							text: `${stats.lapses}L`,
-							attr: { title: `Lapses: ${stats.lapses}` },
-						});
-						badgeAdded = true;
-					}
+					statsContainer.createDiv({
+						cls: lapseCls,
+						text: `${stats.lapses}L`,
+						attr: { title: `Lapses: ${stats.lapses}` },
+					});
 					badgeAdded = true;
 				}
 
-				// Due
 				if (stats.due) {
-					const dueDate = new Date(stats.due * 1000); // Anki uses seconds
+					const dueDate = new Date(stats.due * 1000);
 					const now = new Date();
 					const diffDays = Math.ceil(
 						(dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
@@ -408,30 +376,18 @@ export class CardYamlEditorView extends ItemView {
 					statsContainer.createDiv({
 						cls: 'arete-stat-badge mod-muted',
 						text: 'No Data',
-						attr: { title: 'Stats object found but values are empty/undefined' },
 					});
 				}
 			} else {
-				// Stats not found in cache
 				leftGroup.createDiv({
 					cls: 'arete-stat-badge mod-muted',
 					text: 'No Stats',
-					attr: {
-						title: `Stats not found for NID ${nid}. Try running "Arete: Refresh Anki Stats"`,
-					},
 				});
-				console.log('[Arete] Stats miss for NID:', nid);
 			}
-		} else {
-			// No NID
-			// Do nothing or show "Unlinked"?
-			// leftGroup.createDiv({ text: 'Unlinked', cls: 'arete-stat-badge mod-muted' });
 		}
 
-		// CENTER: Navigation
 		const centerGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
 
-		// Go to YAML in Note
 		const yamlBtn = centerGroup.createDiv({
 			cls: 'arete-toolbar-btn',
 			attr: { title: 'Go to YAML in Note' },
@@ -439,7 +395,6 @@ export class CardYamlEditorView extends ItemView {
 		setIcon(yamlBtn, 'file-text');
 		yamlBtn.addEventListener('click', () => this.scrollToCard(this.currentCardIndex));
 
-		// Open in Anki
 		const ankiBtn = centerGroup.createDiv({
 			cls: 'arete-toolbar-btn',
 			attr: { title: 'Open in Anki' },
@@ -447,28 +402,24 @@ export class CardYamlEditorView extends ItemView {
 		setIcon(ankiBtn, 'external-link');
 		ankiBtn.addEventListener('click', () => this.openInAnki(this.currentCardIndex));
 
-		// RIGHT: View Mode Toggle
 		const rightGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
 
-		// Fields Mode Button (Edit Card)
-		const fieldsBtn = rightGroup.createDiv({
-			cls: `arete-toolbar-btn ${this.viewMode === ViewMode.Fields ? 'is-active' : ''}`,
+		const fieldBtn = rightGroup.createDiv({
+			cls: 'arete-toolbar-btn' + (this.viewMode === ViewMode.Fields ? ' is-active' : ''),
 			attr: { title: 'Card Edit Mode' },
 		});
-		setIcon(fieldsBtn, 'pencil');
-		fieldsBtn.addEventListener('click', () => this.setViewMode(ViewMode.Fields));
+		setIcon(fieldBtn, 'edit-3');
+		fieldBtn.addEventListener('click', () => this.setViewMode(ViewMode.Fields));
 
-		// Source Mode Button (YAML)
 		const sourceBtn = rightGroup.createDiv({
-			cls: `arete-toolbar-btn ${this.viewMode === ViewMode.Source ? 'is-active' : ''}`,
-			attr: { title: 'Source Mode (YAML)' },
+			cls: 'arete-toolbar-btn' + (this.viewMode === ViewMode.Source ? ' is-active' : ''),
+			attr: { title: 'Source Mode' },
 		});
 		setIcon(sourceBtn, 'code');
 		sourceBtn.addEventListener('click', () => this.setViewMode(ViewMode.Source));
 
-		// Preview Mode Button
 		const previewBtn = rightGroup.createDiv({
-			cls: `arete-toolbar-btn ${this.viewMode === ViewMode.Preview ? 'is-active' : ''}`,
+			cls: 'arete-toolbar-btn' + (this.viewMode === ViewMode.Preview ? ' is-active' : ''),
 			attr: { title: 'Preview Mode' },
 		});
 		setIcon(previewBtn, 'eye');
@@ -477,16 +428,14 @@ export class CardYamlEditorView extends ItemView {
 
 	private setViewMode(mode: ViewMode) {
 		this.viewMode = mode;
+		this.renderToolbar();
 
-		// Hide all
-		this.editorContainer?.style.setProperty('display', 'none');
+		this.editorContainer?.hide();
 		this.fieldEditorContainer?.hide();
 		this.previewContainer?.hide();
 
-		// Show active
 		if (mode === ViewMode.Source) {
-			this.editorContainer?.style.setProperty('display', 'block');
-			// Refresh content if needed - usually synchronized
+			this.editorContainer?.show();
 			this.updateEditorContent();
 		} else if (mode === ViewMode.Fields) {
 			this.fieldEditorContainer?.show();
@@ -495,308 +444,64 @@ export class CardYamlEditorView extends ItemView {
 			this.previewContainer?.show();
 			this.renderPreview();
 		}
-
-		this.renderToolbar();
 	}
-
-	// ─────────────────────────────────────────────────────────────
-	// Field Editor Logic
-	// ─────────────────────────────────────────────────────────────
 
 	private renderFieldEditor() {
 		if (!this.fieldEditorContainer) return;
 		this.fieldEditorContainer.empty();
 
-		if (this.currentCardIndex < 0 || this.currentCardIndex >= this.cards.length) {
-			this.fieldEditorContainer.createEl('p', { text: 'No card selected' });
-			return;
-		}
-
 		const card = this.cards[this.currentCardIndex];
+		if (!card) return;
 
-		// Model Badge
-		const model = card['model'] || card['Model'] || 'Basic';
+		const modelName = card['model'] || card['Model'] || 'Basic';
 		this.fieldEditorContainer.createDiv({
 			cls: 'arete-field-model-badge',
-			text: String(model),
+			text: modelName,
 		});
 
-		// Determine fields based on model
-		// For now, support Basic (Front/Back) and Cloze (Text/Extra) generically
-		// Any other keys in the card object (excluding nid, cid, model) are fields
+		Object.entries(card).forEach(([key, value]) => {
+			if (['model', 'Model', 'nid', 'NID'].includes(key)) return;
 
-		const hiddenKeys = ['nid', 'cid', 'id', 'model', 'tags'];
+			const group = this.fieldEditorContainer?.createDiv({ cls: 'arete-field-group' });
+			group?.createEl('label', { cls: 'arete-field-label', text: key });
 
-		// Helper to render field
-		const renderField = (key: string, label: string) => {
-			const group = this.fieldEditorContainer!.createDiv({ cls: 'arete-field-group' });
-			group.createEl('label', { cls: 'arete-field-label', text: label });
-
-			const value = card[key] || '';
-			const textarea = group.createEl('textarea', {
+			const input = group?.createEl('textarea', {
 				cls: 'arete-field-input',
 				text: String(value),
+			}) as HTMLTextAreaElement;
+
+			input?.addEventListener('input', () => {
+				card[key] = input.value;
+				this.debouncedSyncToMain();
 			});
-
-			// Auto-resize textarea to fit content
-			const autoResize = () => {
-				textarea.style.height = 'auto';
-				textarea.style.height = textarea.scrollHeight + 'px';
-			};
-
-			// Initial resize
-			setTimeout(autoResize, 0);
-
-			// Auto-save on input (debounced could be better, but 'change' is safe for now)
-			// 'input' event for real-time feel, debounced
-			let debounceTimer: ReturnType<typeof setTimeout>;
-			textarea.addEventListener('input', () => {
-				autoResize();
-				clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(() => {
-					this.updateCardField(this.currentCardIndex, key, textarea.value);
-				}, 500);
-			});
-		};
-
-		// specific order for common models
-		if (String(model).toLowerCase().includes('cloze')) {
-			renderField('Text', 'Text');
-			renderField('Extra', 'Extra');
-		} else {
-			// Basic and others
-			// Try to find Front/Back case-insensitively
-			const frontKey = Object.keys(card).find((k) => k.toLowerCase() === 'front') || 'Front';
-			const backKey = Object.keys(card).find((k) => k.toLowerCase() === 'back') || 'Back';
-
-			renderField(frontKey, 'Front');
-			renderField(backKey, 'Back');
-		}
-
-		// Render other fields? Maybe too cluttered for now.
-		// User asked for "just looks at the fields not the entire card yaml code"
-		// Start with core fields.
-	}
-
-	private async updateCardField(index: number, key: string, value: string) {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) return;
-
-		// Update local state immediately to keep UI in sync
-		if (this.cards[index]) {
-			this.cards[index][key] = value;
-		}
-
-		// Set flag to prevent syncFromMain from triggering a re-render (which kills focus)
-		this.isUpdatingFromMain = true;
-
-		try {
-			await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-				if (frontmatter.cards && frontmatter.cards[index]) {
-					frontmatter.cards[index][key] = value;
-				}
-			});
-		} finally {
-			// Reset flag after delay to allow 'modify' event to pass
-			setTimeout(() => {
-				this.isUpdatingFromMain = false;
-			}, 300);
-		}
+		});
 	}
 
 	private async renderPreview() {
 		if (!this.previewContainer) return;
 		this.previewContainer.empty();
 
-		if (this.currentCardIndex < 0 || this.currentCardIndex >= this.cards.length) {
-			this.previewContainer.createEl('p', { text: 'No card selected' });
-			return;
-		}
-
 		const card = this.cards[this.currentCardIndex];
-		const activeFile = this.app.workspace.getActiveFile();
-		const path = activeFile ? activeFile.path : '';
+		if (!card) return;
 
-		// Front
-		const frontSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
-		frontSection.createDiv({ cls: 'arete-preview-label', text: 'Front' });
-		const frontContent = frontSection.createDiv({
-			cls: 'arete-preview-content markdown-rendered',
-		});
-		const frontText = card['front'] || card['Front'] || '';
-		await MarkdownRenderer.render(this.app, frontText, frontContent, path, this);
+		Object.entries(card).forEach(async ([key, value]) => {
+			if (['model', 'Model', 'nid', 'NID'].includes(key)) return;
 
-		// Back
-		const backSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
-		backSection.createDiv({ cls: 'arete-preview-label', text: 'Back' });
-		const backContent = backSection.createDiv({
-			cls: 'arete-preview-content markdown-rendered',
-		});
-		const backText = card['back'] || card['Back'] || '';
-		await MarkdownRenderer.render(this.app, backText, backContent, path, this);
+			const section = this.previewContainer?.createDiv({ cls: 'arete-preview-section' });
+			section?.createDiv({ cls: 'arete-preview-label', text: key });
+			const content = section?.createDiv({ cls: 'arete-preview-content' });
 
-		// Metadata
-		if (card.nid || card.id) {
-			const metaSection = this.previewContainer.createDiv({ cls: 'arete-preview-section' });
-			metaSection.createDiv({ cls: 'arete-preview-label', text: 'Metadata' });
-			const metaContent = metaSection.createDiv({ cls: 'arete-preview-content' });
-			metaContent.createEl('code', { text: `NID: ${card.nid || card.id}` });
-		}
-	}
-
-	private async openInAnki(index: number) {
-		if (index < 0 || index >= this.cards.length) return;
-		const card = this.cards[index];
-		const nid = card.nid || card.id;
-
-		if (!nid) {
-			new Notice('Card has no Note ID (nid/id). Sync it first?');
-			return;
-		}
-
-		try {
-			// Using AnkiConnect guiBrowse
-			const response = await requestUrl({
-				url: 'http://127.0.0.1:8765',
-				method: 'POST',
-				body: JSON.stringify({
-					action: 'guiBrowse',
-					version: 6,
-					params: { query: `nid:${nid}` },
-				}),
-			});
-
-			const result = response.json;
-			if (result.error) {
-				new Notice(`Anki Error: ${result.error}`);
-			} else {
-				new Notice('Opened in Anki Browser');
+			if (content && typeof value === 'string') {
+				await MarkdownRenderer.render(
+					this.app,
+					value,
+					content,
+					this.currentFilePath || '',
+					this,
+				);
 			}
-		} catch (e) {
-			new Notice('Failed to connect to Anki. Is it running with AnkiConnect?');
-			console.error(e);
-		}
-	}
-
-	private scrollToCard(index: number) {
-		const leaf = this.app.workspace.getMostRecentLeaf();
-		if (leaf && leaf.view instanceof MarkdownView) {
-			const editor = leaf.view.editor;
-			const fileContent = editor.getValue();
-
-			// This is a naive scroll implementation.
-			// For robustness, ideally we reuse the parser logic from CardGutterExtension
-			// But simple grep-like search works for now as in CardView.ts
-
-			const lines = fileContent.split('\n');
-			let cardsStartLine = -1;
-
-			for (let i = 0; i < lines.length; i++) {
-				if (lines[i].trim().startsWith('cards:')) {
-					cardsStartLine = i;
-					break;
-				}
-			}
-
-			if (cardsStartLine === -1) {
-				new Notice('Could not find "cards" list in YAML.');
-				return;
-			}
-
-			let cardCount = -1;
-			let targetLine = cardsStartLine;
-
-			for (let i = cardsStartLine + 1; i < lines.length; i++) {
-				const line = lines[i];
-				if (line.trim().startsWith('-')) {
-					cardCount++;
-					if (cardCount === index) {
-						targetLine = i;
-						break;
-					}
-				}
-				if (
-					line.trim() === '---' ||
-					(line.trim().length > 0 && !line.startsWith(' ') && !line.startsWith('-'))
-				) {
-					break;
-				}
-			}
-
-			editor.setCursor({ line: targetLine, ch: 0 });
-			editor.scrollIntoView(
-				{ from: { line: targetLine, ch: 0 }, to: { line: targetLine, ch: 0 } },
-				true,
-			);
-			editor.focus();
-		} else {
-			new Notice('Main editor not found to scroll to.');
-		}
-	}
-
-	// ─────────────────────────────────────────────────────────────
-	// Drag & Drop Reordering
-	// ─────────────────────────────────────────────────────────────
-
-	private draggedIndex: number | null = null;
-
-	private handleDragStart(e: DragEvent, index: number) {
-		this.draggedIndex = index;
-		const target = e.target as HTMLElement;
-		target.addClass('is-dragging');
-		e.dataTransfer?.setData('text/plain', String(index));
-	}
-
-	private handleDragOver(e: DragEvent) {
-		e.preventDefault();
-		const target = e.target as HTMLElement;
-		const item = target.closest('.arete-yaml-index-item') as HTMLElement;
-		if (item) {
-			// Remove previous indicators
-			this.indexContainer
-				?.querySelectorAll('.drag-over')
-				.forEach((el) => el.removeClass('drag-over'));
-			item.addClass('drag-over');
-		}
-	}
-
-	private handleDrop(e: DragEvent, toIndex: number) {
-		e.preventDefault();
-		if (this.draggedIndex !== null && this.draggedIndex !== toIndex) {
-			this.reorderCards(this.draggedIndex, toIndex);
-		}
-		this.handleDragEnd();
-	}
-
-	private handleDragEnd() {
-		this.draggedIndex = null;
-		this.indexContainer?.querySelectorAll('.is-dragging, .drag-over').forEach((el) => {
-			el.removeClass('is-dragging');
-			el.removeClass('drag-over');
 		});
 	}
-
-	// ─────────────────────────────────────────────────────────────
-	// Keyboard Navigation
-	// ─────────────────────────────────────────────────────────────
-
-	private handleKeyNavigation(e: KeyboardEvent) {
-		if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			if (this.currentCardIndex > 0) {
-				this.selectCard(this.currentCardIndex - 1, true);
-			}
-		} else if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			if (this.currentCardIndex < this.cards.length - 1) {
-				this.selectCard(this.currentCardIndex + 1, true);
-			}
-		}
-	}
-
-	// ─────────────────────────────────────────────────────────────
-	// CodeMirror Editor
-	// ─────────────────────────────────────────────────────────────
 
 	private createEditor() {
 		if (!this.editorContainer) return;
@@ -823,8 +528,8 @@ export class CardYamlEditorView extends ItemView {
 					}
 				}),
 				EditorView.theme({
-					'&': { minHeight: '100px' },
-					'.cm-scroller': { overflow: 'visible' },
+					'&': { height: '100%' },
+					'.cm-scroller': { overflow: 'auto' },
 				}),
 			],
 		});
@@ -837,126 +542,82 @@ export class CardYamlEditorView extends ItemView {
 
 	private updateEditorContent() {
 		if (!this.editorView) return;
-
 		const content = this.extractCardYaml(this.currentCardIndex);
-		const currentContent = this.editorView.state.doc.toString();
-
-		if (content !== currentContent) {
-			this.editorView.dispatch({
-				changes: { from: 0, to: this.editorView.state.doc.length, insert: content },
-				annotations: syncAnnotation.of(true),
-			});
-		}
+		this.editorView.dispatch({
+			changes: { from: 0, to: this.editorView.state.doc.length, insert: content },
+			annotations: syncAnnotation.of(true),
+		});
 	}
 
 	private extractCardYaml(index: number): string {
-		if (index < 0 || index >= this.cards.length) {
-			return '# No card selected\n';
-		}
-
+		if (index < 0 || index >= this.cards.length) return '# No card selected\n';
 		const card = this.cards[index];
-		const lines: string[] = [];
+		return Object.entries(card)
+			.map(([key, value]) => {
+				// Use |- block scalar for safer string handling (quotes, etc.)
+				const isContentField = [
+					'front',
+					'back',
+					'text',
+					'extra',
+					'Front',
+					'Back',
+					'Text',
+					'Extra',
+				].includes(key);
 
-		// Convert card object to YAML format
-		for (const [key, value] of Object.entries(card)) {
-			if (typeof value === 'string' && value.includes('\n')) {
-				// Multi-line string
-				lines.push(`${key}: |`);
-				value.split('\n').forEach((line) => lines.push(`  ${line}`));
-			} else if (Array.isArray(value)) {
-				// Array
-				lines.push(`${key}:`);
-				value.forEach((item) => lines.push(`  - ${item}`));
-			} else if (value !== undefined && value !== null) {
-				// Simple value
-				const strValue = String(value);
-				// Quote strings that need it
-				if (strValue.includes(':') || strValue.includes('#') || strValue.startsWith('"')) {
-					lines.push(`${key}: "${strValue.replace(/"/g, '\\"')}"`);
-				} else {
-					lines.push(`${key}: ${strValue}`);
+				if (typeof value === 'string') {
+					// Check for unsafe characters if not a content field
+					const unsafeChars = /['":#]/.test(value);
+
+					if (value.includes('\n') || isContentField || unsafeChars) {
+						if (!value) return `${key}: ''`;
+						// Use |- to strip the trailing newline, keeping the content clean
+						return `${key}: |-\n  ${value.replace(/\n/g, '\n  ')}`;
+					}
 				}
-			}
-		}
-
-		return lines.join('\n') + '\n';
+				return `${key}: ${value}`;
+			})
+			.join('\n');
 	}
 
-	private parseYamlToCard(yamlContent: string): CardData {
+	private parseYamlToCard(yamlStr: string): CardData {
 		const card: CardData = {};
-		const lines = yamlContent.split('\n');
+		const lines = yamlStr.split('\n');
 		let currentKey: string | null = null;
 		let currentValue: string[] = [];
-		let isMultiline = false;
-		let isArray = false;
 
 		const saveCurrentKey = () => {
 			if (currentKey) {
-				if (isArray) {
-					card[currentKey] = currentValue;
-				} else if (isMultiline) {
-					card[currentKey] = currentValue.join('\n');
-				}
-				currentKey = null;
-				currentValue = [];
-				isMultiline = false;
-				isArray = false;
+				// Join with newlines and trim whitespace (standard behavior for |- and what we want)
+				card[currentKey] = currentValue.join('\n').trim();
 			}
 		};
 
-		for (const line of lines) {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith('#')) continue;
-
-			// Check for new key
-			const keyMatch = line.match(/^(\w+):\s*(.*)/);
-			if (keyMatch && !line.startsWith('  ')) {
+		lines.forEach((line) => {
+			const match = line.match(/^(\w+):\s*(.*)/);
+			if (match) {
 				saveCurrentKey();
-				const key = keyMatch[1];
-				const value = keyMatch[2].trim();
-
-				if (value === '|') {
-					// Multi-line string
-					currentKey = key;
-					isMultiline = true;
-				} else if (value === '') {
-					// Possibly an array
-					currentKey = key;
-					isArray = true;
+				currentKey = match[1];
+				const rest = match[2].trim();
+				// Support |, |-, and |+ start indicators
+				if (rest === '|' || rest === '|-' || rest === '|+') {
+					currentValue = [];
 				} else {
-					// Simple value
-					let parsedValue: any = value;
-					// Remove quotes if present
-					if (value.startsWith('"') && value.endsWith('"')) {
-						parsedValue = value.slice(1, -1).replace(/\\"/g, '"');
-					} else if (!isNaN(Number(value))) {
-						parsedValue = Number(value);
-					}
-					card[key] = parsedValue;
+					card[currentKey] = rest;
+					currentKey = null;
 				}
 			} else if (currentKey && line.startsWith('  ')) {
-				// Continuation line
-				const content = line.substring(2);
-				if (isArray && content.startsWith('- ')) {
-					currentValue.push(content.substring(2));
-				} else {
-					currentValue.push(content);
-				}
+				currentValue.push(line.substring(2));
 			}
-		}
+		});
 
 		saveCurrentKey();
 		return card;
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// Sync Logic
-	// ─────────────────────────────────────────────────────────────
-
 	private debouncedSyncToMain() {
-		if (this.syncDebounceTimer) {
-			clearTimeout(this.syncDebounceTimer);
-		}
+		if (this.syncDebounceTimer) clearTimeout(this.syncDebounceTimer);
 		this.syncDebounceTimer = setTimeout(() => this.syncToMain(), 300);
 	}
 
@@ -965,7 +626,12 @@ export class CardYamlEditorView extends ItemView {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) return;
 
-		const yamlContent = this.editorView.state.doc.toString();
+		let yamlContent = '';
+		if (this.viewMode === ViewMode.Source) {
+			yamlContent = this.editorView.state.doc.toString();
+		} else {
+			yamlContent = this.extractCardYaml(this.currentCardIndex);
+		}
 		const updatedCard = this.parseYamlToCard(yamlContent);
 
 		this.isUpdatingFromMain = true;
@@ -976,7 +642,6 @@ export class CardYamlEditorView extends ItemView {
 				}
 			});
 		} finally {
-			// Small delay before allowing sync from main again
 			setTimeout(() => {
 				this.isUpdatingFromMain = false;
 			}, 100);
@@ -989,14 +654,74 @@ export class CardYamlEditorView extends ItemView {
 		this.refreshActiveView();
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// Card Operations
-	// ─────────────────────────────────────────────────────────────
+	private async scrollToCard(index: number) {
+		const leaf = this.app.workspace.getMostRecentLeaf();
+		if (leaf && leaf.view instanceof MarkdownView) {
+			const editor = leaf.view.editor;
+			const content = editor.getValue();
+			const lines = content.split('\n');
+
+			let cardCount = 0;
+			let targetLine = -1;
+
+			for (let i = 0; i < lines.length; i++) {
+				if (lines[i].includes('cards:')) {
+					for (let j = i + 1; j < lines.length; j++) {
+						if (lines[j].trim().startsWith('-')) {
+							if (cardCount === index) {
+								targetLine = j;
+								break;
+							}
+							cardCount++;
+						}
+					}
+					break;
+				}
+			}
+
+			if (targetLine !== -1) {
+				editor.setCursor({ line: targetLine, ch: 0 });
+				editor.scrollIntoView(
+					{ from: { line: targetLine, ch: 0 }, to: { line: targetLine, ch: 0 } },
+					true,
+				);
+			}
+		}
+	}
+
+	private async openInAnki(index: number) {
+		const card = this.cards[index];
+		const nid = card?.['nid'];
+		if (nid) {
+			try {
+				const success = await this.plugin.ankiRepo.browse(`nid:${nid}`);
+				if (!success) {
+					new Notice('Failed to open Anki browser.');
+				}
+			} catch (e) {
+				new Notice('Failed to open Anki browser. Check if the server/CLI is accessible.');
+			}
+		} else {
+			new Notice('Card is not yet synced to Anki (no NID found).');
+		}
+	}
+
+	private getCardWarning(index: number): boolean {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return false;
+		const stats = this.plugin.statsService.getCache().concepts[activeFile.path];
+		if (!stats || !stats.problematicCards) return false;
+
+		const card = this.cards[index];
+		const nid = card?.['nid'];
+		if (!nid) return false;
+
+		return stats.problematicCards.some((c) => c.noteId === nid);
+	}
 
 	selectCard(index: number, requestFocus = false) {
 		if (index < 0 || index >= this.cards.length) return;
 
-		// 1. Update visual selection without full re-render if possible
 		if (this.indexContainer) {
 			const prevActive = this.indexContainer.querySelector(
 				`.arete-yaml-index-item[data-index="${this.currentCardIndex}"]`,
@@ -1009,32 +734,20 @@ export class CardYamlEditorView extends ItemView {
 			if (newActive) {
 				newActive.addClass('is-active');
 				if (requestFocus) {
-					// We need to focus the ITEM itself or the container?
-					// The container has tabindex=0, but maybe we want to keep focus on container
-					// and just visually select.
-					// Actually, let's keep focus on the list container to capture arrow keys.
 					const list = this.indexContainer.querySelector(
 						'.arete-yaml-index-list',
 					) as HTMLElement;
 					if (list) list.focus();
 					newActive.scrollIntoView({ block: 'nearest' });
 				}
-			} else {
-				// If new active element not found (e.g. initial load), might need render
-				// But usually selectCard comes after render.
 			}
 		}
 
 		this.currentCardIndex = index;
-		// Do NOT call renderIndex() here, it kills focus!
-
 		this.refreshActiveView();
-
-		// Sync with main editor highlight
 		this.plugin.highlightCardLines(index);
 	}
 
-	// Called externally from main.ts when gutter is clicked
 	focusCard(cardIndex: number) {
 		if (cardIndex >= 0 && cardIndex < this.cards.length) {
 			this.currentCardIndex = cardIndex;
@@ -1052,7 +765,6 @@ export class CardYamlEditorView extends ItemView {
 			frontmatter.cards.push({ front: '', back: '' });
 		});
 
-		// Select the new card
 		await this.loadCards();
 		this.currentCardIndex = this.cards.length - 1;
 		this.renderIndex();
@@ -1088,7 +800,6 @@ export class CardYamlEditorView extends ItemView {
 			}
 		});
 
-		// Update current index if affected
 		if (this.currentCardIndex === fromIndex) {
 			this.currentCardIndex = toIndex;
 		} else if (fromIndex < this.currentCardIndex && toIndex >= this.currentCardIndex) {

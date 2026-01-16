@@ -101,7 +101,7 @@ async def test_backend_selection_apy_fallback(
 
 
 @pytest.mark.asyncio
-@patch("arete.main.AnkiConnectAdapter")
+@patch("arete.infrastructure.adapters.factory.AnkiConnectAdapter")
 @patch("arete.main.run_pipeline")
 @patch("arete.main.setup_logging")
 async def test_backend_manual_ankiconnect_and_fallback(

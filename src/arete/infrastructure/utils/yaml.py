@@ -13,7 +13,9 @@ def _is_mathy(s: str) -> bool:
 
 
 def _str_representer(dumper, data: str):
-    if "\n" in data or _is_mathy(data):
+    # Triggers for |- block scalar: matching Obsidian plugin.
+    triggers = ("\n", "\t", "$", "\\", "{", "}", "^", "_", "~", "'", '"', ":", "[", "]", "#")
+    if any(ch in data for ch in triggers):
         if data.endswith("\n"):
             data = data.rstrip("\n")
         return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")

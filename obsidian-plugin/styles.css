@@ -188,9 +188,6 @@
 }
 
 /* Gradient effect: fade out at bottom of each card - handled by inline styles */
-.arete-gutter-end .arete-gutter-bar {
-	/* Don't override inline background color */
-}
 
 /* Stats text - prevent clipping */
 .arete-gutter-stats {
@@ -254,18 +251,19 @@
 
 /* Main Container - Split Layout */
 .arete-yaml-editor-container {
-	display: flex;
-	height: 100%;
-	overflow: hidden;
+	display: flex !important;
+	flex-direction: row !important;
+	height: 100% !important;
+	overflow: hidden !important;
 }
 
 /* ─── Index Sidebar ─── */
 .arete-yaml-index {
-	width: 48px;
-	flex-shrink: 0;
+	width: 48px !important;
+	flex-shrink: 0 !important;
 	border-right: 1px solid var(--background-modifier-border);
-	display: flex;
-	flex-direction: column;
+	display: flex !important;
+	flex-direction: column !important;
 	background: var(--background-secondary);
 }
 
@@ -381,16 +379,14 @@
 
 /* ─── Editor Panel ─── */
 .arete-yaml-editor-panel {
-	flex: 1;
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
+	flex: 1 !important;
+	overflow: hidden !important;
+	display: flex !important;
+	flex-direction: column !important;
 }
 
 .arete-yaml-editor-panel .cm-editor {
-	min-height: 100px;
-	height: auto;
-	max-height: none;
+	height: 100%;
 	font-size: 13px;
 }
 
@@ -419,13 +415,6 @@
 .arete-yaml-editor-panel .cm-content {
 	padding: 8px 0;
 	caret-color: transparent; /* Hide default native cursor to rely on CM cursor */
-	white-space: pre-wrap; /* Enable word wrap */
-	word-break: break-word;
-}
-
-.arete-yaml-editor-panel .cm-line {
-	word-wrap: break-word;
-	white-space: pre-wrap;
 }
 
 /* Custom Cursor */
@@ -572,9 +561,8 @@
 	color: var(--text-normal);
 	font-family: var(--font-text);
 	font-size: 14px;
-	resize: none;
-	min-height: 60px;
-	overflow: hidden;
+	resize: vertical;
+	min-height: 80px;
 }
 
 .arete-field-input:focus {
@@ -592,6 +580,9 @@
 	font-weight: 600;
 	margin-bottom: 20px;
 }
+
+
+
 
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD VIEW STYLES
@@ -644,4 +635,150 @@
 
 .arete-leech-table tr:hover {
 	background: var(--background-primary-alt);
+}
+/* AI Assistant Chat Styles */
+
+.arete-chat-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--background-primary);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.arete-chat-messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.arete-chat-message {
+	max-width: 85%;
+	padding: 10px 14px;
+	border-radius: 12px;
+	font-size: 14px;
+	line-height: 1.5;
+	position: relative;
+}
+
+.arete-chat-message-user {
+	align-self: flex-end;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-bottom-right-radius: 2px;
+}
+
+.arete-chat-message-assistant {
+	align-self: flex-start;
+	background: var(--background-secondary-alt);
+	color: var(--text-normal);
+	border-bottom-left-radius: 2px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.arete-chat-message-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.arete-chat-message-header svg {
+	width: 14px;
+	height: 14px;
+}
+
+.arete-chat-message-action {
+	margin-top: 8px;
+	padding: 4px 8px;
+	background: rgba(0, 0, 0, 0.05);
+	border-radius: 4px;
+	font-size: 12px;
+	font-style: italic;
+	color: var(--text-muted);
+}
+
+.arete-chat-suggestions {
+	margin-top: 10px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.arete-chat-suggestion-btn {
+	background: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	color: var(--interactive-accent);
+	padding: 4px 10px;
+	border-radius: 16px;
+	font-size: 12px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.arete-chat-suggestion-btn:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.arete-chat-loading {
+	align-self: flex-start;
+	font-size: 12px;
+	color: var(--text-muted);
+	font-style: italic;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.arete-chat-input-wrapper {
+	padding: 12px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	gap: 8px;
+	align-items: flex-end;
+}
+
+.arete-chat-input {
+	flex: 1;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 14px;
+	resize: none;
+	min-height: 40px;
+	max-height: 120px;
+	outline: none;
+}
+
+.arete-chat-input:focus {
+	border-color: var(--interactive-accent);
+}
+
+.arete-chat-send-btn {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: transform 0.15s ease;
+}
+
+.arete-chat-send-btn:hover {
+	transform: scale(1.05);
+	background: var(--interactive-accent-hover);
 }

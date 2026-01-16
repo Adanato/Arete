@@ -9,7 +9,7 @@ def test_nested_decks(tmp_path, anki_url, setup_anki, run_arete):
     md_file.write_text(
         """---
 deck: IntegrationTest::Child::GrandChild
-anki_template_version: 1
+arete: true
 cards:
   - Front: Nested Question
     Back: Nested Answer
@@ -48,7 +48,7 @@ def test_move_deck(tmp_path, anki_url, setup_anki, run_arete):
     md_file.write_text(
         """---
 deck: IntegrationTest::DeckA
-anki_template_version: 1
+arete: true
 cards:
   - Front: Moving Question
     Back: Moving Answer
@@ -82,7 +82,7 @@ cards:
     md_file.write_text(
         f"""---
 deck: IntegrationTest::DeckB
-anki_template_version: 1
+arete: true
 cards:
   - nid: {nid}
     Front: Moving Question

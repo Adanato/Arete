@@ -110,6 +110,21 @@ export class AreteSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Project Root')
+			.setDesc(
+				'Absolute path to the Arete project root (containing pyproject.toml). Required for "uv run".',
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder('/path/to/arete')
+					.setValue(this.plugin.settings.project_root)
+					.onChange(async (value) => {
+						this.plugin.settings.project_root = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName('Parallel Workers')
 			.setDesc('Number of sync workers. Higher is faster but may stress Anki.')
 			.addSlider((slider) =>
@@ -152,7 +167,6 @@ export class AreteSettingTab extends PluginSettingTab {
 						this.plugin.settings.execution_mode = value;
 						await this.plugin.saveSettings();
 
-						// Handle mode transition
 						if (value === 'server' && previousMode === 'cli') {
 							this.plugin.serverManager.start();
 						} else if (value === 'cli' && previousMode === 'server') {
@@ -178,7 +192,62 @@ export class AreteSettingTab extends PluginSettingTab {
 							}
 						}),
 				);
+
+			new Setting(containerEl)
+				.setName('Auto-Reload')
+				.setDesc(
+					'Automatically reload the server when code changes. (Requires Arete source/dev install).',
+				)
+				.addToggle((toggle) =>
+					toggle.setValue(this.plugin.settings.server_reload).onChange(async (value) => {
+						this.plugin.settings.server_reload = value;
+						await this.plugin.saveSettings();
+						new Notice('Server restart required to apply reload setting.');
+					}),
+				);
+
+			new Setting(containerEl)
+				.setName('Restart Server')
+				.setDesc('Stop and start the Arete server immediately.')
+				.addButton((button) =>
+					button.setButtonText('Restart').onClick(async () => {
+						await this.plugin.serverManager.restart();
+					}),
+				);
 		}
+
+		// ═══════════════════════════════════════════════════════════════════
+		// AI ASSISTANT (Atomic Agents)
+		// ═══════════════════════════════════════════════════════════════════
+		containerEl.createEl('h3', { text: 'AI Assistant' });
+
+		new Setting(containerEl)
+			.setName('API Provider')
+			.setDesc('LLM provider for the AI agent.')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('openai', 'OpenAI')
+					.addOption('gemini', 'Google Gemini')
+					.addOption('anthropic', 'Anthropic')
+					.setValue(this.plugin.settings.ai_provider)
+					.onChange(async (value: 'openai' | 'gemini' | 'anthropic') => {
+						this.plugin.settings.ai_provider = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('API Key')
+			.setDesc('API Key for the selected provider.')
+			.addText((text) =>
+				text
+					.setPlaceholder('sk-...')
+					.setValue(this.plugin.settings.ai_api_key)
+					.onChange(async (value) => {
+						this.plugin.settings.ai_api_key = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		// ═══════════════════════════════════════════════════════════════════
 		// ANKI CONNECTION

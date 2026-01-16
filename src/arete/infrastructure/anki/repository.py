@@ -10,7 +10,7 @@ import os
 import pickle
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import cast
 
 from anki.collection import Collection
 from anki.models import NotetypeDict
@@ -99,7 +99,8 @@ class AnkiRepository:
             # Modern Anki might auto-save on close, but let's be explicit for safety.
             # Only save if no exception occurred.
             if exc_type is None:
-                self.col.save()
+                # self.col.save() is deprecated in modern Anki, col.close() handles it.
+                pass
 
             self.col.close()
             self.col = None
@@ -183,7 +184,7 @@ class AnkiRepository:
             raise RuntimeError("Collection not open")
 
         try:
-            note = self.col.get_note(NoteId(nid))
+            note = self.col.get_note(cast(NoteId, nid))  # type: ignore
         except Exception:
             return False
 

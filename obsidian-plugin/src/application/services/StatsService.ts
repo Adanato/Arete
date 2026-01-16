@@ -1,5 +1,6 @@
-import { App, TFile, Notice, requestUrl } from 'obsidian';
+import { App, TFile, Notice } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
+import { AreteClient } from '@/infrastructure/arete/AreteClient';
 
 export interface AnkiCardStats {
 	cardId: number;
@@ -52,11 +53,13 @@ export class StatsService {
 	app: App;
 	settings: AretePluginSettings;
 	cache: StatsCache;
+	private client: AreteClient;
 
 	constructor(app: App, settings: AretePluginSettings, initialCache?: StatsCache) {
 		this.app = app;
 		this.settings = settings;
 		this.cache = initialCache || { concepts: {}, lastFetched: 0 };
+		this.client = new AreteClient(settings);
 	}
 
 	getCache(): StatsCache {
@@ -101,6 +104,7 @@ export class StatsService {
 					conceptDeckCounts[file.path] = {};
 
 					cards.forEach((card: any, index: number) => {
+						if (!card) return; // Skip null/malformed cards
 						if (card.nid) {
 							const nid = parseInt(card.nid);
 							if (!isNaN(nid)) {
@@ -278,112 +282,32 @@ export class StatsService {
 	}
 
 	async fetchAnkiCardStats(nids: number[]): Promise<AnkiCardStats[]> {
-		const url = this.settings.anki_connect_url || 'http://127.0.0.1:8765';
-
 		try {
-			// Chunking to avoid massive requests (AnkiConnect might toggle limits)
-			const CHUNK_SIZE = 500;
-			const allStats: AnkiCardStats[] = [];
+			const data = await this.client.invoke('/anki/stats', { nids });
 
-			for (let i = 0; i < nids.length; i += CHUNK_SIZE) {
-				const chunk = nids.slice(i, i + CHUNK_SIZE);
-
-				// 1. Get cards for notes
-				const findCardsRes = await requestUrl({
-					url,
-					method: 'POST',
-					body: JSON.stringify({
-						action: 'findCards',
-						version: 6,
-						params: { query: chunk.map((n) => `nid:${n}`).join(' OR ') },
-					}),
-				});
-
-				const cardIds = findCardsRes.json?.result;
-				if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) continue;
-
-				// 2. Get card info (standard stats)
-				const cardsInfoRes = await requestUrl({
-					url,
-					method: 'POST',
-					body: JSON.stringify({
-						action: 'cardsInfo',
-						version: 6,
-						params: { cards: cardIds },
-					}),
-				});
-
-				const infos = cardsInfoRes.json?.result;
-
-				// 3. Get FSRS Data via Custom Add-on Action
-				const fsrsMap: Map<number, number> = new Map();
-				if (this.settings.stats_algorithm === 'fsrs') {
-					try {
-						console.log('[Arete] Fetching FSRS data for', cardIds.length, 'cards...');
-						const fsrsRes = await requestUrl({
-							url,
-							method: 'POST',
-							body: JSON.stringify({
-								action: 'getFSRSStats', // Custom action handled by 'anki-plugin'
-								version: 6,
-								params: { cards: cardIds },
-							}),
-						});
-
-						const fsrsResults = fsrsRes.json?.result;
-						console.log('[Arete] FSRS Response:', fsrsRes.json);
-
-						if (fsrsResults && Array.isArray(fsrsResults)) {
-							fsrsResults.forEach((item: any) => {
-								if (
-									item.cardId &&
-									item.difficulty !== undefined &&
-									item.difficulty !== null
-								) {
-									// Normalize 1-10 -> 0-1
-									fsrsMap.set(item.cardId, item.difficulty / 10.0);
-								}
-							});
-							console.log('[Arete] FSRS map populated with', fsrsMap.size, 'entries');
-						} else {
-							console.warn('[Arete] FSRS response was empty or not an array');
-						}
-					} catch (e) {
-						// Custom action likely not available if Anki not updated/restarted
-						console.warn(
-							'[Arete] FSRS Custom Fetch failed - you may need the Arete Anki addon:',
-							e,
-						);
-					}
-				}
-
-				if (infos && Array.isArray(infos)) {
-					infos.forEach((info: any) => {
-						// Prefer SQL FSRS Difficulty if available, else info.difficulty (if standard later)
-						let difficulty = fsrsMap.get(info.cardId);
-						if (difficulty === undefined) difficulty = info.difficulty; // fallback
-
-						allStats.push({
-							cardId: info.cardId,
-							noteId: info.note,
-							lapses: info.lapses,
-							ease: info.factor,
-							difficulty: difficulty,
-							deckName: info.deckName || 'Default',
-							interval: info.interval,
-							due: info.due,
-							reps: info.reps,
-							averageTime: 0,
-						});
-					});
-				}
+			if (Array.isArray(data)) {
+				// Map snake_case (Python) to camelCase (TS)
+				return data.map((d: any) => ({
+					cardId: d.card_id,
+					noteId: d.note_id,
+					lapses: d.lapses,
+					ease: d.ease,
+					difficulty: d.difficulty,
+					deckName: d.deck_name,
+					interval: d.interval,
+					due: d.due,
+					reps: d.reps,
+					averageTime: d.average_time,
+					front: d.front,
+				}));
+			} else {
+				console.warn('[Arete] Unexpected stats response format:', data);
 			}
-
-			return allStats;
 		} catch (e) {
-			console.error('[Arete] Failed to fetch Anki stats', e);
-			new Notice('Failed to fetch stats from Anki.');
-			return [];
+			console.warn('[Arete] Failed to fetch stats via AreteClient:', e);
+			new Notice('Failed to fetch stats from Arete.');
 		}
+
+		return [];
 	}
 }

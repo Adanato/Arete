@@ -1,4 +1,12 @@
-import { Editor, MarkdownView, Notice, Plugin, FileSystemAdapter, TFile } from 'obsidian';
+import {
+	Editor,
+	MarkdownView,
+	Notice,
+	Plugin,
+	FileSystemAdapter,
+	TFile,
+	WorkspaceLeaf,
+} from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import * as path from 'path';
 
@@ -6,16 +14,18 @@ import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
 
 import { CardYamlEditorView, YAML_EDITOR_VIEW_TYPE } from '@presentation/views/CardYamlEditorView';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from '@presentation/views/DashboardView';
+import { ChatView, CHAT_VIEW_TYPE } from '@presentation/views/ChatView';
 import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
+import { AgentService } from '@application/services/AgentService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
 import { StatsService, StatsCache } from '@application/services/StatsService';
 import { GraphService } from '@application/services/GraphService';
 import { LinkCheckerService } from '@application/services/LinkCheckerService';
 import { LeechService } from '@application/services/LeechService';
 import { ServerManager } from '@application/services/ServerManager';
-import { AnkiConnectRepository } from '@infrastructure/anki/AnkiConnectRepository';
+import { AreteClient } from '@infrastructure/arete/AreteClient';
 import {
 	createCardGutter,
 	highlightCardEffect,
@@ -36,7 +46,8 @@ export default class AretePlugin extends Plugin {
 	linkCheckerService: LinkCheckerService;
 	leechService: LeechService;
 	serverManager: ServerManager;
-	ankiRepo: AnkiConnectRepository;
+	agentService: AgentService;
+	ankiRepo: AreteClient;
 	templateRenderer: TemplateRenderer;
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -48,7 +59,9 @@ export default class AretePlugin extends Plugin {
 			console.log('[Arete] Settings loaded:', this.settings);
 
 			// Initialize Services
-			this.templateRenderer = new TemplateRenderer(this.app, this.settings.anki_connect_url);
+			// Initialize Services
+			this.ankiRepo = new AreteClient(this.settings);
+			this.templateRenderer = new TemplateRenderer(this.app, this.ankiRepo);
 			this.templateRenderer.setMode(this.settings.renderer_mode);
 			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
 				console.log(msg); // Default logger
@@ -58,16 +71,19 @@ export default class AretePlugin extends Plugin {
 			this.graphService = new GraphService(this.app, this.settings);
 
 			// Initialize New Dashboard Services
-			this.ankiRepo = new AnkiConnectRepository(this.settings.anki_connect_url);
-			this.linkCheckerService = new LinkCheckerService(this.app);
+			this.linkCheckerService = new LinkCheckerService(this.app, this);
 			this.leechService = new LeechService(this.app, this.ankiRepo);
 			this.serverManager = new ServerManager(this.app, this.settings, this.manifest);
+			this.agentService = new AgentService(this.settings);
 
 			// Start Server (background) if enabled
-			this.serverManager.start();
+			this.serverManager.start(true);
 
 			// Auto-refresh stats on startup
-			this.app.workspace.onLayoutReady(() => {
+			this.app.workspace.onLayoutReady(async () => {
+				if (this.settings.execution_mode === 'server') {
+					await this.serverManager.start();
+				}
 				console.log('[Arete] Refreshing stats on startup...');
 				this.statsService
 					.refreshStats()
@@ -103,6 +119,11 @@ export default class AretePlugin extends Plugin {
 			});
 
 			console.log('[Arete] Services initialized');
+
+			// Register Views
+			this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
+			this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
+			this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
 			new Notice('Arete Plugin failed to initialize! Check console.');
@@ -125,6 +146,10 @@ export default class AretePlugin extends Plugin {
 
 		this.addRibbonIcon('layout-dashboard', 'Arete Dashboard', (evt: MouseEvent) => {
 			this.activateDashboardView();
+		});
+
+		this.addRibbonIcon('bot', 'Arete AI Assistant', (evt: MouseEvent) => {
+			this.activateChatView();
 		});
 
 		// 3. Commands
@@ -247,11 +272,7 @@ export default class AretePlugin extends Plugin {
 		// 4. Settings
 		this.addSettingTab(new AreteSettingTab(this.app, this));
 
-		// 5. Views
-
-		this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
-		this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
-
+		// 5. Ribbon Icon and Commands
 		this.addRibbonIcon('file-code', 'Open YAML Editor', () => {
 			this.activateYamlEditorView();
 		});
@@ -350,6 +371,22 @@ export default class AretePlugin extends Plugin {
 				effects: highlightCardEffect.of({ cardIndex }),
 			});
 		}
+	}
+
+	async activateChatView() {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(CHAT_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			leaf = workspace.getRightLeaf(false);
+			await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
+		}
+
+		workspace.revealLeaf(leaf);
 	}
 
 	async activateDashboardView() {

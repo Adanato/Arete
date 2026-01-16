@@ -13,13 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import enum
 import os
 import sys
 
 import anki
 import anki.sync
 import aqt
-import enum
 
 #
 # Utilities
@@ -37,15 +37,15 @@ def download(url):
 
     resp = client.get(url)
     if resp.status_code != 200:
-        raise Exception('{} download failed with return code {}'.format(url, resp.status_code))
+        raise Exception(f'{url} download failed with return code {resp.status_code}')
 
     return client.streamContent(resp)
 
 
 def api(*versions):
     def decorator(func):
-        setattr(func, 'versions', versions)
-        setattr(func, 'api', True)
+        func.versions = versions
+        func.api = True
         return func
 
     return decorator
@@ -83,7 +83,7 @@ def setting(key):
     try:
         return aqt.mw.addonManager.getConfig(__name__).get(key, DEFAULT_CONFIG[key])
     except:
-        raise Exception('setting {} not found'.format(key))
+        raise Exception(f'setting {key} not found')
 
 
 # see https://github.com/FooSoft/anki-connect/issues/308

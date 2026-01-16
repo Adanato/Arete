@@ -1,5 +1,5 @@
 ---
-"anki_template_version": '1'
+arete: true
 deck: test
 model: Basic
 tags:

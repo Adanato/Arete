@@ -229,16 +229,18 @@ def process_markdown_file(
         return (0, 0, 1, 0)
 
     # ---- STRICT TEMPLATE VERSION CHECK ----
-    declared_version = get_declared_template_version(meta)
-    if declared_version is None:
-        logger.info(f"[skip] {md_path}: missing required key 'anki_template_version'")
-        return (0, 0, 1, 0)
-    if declared_version != CURRENT_TEMPLATE_VERSION:
-        logger.info(
-            f"[skip] {md_path}: unsupported anki_template_version={declared_version} "
-            f"(required: {CURRENT_TEMPLATE_VERSION})"
-        )
-        return (0, 0, 1, 0)
+    is_explicit_arete = meta.get("arete") is True
+    if not is_explicit_arete:
+        declared_version = get_declared_template_version(meta)
+        if declared_version is None:
+            logger.info(f"[skip] {md_path}: missing required key 'anki_template_version'")
+            return (0, 0, 1, 0)
+        if declared_version != CURRENT_TEMPLATE_VERSION:
+            logger.info(
+                f"[skip] {md_path}: unsupported anki_template_version={declared_version} "
+                f"(required: {CURRENT_TEMPLATE_VERSION})"
+            )
+            return (0, 0, 1, 0)
     # ---------------------------------------
 
     deck = meta.get("deck")

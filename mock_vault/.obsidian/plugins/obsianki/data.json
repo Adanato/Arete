@@ -1,7 +1,0 @@
-{
-  "pythonPath": "/Users/adam/Research/o2a/.venv/bin/python3",
-  "o2aScriptPath": "/Users/adam/Research/o2a/src/o2a/main.py",
-  "debugMode": true,
-  "backend": "auto",
-  "workers": 4
-}

@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { AnkiConnectRepository } from '../../infrastructure/anki/AnkiConnectRepository';
+import { AreteClient } from '../../infrastructure/arete/AreteClient';
 import { StatsCache, ProblematicCard, ConceptStats } from './StatsService';
 
 export interface LeechCard extends ProblematicCard {
@@ -10,9 +10,9 @@ export interface LeechCard extends ProblematicCard {
 
 export class LeechService {
 	private app: App;
-	private ankiRepo: AnkiConnectRepository;
+	private ankiRepo: AreteClient;
 
-	constructor(app: App, ankiRepo: AnkiConnectRepository) {
+	constructor(app: App, ankiRepo: AreteClient) {
 		this.app = app;
 		this.ankiRepo = ankiRepo;
 	}

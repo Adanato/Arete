@@ -2,7 +2,8 @@ import re
 
 # ---------- Config / Regex ----------
 
-FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*", re.DOTALL)
+# Matches frontmatter with optional leading BOM/whitespace and handles \r\n
+FRONTMATTER_RE = re.compile(r"^\s*---\s*\r?\n(.*?)\r?\n---\s*", re.DOTALL)
 CURRENT_TEMPLATE_VERSION = 1  # strict
 
 # Image patterns

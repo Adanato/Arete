@@ -2,10 +2,9 @@ import '../../test-setup';
 import { App } from 'obsidian';
 import { StatsService } from '@application/services/StatsService';
 import { AretePluginSettings } from '@domain/settings';
-import { requestUrl } from 'obsidian';
+import { AreteClient } from '@infrastructure/arete/AreteClient';
 
-// Mock requestUrl
-// Mock obsidian purely without requireActual
+// Mock obsidian
 jest.mock('obsidian', () => ({
 	App: class {},
 	TFile: class {},
@@ -14,10 +13,14 @@ jest.mock('obsidian', () => ({
 	FileSystemAdapter: class {},
 }));
 
+// Mock AreteClient
+jest.mock('@infrastructure/arete/AreteClient');
+
 describe('StatsService Integration', () => {
 	let app: App;
 	let settings: AretePluginSettings;
 	let service: StatsService;
+	let mockClient: jest.Mocked<AreteClient>;
 
 	beforeEach(() => {
 		app = new App();
@@ -25,114 +28,94 @@ describe('StatsService Integration', () => {
 			python_path: 'python3',
 			backend: 'auto',
 			anki_connect_url: 'http://localhost:8765',
-			stats_algorithm: 'fsrs', // Test FSRS path
+			stats_algorithm: 'fsrs',
 			stats_lapse_threshold: 3,
 			stats_ease_threshold: 2100,
 			stats_difficulty_threshold: 0.9,
 		} as any;
+
 		service = new StatsService(app, settings);
-		(requestUrl as jest.Mock).mockClear();
+
+		// In StatsService constructor, a new AreteClient is created.
+		// We can get the instance from the mock implementation if needed,
+		// or just access the private client property for testing purposes.
+		mockClient = (service as any).client;
+		mockClient.invoke.mockClear();
 	});
 
 	test('fetchAnkiCardStats calls getFSRSStats and merges difficulty', async () => {
 		const nids = [101, 102];
 
-		// Mock 1: findCards
-		(requestUrl as jest.Mock).mockResolvedValueOnce({
-			json: { result: [1, 2] },
-		});
-
-		// Mock 2: cardsInfo (Standard Stats)
-		(requestUrl as jest.Mock).mockResolvedValueOnce({
-			json: {
-				result: [
-					{
-						cardId: 1,
-						note: 101,
-						lapses: 0,
-						factor: 0,
-						interval: 10,
-						due: 0,
-						reps: 5,
-						deckName: 'Deck A',
-						difficulty: 0,
-					}, // difficulty 0 ignored if FSRS fetched
-					{
-						cardId: 2,
-						note: 102,
-						lapses: 0,
-						factor: 0,
-						interval: 10,
-						due: 0,
-						reps: 5,
-						deckName: 'Deck A',
-						difficulty: 0,
-					},
-				],
+		// Mock the unified /anki/stats endpoint
+		// The backend returns snake_case
+		mockClient.invoke.mockResolvedValue([
+			{
+				card_id: 1,
+				note_id: 101,
+				lapses: 0,
+				ease: 250,
+				difficulty: 0.85,
+				deck_name: 'Deck A',
+				interval: 10,
+				due: 0,
+				reps: 5,
+				average_time: 1000,
+				front: 'Front 1',
 			},
-		});
-
-		// Mock 3: getFSRSStats (Custom Action)
-		(requestUrl as jest.Mock).mockResolvedValueOnce({
-			json: {
-				result: [
-					{ cardId: 1, difficulty: 8.5 }, // 8.5 / 10 = 0.85
-					{ cardId: 2, difficulty: 3.0 }, // 3.0 / 10 = 0.30
-				],
+			{
+				card_id: 2,
+				note_id: 102,
+				lapses: 0,
+				ease: 250,
+				difficulty: 0.3,
+				deck_name: 'Deck A',
+				interval: 10,
+				due: 0,
+				reps: 5,
+				average_time: 1000,
+				front: 'Front 2',
 			},
-		});
+		]);
 
 		const stats = await service.fetchAnkiCardStats(nids);
 
 		expect(stats.length).toBe(2);
 
-		// Verify Card 1
+		// Verify Card 1 (Mapped correctly to camelCase)
 		expect(stats[0].cardId).toBe(1);
-		expect(stats[0].difficulty).toBe(0.85); // Normalized
+		expect(stats[0].noteId).toBe(101);
+		expect(stats[0].difficulty).toBe(0.85);
 
 		// Verify Card 2
 		expect(stats[1].cardId).toBe(2);
-		expect(stats[1].difficulty).toBe(0.3); // Normalized
+		expect(stats[1].difficulty).toBe(0.3);
 
-		// Verify calls
-		expect(requestUrl).toHaveBeenCalledTimes(3);
-		const fsrsCall = (requestUrl as jest.Mock).mock.calls[2][0];
-		expect(JSON.parse(fsrsCall.body).action).toBe('getFSRSStats');
+		// Verify client call
+		expect(mockClient.invoke).toHaveBeenCalledWith('/anki/stats', { nids });
 	});
 
 	test('fetchAnkiCardStats handles missing FSRS data gracefully', async () => {
 		const nids = [101];
 
-		// Mock 1: findCards
-		(requestUrl as jest.Mock).mockResolvedValueOnce({
-			json: { result: [1] },
-		});
-
-		// Mock 2: cardsInfo (Standard Stats)
-		(requestUrl as jest.Mock).mockResolvedValueOnce({
-			json: {
-				result: [
-					{
-						cardId: 1,
-						note: 101,
-						lapses: 0,
-						factor: 0,
-						interval: 10,
-						due: 0,
-						reps: 5,
-						deckName: 'Deck A',
-						difficulty: 0.5,
-					}, // Info fallback
-				],
+		mockClient.invoke.mockResolvedValue([
+			{
+				card_id: 1,
+				note_id: 101,
+				lapses: 0,
+				ease: 250,
+				difficulty: 0.5,
+				deck_name: 'Deck A',
+				interval: 10,
+				due: 0,
+				reps: 5,
+				average_time: 1000,
+				front: 'Front 1',
 			},
-		});
-
-		// Mock 3: getFSRSStats (Fails or null)
-		(requestUrl as jest.Mock).mockRejectedValueOnce(new Error('Action not found'));
+		]);
 
 		const stats = await service.fetchAnkiCardStats(nids);
 
 		expect(stats.length).toBe(1);
-		expect(stats[0].difficulty).toBe(0.5); // Fallback to info.difficulty
+		expect(stats[0].difficulty).toBe(0.5);
 	});
 });

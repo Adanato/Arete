@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from arete.domain.interfaces import AnkiBridge
-from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
+from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 
 
 class AnkiConnectAdapter(AnkiBridge):
@@ -16,7 +16,7 @@ class AnkiConnectAdapter(AnkiBridge):
     Adapter for communicating with Anki via the AnkiConnect add-on (HTTP API).
     """
 
-    def __init__(self, url: str = "http://localhost:8765"):
+    def __init__(self, url: str = "http://127.0.0.1:8765"):
         self.logger = logging.getLogger(__name__)
         self._known_decks = set()
         self.use_windows_curl = False
@@ -38,7 +38,7 @@ class AnkiConnectAdapter(AnkiBridge):
             curl_path = shutil.which("curl.exe")
             if curl_path:
                 self.use_windows_curl = True
-                if "localhost" in url:
+                if "127.0.0.1" in url or "localhost" in url:
                     url = url.replace("localhost", "127.0.0.1")
                 self.logger.info(
                     f"WSL detected: Using curl.exe bridge (found at {curl_path}) to talk to {url}"
@@ -66,7 +66,7 @@ class AnkiConnectAdapter(AnkiBridge):
                     self.logger.warning(f"WSL detected but failed to find host IP: {e}")
 
         self.url = url
-        self.logger.info(
+        self.logger.debug(
             f"AnkiConnectAdapter initialized with url={self.url} "
             f"(curl_bridge={self.use_windows_curl})"
         )
@@ -75,8 +75,14 @@ class AnkiConnectAdapter(AnkiBridge):
         """Check if AnkiConnect is reachable and has the expected API version."""
         try:
             # We can check version
-            res = await self._invoke("version")
-            return int(res) >= 6
+            # Use a short timeout for responsiveness check
+            payload = {"action": "version", "version": 6}
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(self.url, json=payload, timeout=2.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return int(data.get("result", 0)) >= 6
+            return False
         except Exception:
             return False
 
@@ -378,3 +384,122 @@ class AnkiConnectAdapter(AnkiBridge):
     async def delete_decks(self, names: list[str]) -> bool:
         await self._invoke("deleteDecks", decks=names, cardsToo=True)
         return True
+
+    async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
+        from arete.application.stats_service import StatsService
+
+        service = StatsService(self)
+        service = StatsService(self)
+        return await service.get_learning_insights(lapse_threshold=lapse_threshold)
+
+    async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
+        """
+        Fetch stats via AnkiConnect.
+        """
+        all_stats = []
+        if not nids:
+            return []
+
+        CHUNK_SIZE = 500
+        for i in range(0, len(nids), CHUNK_SIZE):
+            chunk = nids[i : i + CHUNK_SIZE]
+
+            try:
+                # 1. Find Cards
+                query = " OR ".join([f"nid:{n}" for n in chunk])
+                card_ids = await self._invoke("findCards", query=query)
+                if not card_ids:
+                    continue
+
+                # 2. Get Info
+                infos = await self._invoke("cardsInfo", cards=card_ids)
+
+                # 3. Get FSRS (Custom Action check)
+                fsrs_map = {}
+                try:
+                    fsrs_results = await self._invoke("getFSRSStats", cards=card_ids)
+                    if fsrs_results and isinstance(fsrs_results, list):
+                        for item in fsrs_results:
+                            if (
+                                "cardId" in item
+                                and "difficulty" in item
+                                and item["difficulty"] is not None
+                            ):
+                                fsrs_map[item["cardId"]] = item["difficulty"] / 10.0
+                except Exception:
+                    # Ignore if FSRS action missing
+                    pass
+
+                for info in infos:
+                    cid = info.get("cardId")
+                    difficulty = fsrs_map.get(cid)
+                    if difficulty is None:
+                        difficulty = info.get("difficulty")  # Standard field fallback
+
+                    # Front? info usually has fields, not rendered front.
+                    # We could try to extract from fields if needed, but for now leave None
+                    # or grab first field.
+                    front = None
+                    fields = info.get("fields", {})
+                    if fields:
+                        # Grab first field value
+                        first_key = list(fields.keys())[0]
+                        front = fields[first_key].get("value")
+
+                    all_stats.append(
+                        AnkiCardStats(
+                            card_id=cid,
+                            note_id=info.get("note"),
+                            lapses=info.get("lapses", 0),
+                            ease=info.get("factor", 0),
+                            difficulty=difficulty,
+                            deck_name=info.get("deckName", "Unknown"),
+                            interval=info.get("interval", 0),
+                            due=info.get("due", 0),
+                            reps=info.get("reps", 0),
+                            average_time=0,
+                            front=front,
+                        )
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Failed to fetch card stats chunk: {e}")
+
+        return all_stats
+
+    async def suspend_cards(self, cids: list[int]) -> bool:
+        if not cids:
+            return True  # Nothing to do
+        res = await self._invoke("suspend", cards=cids)
+        return bool(res)
+
+    async def unsuspend_cards(self, cids: list[int]) -> bool:
+        if not cids:
+            return True
+        res = await self._invoke("unsuspend", cards=cids)
+        return bool(res)
+
+    async def get_model_styling(self, model_name: str) -> str:
+        try:
+            res = await self._invoke("modelStyling", modelName=model_name)
+            if isinstance(res, dict):
+                return res.get("css", "")
+            return str(res)
+        except Exception:
+            return ""
+
+    async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
+        try:
+            res = await self._invoke("modelTemplates", modelName=model_name)
+            # AnkiConnect returns { "Card 1": { "Front": "...", "Back": "..." } }
+            return res
+        except Exception:
+            return {}
+    async def gui_browse(self, query: str) -> bool:
+        """Open the Anki browser via AnkiConnect's guiBrowse action."""
+        try:
+            await self._invoke("guiBrowse", query=query)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to open Anki browser: {e}")
+            return False

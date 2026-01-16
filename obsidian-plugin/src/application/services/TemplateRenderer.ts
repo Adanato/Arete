@@ -1,5 +1,5 @@
 import Mustache from 'mustache';
-import { AnkiConnectRepository } from '@/infrastructure/anki/AnkiConnectRepository';
+import { AreteClient } from '@/infrastructure/arete/AreteClient';
 import { App, MarkdownRenderer } from 'obsidian';
 
 interface ModelData {
@@ -8,14 +8,14 @@ interface ModelData {
 }
 
 export class TemplateRenderer {
-	private repo: AnkiConnectRepository;
+	private repo: AreteClient;
 	private cache: Map<string, ModelData> = new Map();
 	private app: App;
 	private mode: 'obsidian' | 'anki' = 'obsidian';
 
-	constructor(app: App, ankiUrl?: string) {
+	constructor(app: App, repo: AreteClient) {
 		this.app = app;
-		this.repo = new AnkiConnectRepository(ankiUrl);
+		this.repo = repo;
 	}
 
 	setMode(mode: 'obsidian' | 'anki') {

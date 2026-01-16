@@ -27,7 +27,7 @@ def test_vault_service_uses_cache_by_default(temp_vault, mock_cache):
     md_file.write_text("---\ncards:\n  - Front: F\n    Back: B\n---\nBody", encoding="utf-8")
 
     # Simulate a cache hit
-    mock_cache.get_file_meta.return_value = {"cards": [{"Front": "F"}], "anki_template_version": 1}
+    mock_cache.get_file_meta.return_value = {"cards": [{"Front": "F"}], "arete": True}
 
     service = VaultService(temp_vault, mock_cache, ignore_cache=False)
 
@@ -46,7 +46,7 @@ def test_vault_service_bypasses_cache_when_ignored(temp_vault, mock_cache):
     md_file = temp_vault / "test.md"
     # Needs valid frontmatter because cache lookup will be skipped, so it must parse manually
     md_file.write_text(
-        "---\nanki_template_version: 1\ndeck: Default\ncards:\n  - Front: F\n    Back: B\n---\nBody",
+        "---\narete: true\ndeck: Default\ncards:\n  - Front: F\n    Back: B\n---\nBody",
         encoding="utf-8",
     )
 

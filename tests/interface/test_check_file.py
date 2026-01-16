@@ -23,11 +23,14 @@ def test_check_file_valid_basic(tmp_path):
 def test_check_file_valid_minimal(tmp_path):
     """2. Test a valid file with just version info (no cards required if no deck/model)."""
     f = tmp_path / "minimal.md"
-    f.write_text("---\nanki_template_version: 1\n---\nContent", encoding="utf-8")
+    f.write_text(
+        "---\narete: true\ndeck: Default\ncards: [{Front: Q}]\n---\nContent", encoding="utf-8"
+    )
 
     result = runner.invoke(app, ["check-file", str(f)])
     assert result.exit_code == 0
     assert "✅ Valid arete file!" in result.stdout
+    assert "Cards: 1" in result.stdout
 
 
 def test_check_file_yaml_syntax_error(tmp_path):

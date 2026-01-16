@@ -317,8 +317,8 @@ export class DashboardView extends ItemView {
 		desc.style.color = 'var(--text-muted)';
 		desc.style.fontSize = '0.9em';
 		desc.innerHTML = `
-			<p style="margin-bottom: 0.5rem;">Scans your synced files to find <b>broken wikilinks</b> and <b>missing images</b>.</p>
-			<p style="margin: 0;">Use this to ensure your Anki cards don't show broken media or dead links.</p>
+			<p style="margin-bottom: 0.5rem;">Scans your synced files to find <b>broken image embeds</b> and <b>invalid YAML</b>.</p>
+			<p style="margin: 0;">Use this to ensure your Anki cards don't have broken media or syntax errors.</p>
 		`;
 
 		const checkBtn = actionArea.createEl('button', {
@@ -334,19 +334,8 @@ export class DashboardView extends ItemView {
 			this.isScanning = true;
 			this.render(); // Update button state
 			try {
-				// Only scan synced files? No, scan all for simplicity as per plan
-				// Actually user requested "Scan Anki cards".
-				// We can filter by concept paths from stats service to be safe
-				const relevantPaths = Object.keys(this.plugin.statsService.getCache().concepts);
-				let targetFiles: TFile[] = [];
-				if (relevantPaths.length > 0) {
-					targetFiles = relevantPaths
-						.map((p) => this.app.vault.getAbstractFileByPath(p))
-						.filter((f) => f instanceof TFile) as TFile[];
-				} else {
-					// Fallback if no stats
-					targetFiles = this.app.vault.getMarkdownFiles();
-				}
+				// Scan all markdown files to ensure we catch those with broken YAML (which won't be in stats cache)
+				const targetFiles = this.app.vault.getMarkdownFiles();
 
 				this.brokenRefs = await this.plugin.linkCheckerService.checkIntegrity(targetFiles);
 				new Notice(`Integrity check complete. Found ${this.brokenRefs.length} issues.`);
@@ -393,7 +382,12 @@ export class DashboardView extends ItemView {
 					right.style.gap = '8px';
 
 					// Show original text if it differs significantly from linkPath
-					if (
+					if (ref.type === 'invalid-yaml' && ref.errorMessage) {
+						const errSpan = right.createSpan({ text: ref.errorMessage });
+						errSpan.style.fontSize = '0.8em';
+						errSpan.style.color = 'var(--color-red)';
+						errSpan.style.marginRight = '8px';
+					} else if (
 						ref.type !== 'invalid-yaml' &&
 						ref.linkText !== `[[${ref.linkPath}]]` &&
 						ref.linkText !== ref.linkPath
@@ -412,6 +406,7 @@ export class DashboardView extends ItemView {
 						typeBadge.style.background = 'var(--color-red)';
 						typeBadge.style.color = 'var(--text-on-accent)';
 						typeBadge.title =
+							ref.errorMessage ||
 							'Obsidian failed to parse frontmatter. Check for syntax errors.';
 					} else {
 						typeBadge.style.background = 'var(--background-modifier-border)';

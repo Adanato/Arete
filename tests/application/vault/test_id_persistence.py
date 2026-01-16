@@ -10,7 +10,7 @@ def test_nid_persistence(tmp_path):
     # 1. Setup: Create a dummy markdown file
     md_file = tmp_path / "test_card.md"
     md_content = """---
-anki_template_version: 1
+arete: true
 deck: Default
 cards:
   - model: Basic
@@ -63,7 +63,7 @@ def test_existing_nid_update(tmp_path):
     """
     md_file = tmp_path / "test_update.md"
     md_content = """---
-anki_template_version: 1
+arete: true
 cards:
   - model: Basic
     nid: 11111

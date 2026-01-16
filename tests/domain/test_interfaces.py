@@ -1,5 +1,7 @@
 """Tests for domain interfaces (abstract base classes)."""
 
+from typing import Any
+
 import pytest
 
 from arete.domain.interfaces import AnkiBridge
@@ -20,6 +22,27 @@ class TrivialAnkiBridge(AnkiBridge):
 
     async def get_deck_names(self) -> list[str]:
         return await super().get_deck_names()
+
+    async def get_stats(self, lookback_days: int = 7) -> dict[str, Any]:
+        return await super().get_stats(lookback_days)
+
+    async def get_card_stats(self, nids: list[int]) -> list[dict[str, Any]]:
+        return await super().get_card_stats(nids)
+
+    async def suspend_cards(self, cids: list[int]) -> bool:
+        return await super().suspend_cards(cids)
+
+    async def unsuspend_cards(self, cids: list[int]) -> bool:
+        return await super().unsuspend_cards(cids)
+
+    async def get_model_styling(self, model_name: str) -> str:
+        return await super().get_model_styling(model_name)
+
+    async def get_model_templates(self, model_name: str) -> dict[str, Any]:
+        return await super().get_model_templates(model_name)
+
+    async def get_learning_insights(self, lookback_days: int = 30) -> str:
+        return "No insights"
 
     async def get_notes_in_deck(self, deck_name: str) -> dict[str, int]:
         return await super().get_notes_in_deck(deck_name)

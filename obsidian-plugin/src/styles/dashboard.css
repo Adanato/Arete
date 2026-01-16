@@ -1,31 +1,53 @@
-/* O2A Plugin Styles */
+/* Dashboard Styles */
 
-/* Modal Container */
-.o2a-modal {
-	padding: 1rem;
+.arete-dashboard-container {
+	background: var(--background-primary);
 }
 
-.o2a-modal h2 {
-	border-bottom: 2px solid var(--background-modifier-border);
-	padding-bottom: 0.5rem;
-	margin-bottom: 1rem;
+.arete-dashboard-header {
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.arete-header-stats span {
+	font-weight: 500;
+}
+
+.arete-tab-bar {
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
+	overflow-x: auto;
 }
 
-/* File Name Display */
-.o2a-filename {
-	background-color: var(--background-primary-alt);
-	padding: 0.2rem 0.6rem;
-	border-radius: 4px;
-	font-family: var(--font-monospace);
-	font-size: 0.9em;
+.arete-tab-btn {
+	transition: all 0.2s ease;
+}
+
+.arete-tab-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arete-tab-btn.is-active {
+	background: var(--background-modifier-hover);
+}
+
+.arete-leech-table th {
+	padding: 8px;
+	border-bottom: 2px solid var(--background-modifier-border);
 	color: var(--text-muted);
+	font-size: 0.8em;
+	text-transform: uppercase;
 }
 
-/* Success State */
-.o2a-success {
+.arete-leech-table td {
+	font-size: 0.9em;
+}
+
+.arete-leech-table tr:hover {
+	background: var(--background-primary-alt);
+}
+
+.arete-success {
 	color: var(--color-green);
 	display: flex;
 	align-items: center;
@@ -34,7 +56,7 @@
 	font-size: 1.2em;
 }
 
-.o2a-stats {
+.arete-stats {
 	background-color: var(--background-primary-alt);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
@@ -43,26 +65,25 @@
 	margin: 0;
 }
 
-.o2a-stats li {
+.arete-stats li {
 	display: flex;
 	justify-content: space-between;
 	padding: 0.5rem 0;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.o2a-stats li:last-child {
+.arete-stats li:last-child {
 	border-bottom: none;
 }
 
-.o2a-stats-label {
+.arete-stats-label {
 	color: var(--text-muted);
 }
-.o2a-stats-val {
+.arete-stats-val {
 	font-weight: bold;
 }
 
-/* Error State */
-.o2a-error {
+.arete-error {
 	color: var(--color-red);
 	display: flex;
 	align-items: center;
@@ -71,7 +92,7 @@
 	font-size: 1.2em;
 }
 
-.o2a-error-table {
+.arete-error-table {
 	width: 100%;
 	border-collapse: collapse;
 	margin-bottom: 1rem;
@@ -81,7 +102,7 @@
 	overflow: hidden;
 }
 
-.o2a-error-table th {
+.arete-error-table th {
 	text-align: left;
 	padding: 0.8rem;
 	background-color: var(--background-secondary-alt);
@@ -89,25 +110,25 @@
 	font-weight: 600;
 }
 
-.o2a-error-table td {
+.arete-error-table td {
 	padding: 0.8rem;
 	border-top: 1px solid var(--background-modifier-border);
 	vertical-align: top;
 }
 
-.o2a-error-line {
+.arete-error-line {
 	font-family: var(--font-monospace);
 	color: var(--text-accent);
 	font-weight: bold;
 	width: 60px;
 }
 
-.o2a-err-msg {
+.arete-err-msg {
 	color: var(--text-error);
 	line-height: 1.4;
 }
 
-.o2a-hint {
+.arete-hint {
 	margin-top: 1rem;
 	padding: 0.8rem;
 	background-color: var(--background-secondary);

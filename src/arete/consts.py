@@ -4,7 +4,7 @@ import re
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*", re.DOTALL)
 CURRENT_TEMPLATE_VERSION = 1  # strict
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Image patterns
 WIKILINK_IMG_RE = re.compile(r"!\[\[([^\]]+)\]\]")  # ![[path|...]]

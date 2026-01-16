@@ -14,7 +14,7 @@ def test_sync_update_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete):
     md_file = tmp_path / "update_test.md"
     content_v1 = f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     Front: Original Front
@@ -68,7 +68,7 @@ def test_sync_healing_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete)
     md_file = tmp_path / "heal_test.md"
     content = f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     Front: Healing Candidate
@@ -141,7 +141,7 @@ def test_sync_media_flow(tmp_path, anki_url, setup_anki, anki_media_dir, test_de
     print("DEBUG: listing:", list(media_dir.iterdir()))
     content = f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     Front: Image Test
@@ -191,7 +191,7 @@ def test_sync_prune_flow(tmp_path, anki_url, setup_anki, test_deck, run_arete):
     md_file1.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     model: O2A_Basic
@@ -208,7 +208,7 @@ cards:
     md_file2.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: null
     model: O2A_Basic

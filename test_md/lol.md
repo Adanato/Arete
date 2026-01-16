@@ -6,7 +6,7 @@ tags:
 - list
 - mathjax
 markdown: true
-"anki_template_version": 1
+arete: true
 cards:
 - Front: |-
     List rendering test (unordered + ordered, nested, inline + block math).

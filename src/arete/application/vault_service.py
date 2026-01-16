@@ -60,19 +60,23 @@ class VaultService:
         if not meta or "__yaml_error__" in meta:
             return (False, 0, "no_or_bad_yaml", None)
 
+        is_explicit_arete = meta.get("arete") is True
         v = meta.get("anki_template_version") or meta.get("anki_plugin_version")
-        try:
-            v = int(str(v).strip().strip('"').strip("'"))
-        except Exception:
-            return (False, 0, "bad_template_version", None)
 
-        if v != CURRENT_TEMPLATE_VERSION:
-            return (
-                False,
-                0,
-                f"wrong_template_version_got_{v}_expected_{CURRENT_TEMPLATE_VERSION}",
-                None,
-            )
+        if not is_explicit_arete:
+            # Legacy check
+            try:
+                v = int(str(v).strip().strip('"').strip("'"))
+            except Exception:
+                return (False, 0, "bad_template_version", None)
+
+            if v != CURRENT_TEMPLATE_VERSION:
+                return (
+                    False,
+                    0,
+                    f"wrong_template_version_got_{v}_expected_{CURRENT_TEMPLATE_VERSION}",
+                    None,
+                )
 
         cards = meta.get("cards", [])
         if not isinstance(cards, list) or not cards:

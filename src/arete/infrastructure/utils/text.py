@@ -46,6 +46,8 @@ def convert_math_to_tex_delimiters(text: str) -> str:
 
 
 def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
+    # Handle potential BOM (Byte Order Mark)
+    md_text = md_text.lstrip("\ufeff")
     m = FRONTMATTER_RE.match(md_text)
     if not m:
         return {}, md_text
@@ -105,8 +107,17 @@ def validate_frontmatter(md_text: str) -> dict[str, Any]:
     Parses frontmatter but raises detailed exceptions on failure.
     Returns the metadata dict if successful.
     """
+    # Handle potential BOM (Byte Order Mark)
+    md_text = md_text.lstrip("\ufeff")
     m = FRONTMATTER_RE.match(md_text)
     if not m:
+        # Detect unclosed frontmatter
+        if md_text.startswith("---"):
+            err = yaml.scanner.ScannerError(
+                problem="Unclosed YAML frontmatter. Found starting '---' but no closing '---'.",
+                problem_mark=yaml.error.Mark("name", 0, 1, -1, "", 0),
+            )
+            raise err
         return {}
 
     # Calculate offset lines (how many newlines before the content starts)
@@ -173,7 +184,20 @@ def apply_fixes(md_text: str) -> str:
     Attempts to fix common frontmatter issues safely.
     1. Tabs -> Spaces
     2. Missing 'cards' list
+    3. Skip leading empty blocks (requested: 'skip empty --- bruh')
+    4. Indentation for nid/cid (ensure not at 0)
+    5. Template tags ({{title}} -> "{{title}}")
+    6. LaTeX lines under-indented (starts with \\)
+    7. Quoted backslashes (double quotes -> single quotes)
+    8. nid/cid on same line as field
+    9. Unclosed quotes on mapping fields
     """
+    # a. Robust empty dashes skip at the VERY START
+    md_text = md_text.lstrip()
+    while re.match(r"^---\s*\n(\s*\n)*---\s*\n", md_text):
+        md_text = re.sub(r"^---\s*\n(\s*\n)*---\s*\n", "", md_text, count=1)
+        md_text = md_text.lstrip()
+
     m = FRONTMATTER_RE.match(md_text)
     if not m:
         return md_text
@@ -186,23 +210,151 @@ def apply_fixes(md_text: str) -> str:
         new_fm = new_fm.replace("\t", "  ")
 
     # 2. Fix Missing Cards
-    # Basic heuristic: if 'deck' or 'model' exists but 'cards' does not.
-    # checking for "cards:" substring is simple but effective for now.
     has_deck_or_model = "deck:" in new_fm or "model:" in new_fm
     has_cards = "cards:" in new_fm
 
     if has_deck_or_model and not has_cards:
-        # Append cards list at the end of frontmatter
         if not new_fm.endswith("\n"):
             new_fm += "\n"
         new_fm += "cards: []\n"
 
-    # Reconstruct
+    # 3. Fix Template Tags ({{title}} -> "{{title}}")
+    new_fm = re.sub(r"(:\s*)\{\{(.*?)\}\}", r'\1"{{\2}}"', new_fm)
+
+    # 4. Same-line metadata (Active Recall case)
+    # If we see "content  nid: '123'", split it.
+    new_fm = re.sub(r"([^\n])\s+(nid|cid):", r"\1\n  \2:", new_fm)
+
+    # 5. Modernize Quoted Fields (Groups.md case)
+    # If a field starts with a quote but doesn't end with one on the same line,
+    # or if it contains multiple lines, convert to a block scalar |- for safety.
+    lines = new_fm.split("\n")
+    fixed_lines = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # Match Key: 'content or - Key: 'content
+        m_q = re.match(r'^(\s*(?:-\s*)?[A-Za-z]+:\s*([\'"]))(.*)$', line)
+        if m_q and i < len(lines):
+            prefix, quote, content = m_q.groups()
+            # If the quote is unclosed OR it's a known problematic LaTeX field
+            # and it doesn't end neatly on this line...
+            if not content.strip().endswith(quote) or ("\\" in content and len(content) > 50):
+                # We have a multiline/problematic quoted field! Convert to |-
+                key_prefix = prefix[: prefix.find(":") + 1]
+                fixed_lines.append(f"{key_prefix} |-")
+
+                # Push the first line's content (strip the opening quote)
+                first_content = content.strip().lstrip(quote)
+                if first_content:
+                    # If it ends with the quote, strip it and stop here
+                    if first_content.endswith(quote):
+                        fixed_lines.append(f"    {first_content[:-1]}")
+                        i += 1
+                        continue
+                    fixed_lines.append(f"    {first_content}")
+
+                # Consume subsequent lines
+                i += 1
+                while i < len(lines):
+                    next_line = lines[i]
+                    # SAFETY: If we hit metadata (nid/cid), stop consuming!
+                    if re.match(r"^\s*(nid|cid):", next_line):
+                        # Don't increment i, let the outer loop handle it
+                        break
+
+                    # If this line ends with the closing quote, strip it and stop
+                    if next_line.strip().endswith(quote):
+                        last_content = next_line.strip()[:-1]
+                        if last_content:
+                            fixed_lines.append(f"    {last_content}")
+                        i += 1  # Successfully consumed the closing quote line
+                        break
+
+                    fixed_lines.append(f"    {next_line.strip()}")
+                    i += 1
+                continue
+
+        fixed_lines.append(line)
+        i += 1
+    new_fm = "\n".join([line for line in fixed_lines if line is not None])
+
+    # 6. Fix nid/cid indentation
+    new_fm = re.sub(r"^[ ]{0,1}(nid|cid):", r"  \1:", new_fm, flags=re.MULTILINE)
+
+    # 7. LaTeX lines under-indented (Groups.md case)
+    new_fm = re.sub(r"^[ ]{0,3}(\\)", r"          \1", new_fm, flags=re.MULTILINE)
+
+    # 8. Convert double quotes to single quotes for strings with backslashes (ura-02 case)
+    # This identifies "..." strings that treat \ as escape, which breaks LaTeX/WikiLinks.
+    # We use a robust regex that handles escaped quotes: "(?:[^"\\]|\\.)*"
+    def quote_fix(match):
+        prefix, content = match.groups()
+        # If the content has backslashes (like LaTeX) but NO unescaped double-quotes
+        # conversion to single quotes is safer as it treats \ literally.
+        # But if it HAS double quotes (likely escaped), we must leave it as is or fix differently.
+        # Check for unescaped double quotes inside content
+        if "\\" in content and '"' not in content:
+            return f"{prefix}'{content}'"
+        return match.group(0)
+
+    new_fm = re.sub(r'(\s*-\s*|\s*[A-Za-z]+:\s*)"((?:[^"\\]|\\.)*)"', quote_fix, new_fm)
+
+    # 9. Fix invalid block scalar start (common math error: Back: | '...)
+    new_fm = re.sub(r'(\|[-+]?)\s*([\'"])', r"\2", new_fm)
+
     if new_fm != original_fm:
-        # Replace only the captured group content
-        # We need to preserve the surrounding --- markers which are in group 0 but not 1
-        # Actually FRONTMATTER_RE includes the markers in the full match, group 1 is just content.
-        # So we replace the range of group 1.
+        start, end = m.span(1)
+        md_text = md_text[:start] + new_fm + md_text[end:]
+
+    return md_text
+
+
+def fix_mathjax_escapes(md_text: str) -> str:
+    """
+    Finds double-quoted strings in frontmatter that contain common MathJax
+    escapes like \\in or \\mathbb and ensures they are double-escaped so
+    PyYAML can parse them. This allows us to migrate broken files to |- blocks.
+    """
+    m = FRONTMATTER_RE.match(md_text)
+    if not m:
+        return md_text
+
+    original_fm = m.group(1)
+    # Simple heuristic for YAML 1.2 double-quote escapes: 0 abt nr vf e " / \ L P _
+    valid_escapes = '0abtnrvfe"/\\ '
+
+    def fix_line(line: str) -> str:
+        # Match lines that look like key: "..." or - key: "..."
+        # We use a regex to find the content between the first and last quote.
+        import re
+
+        match = re.search(r'^(\s*(?:-\s*)?[^:]+:\s*)"(.*)"\s*$', line)
+        if match:
+            prefix, val = match.groups()
+            new_val = ""
+            i = 0
+            while i < len(val):
+                if val[i] == "\\":
+                    # Check if it's a valid escape sequence (like \n or \\)
+                    if i + 1 < len(val) and val[i + 1] in valid_escapes:
+                        new_val += "\\" + val[i + 1]
+                        i += 2
+                    else:
+                        # Broken escape (like \i or \{). Escape the backslash.
+                        new_val += "\\\\"
+                        i += 1
+                else:
+                    new_val += val[i]
+                    i += 1
+            return f'{prefix}"{new_val}"'
+        return line
+
+    lines = original_fm.split("\n")
+    fixed_lines = [fix_line(line) for line in lines]
+    new_fm = "\n".join(fixed_lines)
+
+    if new_fm != original_fm:
         start, end = m.span(1)
         return md_text[:start] + new_fm + md_text[end:]
 

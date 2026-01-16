@@ -28,6 +28,12 @@ export interface AretePluginSettings {
 	// Execution Mode
 	execution_mode: 'cli' | 'server';
 	server_port: number;
+	server_reload: boolean;
+
+	// AI Agent Integration
+	ai_api_key: string;
+	ai_provider: 'openai' | 'gemini' | 'anthropic';
+	project_root: string;
 }
 
 export const DEFAULT_SETTINGS: AretePluginSettings = {
@@ -59,4 +65,10 @@ export const DEFAULT_SETTINGS: AretePluginSettings = {
 	// Execution Mode
 	execution_mode: 'cli',
 	server_port: 8777,
+	server_reload: false,
+
+	// AI Agent Integration
+	ai_api_key: '',
+	ai_provider: 'openai',
+	project_root: '',
 };

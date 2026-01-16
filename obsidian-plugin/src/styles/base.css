@@ -1,0 +1,37 @@
+/* Arete Plugin Styles - Variables & Base */
+
+:root {
+	--arete-card-bg: var(--background-primary);
+	--arete-card-border: var(--background-modifier-border);
+	--arete-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+	--arete-shadow-hover: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+	--arete-radius: 8px;
+	--arete-accent: var(--interactive-accent);
+	--arete-muted: var(--text-muted);
+}
+
+.arete-hidden {
+	display: none;
+}
+
+.arete-modal {
+	padding: 1rem;
+}
+
+.arete-modal h2 {
+	border-bottom: 2px solid var(--background-modifier-border);
+	padding-bottom: 0.5rem;
+	margin-bottom: 1rem;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.arete-filename {
+	background-color: var(--background-primary-alt);
+	padding: 0.2rem 0.6rem;
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-muted);
+}

@@ -39,6 +39,10 @@ describe('CheckService', () => {
 			last_sync_time: null,
 			execution_mode: 'cli',
 			server_port: 8777,
+			ai_api_key: '',
+			ai_provider: 'openai',
+			project_root: '',
+			server_reload: false,
 		};
 
 		service = new CheckService(app, plugin);

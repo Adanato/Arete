@@ -53,7 +53,7 @@ def test_vault_scan_no_deck(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\n---\n")
 
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
@@ -64,7 +64,7 @@ def test_vault_scan_cards_not_list(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: 'not_list'\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: 'not_list'\ndeck: D\n---\n")
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
     assert len(files) == 0
@@ -72,7 +72,7 @@ def test_vault_scan_cards_not_list(tmp_path, cache):
 
 def test_vault_apply_updates_read_fail(tmp_path, cache):
     f = tmp_path / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
     update = UpdateItem(
         ok=True, error=None, source_file=f, source_index=1, new_nid="123", new_cid="456"
     )
@@ -95,10 +95,10 @@ def test_vault_cache_hit(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
     cache.get_file_meta.return_value = {
-        "anki_template_version": 1,
+        "arete": True,
         "cards": [{"Front": "f"}],
         "deck": "D",
     }
@@ -112,7 +112,7 @@ def test_vault_cache_exception(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
     cache.get_file_meta.side_effect = Exception("DB Fail")
     service = VaultService(vault, cache)
@@ -124,7 +124,7 @@ def test_vault_cache_corrupted(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
     # Return a truthy object that fails .get()
     cache.get_file_meta.return_value = "Not a dict"
@@ -138,7 +138,7 @@ def test_vault_sets_cache(tmp_path, cache):
     vault = tmp_path / "vault"
     vault.mkdir()
     f = vault / "test.md"
-    f.write_text("---\nanki_template_version: 1\ncards: [{Front: f}]\ndeck: D\n---\n")
+    f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
@@ -159,7 +159,7 @@ def test_vault_scan_bad_yaml_content(tmp_path, cache):
 def test_vault_apply_updates_success(tmp_path, cache):
     f = tmp_path / "test.md"
     f.write_text(
-        "---\nanki_template_version: 1\ncards:\n  - Front: f\n    nid: ''\n    cid: ''\ndeck: D\n---\nBody"
+        "---\narete: true\ncards:\n  - Front: f\n    nid: ''\n    cid: ''\ndeck: D\n---\nBody"
     )
 
     update = UpdateItem(

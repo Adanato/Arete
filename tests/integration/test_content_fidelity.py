@@ -8,7 +8,7 @@ def test_complex_markdown(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     md_file = tmp_path / "complex.md"
     content = f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - Front: Math Test
     Back: |

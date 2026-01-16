@@ -6,9 +6,6 @@ from arete.application.config import AppConfig
 from arete.application.parser import MarkdownParser
 from arete.application.pipeline import RunStats, run_pipeline
 from arete.application.vault_service import VaultService
-from arete.domain.interfaces import AnkiBridge
-from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
-from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 from arete.infrastructure.persistence.cache import ContentCache
 from arete.infrastructure.utils.logging import setup_logging
 
@@ -50,30 +47,9 @@ async def execute_sync(config: AppConfig) -> RunStats:
     )
 
     # Anki Adapter Selection
-    anki_bridge: AnkiBridge
+    from arete.infrastructure.adapters.factory import get_anki_bridge
 
-    # 1. Manual selection
-    if config.backend == "ankiconnect":
-        anki_bridge = AnkiConnectAdapter(url=config.anki_connect_url)
-        if not await anki_bridge.is_responsive():
-            logger.warning(
-                "AnkiConnect selected but not responsive. "
-                "Ensure Anki is running with AnkiConnect installed."
-            )
-    elif config.backend == "direct":
-        anki_bridge = AnkiDirectAdapter(
-            anki_base=config.anki_base,
-        )
-    else:  # auto
-        ac = AnkiConnectAdapter(url=config.anki_connect_url)
-        if await ac.is_responsive():
-            logger.info("AnkiConnect detected and responsive. Using AnkiConnect backend.")
-            anki_bridge = ac
-        else:
-            logger.info("AnkiConnect not responsive. Falling back to Anki Direct (DB).")
-            anki_bridge = AnkiDirectAdapter(
-                anki_base=config.anki_base,
-            )
+    anki_bridge = await get_anki_bridge(config)
 
     # Execute
     stats = await run_pipeline(config, logger, run_id, vault_service, parser, anki_bridge, cache)

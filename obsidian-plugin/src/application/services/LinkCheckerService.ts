@@ -1,10 +1,12 @@
 import { App, TFile } from 'obsidian';
+import AretePlugin from '@/main';
 
 export interface BrokenReference {
 	sourceFile: TFile;
 	linkText: string;
 	linkPath: string; // The resolved path we tried to find
 	type: 'link' | 'image' | 'invalid-yaml';
+	errorMessage?: string; // Detailed error from CLI
 	position: {
 		start: { line: number; col: number; offset: number };
 		end: { line: number; col: number; offset: number };
@@ -13,9 +15,11 @@ export interface BrokenReference {
 
 export class LinkCheckerService {
 	app: App;
+	plugin: AretePlugin;
 
-	constructor(app: App) {
+	constructor(app: App, plugin: AretePlugin) {
 		this.app = app;
+		this.plugin = plugin;
 	}
 
 	/**
@@ -26,7 +30,7 @@ export class LinkCheckerService {
 		const allBroken: BrokenReference[] = [];
 
 		for (const file of targetFiles) {
-			// 1. Check Links & Embeds
+			// 1. Check Links & Embeds (Images Only)
 			const brokenRefs = this.getBrokenReferences(file);
 			allBroken.push(...brokenRefs);
 
@@ -53,6 +57,7 @@ export class LinkCheckerService {
 			// 1. Deep Scan YAML Cards (User Request: "Only report inside the card list")
 			const cards = cache.frontmatter.cards;
 			cards.forEach((card: any, idx: number) => {
+				if (!card) return; // Skip null cards
 				// Fields to check: Front, Back, Text, Extra
 				const fields = [
 					card.Front,
@@ -75,6 +80,8 @@ export class LinkCheckerService {
 			// 2. Standard Body Scan (Only if NOT a YAML card file)
 
 			// Check Links
+			// Check Links (DISABLED per user request - only check images)
+			/*
 			if (cache.links) {
 				for (const link of cache.links) {
 					const dest = this.app.metadataCache.getFirstLinkpathDest(link.link, file.path);
@@ -89,19 +96,35 @@ export class LinkCheckerService {
 					}
 				}
 			}
+			*/
 
 			// Check Embeds (Images, Transclusions)
 			if (cache.embeds) {
 				for (const embed of cache.embeds) {
 					const dest = this.app.metadataCache.getFirstLinkpathDest(embed.link, file.path);
 					if (!dest) {
-						broken.push({
-							sourceFile: file,
-							linkText: embed.original,
-							linkPath: embed.link,
-							type: 'image', // simplified type, could be note embed too
-							position: embed.position,
-						});
+						// STRICT CHECK: Only report if it has a known image extension
+						const imageExtensions = [
+							'.png',
+							'.jpg',
+							'.jpeg',
+							'.gif',
+							'.bmp',
+							'.svg',
+							'.webp',
+						];
+						const lower = embed.link.toLowerCase();
+						const hasImageExt = imageExtensions.some((ext) => lower.endsWith(ext));
+
+						if (hasImageExt) {
+							broken.push({
+								sourceFile: file,
+								linkText: embed.original,
+								linkPath: embed.link,
+								type: 'image',
+								position: embed.position,
+							});
+						}
 					}
 				}
 			}
@@ -128,13 +151,17 @@ export class LinkCheckerService {
 			const dest = this.app.metadataCache.getFirstLinkpathDest(linkPath, file.path);
 
 			if (!dest) {
-				brokenList.push({
-					sourceFile: file,
-					linkText: `${context}: ${original}`, // Add context since we lack line numbers
-					linkPath: linkPath,
-					type: isEmbed ? 'image' : 'link',
-					position: null, // Cannot determining exact line in YAML easily
-				});
+				// Frontmatter Context: Report ALL broken embeds, regardless of extension.
+				// User wants "important embeds" in Cards to be flagged.
+				if (isEmbed) {
+					brokenList.push({
+						sourceFile: file,
+						linkText: `${context}: ${original}`, // Add context since we lack line numbers
+						linkPath: linkPath,
+						type: 'image',
+						position: null,
+					});
+				}
 			}
 		}
 	}
@@ -146,20 +173,54 @@ export class LinkCheckerService {
 		if (cache && cache.frontmatter) return null;
 
 		// If no frontmatter in cache, check if file actually HAS valid-looking YAML start
-		// Only read file if cache implies no frontmatter to save IO?
-		// Actually cache is always loaded in memory but file content might be read.
-		// Obsidian API: valid frontmatter means `cache.frontmatter` exists.
-
 		const content = await this.app.vault.read(file);
 		const trimmed = content.trimStart();
+
+		// Check for empty frontmatter explicitly (e.g. --- followed directly by ---, or just whitespace)
+		if (/^---\s*\n\s*---/.test(trimmed)) {
+			return {
+				sourceFile: file,
+				linkText: 'EMPTY YAML',
+				linkPath: 'Frontmatter',
+				type: 'invalid-yaml',
+				errorMessage: 'Empty Frontmatter. Please add content or remove the block.',
+				position: null,
+			};
+		}
+
 		if (trimmed.startsWith('---\n') || trimmed.startsWith('---\r\n')) {
 			// File has YAML block start, but cache didn't parse it -> Invalid!
+
+			// Attempt to get detailed reason from CLI
+			let reason = 'Obsidian failed to parse frontmatter.';
+			try {
+				let fullPath = file.path;
+				const adapter = this.app.vault.adapter;
+				if ('getBasePath' in adapter) {
+					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+					// @ts-ignore
+					const basePath = adapter.getBasePath();
+					fullPath = `${basePath}/${file.path}`;
+				}
+
+				const checkRes = await this.plugin.checkService.getCheckResult(fullPath);
+				if (!checkRes.ok && checkRes.errors && checkRes.errors.length > 0) {
+					// Use the first error as the summary
+					const firstErr = checkRes.errors[0];
+					reason = `Line ${firstErr.line}: ${firstErr.message}`;
+				}
+			} catch (e: any) {
+				console.error('Failed to run detailed check', e);
+				reason = `Check Failed: ${e.message || e}`;
+			}
+
 			return {
 				sourceFile: file,
 				linkText: 'INVALID YAML',
 				linkPath: 'Frontmatter',
 				type: 'invalid-yaml',
-				position: null, // Info not available from cache failure
+				errorMessage: reason,
+				position: null,
 			};
 		}
 		return null;

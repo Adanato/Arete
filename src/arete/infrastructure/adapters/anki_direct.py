@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from anki.decks import DeckId
-    from anki.notes import NoteId
+    pass
 
 from arete.domain.interfaces import AnkiBridge
-from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
+from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 from arete.infrastructure.anki.repository import AnkiRepository
 
 
@@ -184,4 +183,242 @@ class AnkiDirectAdapter(AnkiBridge):
                     if did is not None:
                         repo.col.decks.remove([did])
                 return True
+        return False
+
+    async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
+        import re
+
+        from arete.application.stats_service import LearningStats, NoteInsight
+
+        total_cards = 0
+        problematic_notes = []
+
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return LearningStats(total_cards=0)
+
+            # 1. Get all card IDs
+            cids = repo.col.find_cards("")
+            total_cards = len(cids)
+
+            # 2. Iterate cards to find lapses
+            # We can use find_notes to get notes with cards having lapses >= threshold
+            # But lapses are on cards, not notes.
+            # Efficiently find cards with lapses >= threshold
+            troublesome_cids = repo.col.find_cards(f"prop:lapses>={lapse_threshold}")
+
+            # Map NIDs to max lapses
+            nid_to_lapses = {}
+            for cid in troublesome_cids:
+                card = repo.col.get_card(cid)
+                nid = card.nid
+                nid_to_lapses[nid] = max(nid_to_lapses.get(nid, 0), card.lapses)
+
+            # 3. Process notes
+            for nid, lapses in nid_to_lapses.items():
+                note = repo.col.get_note(nid)
+                model = note.note_type()
+                if not model:
+                    continue
+
+                fields = {f["name"]: note.fields[i] for i, f in enumerate(model["flds"])}
+
+                note_name = "Unknown"
+                if "_obsidian_source" in fields:
+                    note_name = fields["_obsidian_source"]
+                elif fields:
+                    note_name = list(fields.values())[0]
+
+                # Strip HTML
+                note_name = re.sub("<[^<]+?>", "", note_name).strip()
+
+                problematic_notes.append(
+                    NoteInsight(
+                        note_name=note_name,
+                        issue=f"{lapses} lapses",
+                        lapses=lapses,
+                        deck=model["name"],
+                    )
+                )
+
+        # Sort and limit
+        problematic_notes.sort(key=lambda x: x.lapses, reverse=True)
+
+        return LearningStats(total_cards=total_cards, problematic_notes=problematic_notes[:5])
+
+    async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
+        """
+        Direct DB implementation of fetching card stats.
+        """
+        stats_list = []
+        if not nids:
+            return []
+
+        # We probably want to chunk this if nids is huge, but start simple.
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return []
+
+            for nid in nids:
+                try:
+                    # A note can have multiple cards
+                    # We need to find cards for this note.
+                    # Use col.find_cards(f"nid:{nid}")
+                    cids = repo.col.find_cards(f"nid:{nid}")
+
+                    for cid in cids:
+                        card = repo.col.get_card(cid)
+                        deck = repo.col.decks.get(card.did)
+                        deck_name = deck["name"] if deck else "Unknown"
+
+                        # Retrieve difficulty from FSRS memory state if available?
+                        # Anki's python library usually exposes FSRS data if v3 scheduler is on?
+                        # card.memory_state (v3) might have it.
+                        difficulty = None
+                        if hasattr(card, "memory_state") and card.memory_state:
+                            # FSRS memory state: stability, difficulty, etc.
+                            # But access might be opaque. check attributes.
+                            # Actually, standard Anki (recent versions) stores custom_data
+                            # or memory_state
+                            # memory_state.difficulty is 1-10 normally
+                            if hasattr(card.memory_state, "difficulty"):
+                                difficulty = card.memory_state.difficulty / 10.0  # Normalize to 0-1
+
+                        try:
+                            note = repo.col.get_note(card.nid)
+                            front = note.fields[0]  # Approximated front
+                        except Exception:
+                            front = None
+
+                        stats_list.append(
+                            AnkiCardStats(
+                                card_id=card.id,
+                                note_id=card.nid,
+                                lapses=card.lapses,
+                                ease=card.factor,
+                                difficulty=difficulty,
+                                deck_name=deck_name,
+                                interval=card.ivl,
+                                due=card.due,
+                                reps=card.reps,
+                                average_time=0,  # Not easily available?
+                                front=front,
+                            )
+                        )
+                except Exception as e:
+                    self.logger.warning(f"Failed to fetch stats for nid={nid}: {e}")
+
+        return stats_list
+
+    async def suspend_cards(self, cids: list[int]) -> bool:
+        """Suspend cards via Direct DB (queue=-1)."""
+        if not cids:
+            return True
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return False
+            try:
+                repo.col.sched.suspend_cards(cids)
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to suspend cards: {e}")
+                return False
+
+    async def unsuspend_cards(self, cids: list[int]) -> bool:
+        """Unsuspend cards via Direct DB."""
+        if not cids:
+            return True
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return False
+            try:
+                repo.col.sched.unsuspend_cards(cids)
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to unsuspend cards: {e}")
+                return False
+
+    async def get_model_styling(self, model_name: str) -> str:
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return ""
+            model = repo.col.models.by_name(model_name)
+            if not model:
+                return ""
+            return model.get("css", "")
+
+    async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
+        """
+        Return { "Card 1": {"Front": "...", "Back": "..."} }
+        """
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return {}
+            model = repo.col.models.by_name(model_name)
+            if not model:
+                return {}
+
+            result = {}
+            for tmpl in model["tmpls"]:
+                result[tmpl["name"]] = {"Front": tmpl.get("qfmt", ""), "Back": tmpl.get("afmt", "")}
+            return result
+    async def gui_browse(self, query: str) -> bool:
+        """
+        Open the Anki browser.
+        Launches Anki first, waits 3s, then uses AnkiConnect to apply the search query.
+        """
+        import asyncio
+        import os
+        import subprocess
+        import sys
+        import urllib.parse
+
+        import httpx
+
+        # Suppress httpx logging for this operation
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+
+        async def _try_ankiconnect():
+            try:
+                async with httpx.AsyncClient() as client:
+                    payload = {"action": "guiBrowse", "version": 6, "params": {"query": query}}
+                    # Very short timeout for polling
+                    resp = await client.post("http://localhost:8765", json=payload, timeout=0.5)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        return not data.get("error")
+            except Exception:
+                pass
+            return False
+
+        # 1. ALWAYS launch/bring Anki to front first
+        try:
+            if sys.platform == "darwin":
+                # User requested simple launch
+                subprocess.run(
+                    ["open", "-a", "Anki"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif sys.platform == "win32":
+                uri = f"anki://x-callback-url/search?query={urllib.parse.quote(query)}"
+                os.startfile(uri)
+            else:
+                uri = f"anki://x-callback-url/search?query={urllib.parse.quote(query)}"
+                subprocess.run(["xdg-open", uri], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        # 2. Wait 1 second per user request to allow Anki to settle
+        await asyncio.sleep(1.0)
+
+        # 3. Poll AnkiConnect to finish the job (Type into search bar)
+        for i in range(40):  # 20s total polling
+            if await _try_ankiconnect():
+                if i > 0:
+                    self.logger.debug(f"AnkiConnect ready after {i*0.5}s of polling")
+                return True
+            await asyncio.sleep(0.5)
+
+        self.logger.error("Anki launched but search query could not be applied via AnkiConnect.")
         return False

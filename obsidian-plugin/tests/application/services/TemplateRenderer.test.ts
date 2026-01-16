@@ -1,22 +1,20 @@
 import { TemplateRenderer } from '@/application/services/TemplateRenderer';
-import { AnkiConnectRepository } from '@/infrastructure/anki/AnkiConnectRepository';
+import { AreteClient } from '@/infrastructure/arete/AreteClient';
 import { App, MarkdownRenderer } from 'obsidian';
 
-jest.mock('@/infrastructure/anki/AnkiConnectRepository');
+jest.mock('@/infrastructure/arete/AreteClient');
 
 describe('TemplateRenderer', () => {
 	let renderer: TemplateRenderer;
 	let mockApp: App;
-	let mockRepo: jest.Mocked<AnkiConnectRepository>;
+	let mockRepo: jest.Mocked<AreteClient>;
 
 	beforeEach(() => {
 		mockApp = new (jest.requireMock('obsidian').App)() as App;
-		mockRepo = new AnkiConnectRepository(
-			'http://localhost:8765',
-		) as jest.Mocked<AnkiConnectRepository>;
+		mockRepo = new AreteClient('http://localhost:8765') as jest.Mocked<AreteClient>;
 
 		// Setup default mocks for repo
-		(AnkiConnectRepository as jest.Mock).mockImplementation(() => mockRepo);
+		(AreteClient as jest.Mock).mockImplementation(() => mockRepo);
 		mockRepo.modelStyling.mockResolvedValue('.card { color: black; }');
 		// Return a nested structure as expected now
 		mockRepo.modelTemplates.mockResolvedValue({
@@ -26,7 +24,7 @@ describe('TemplateRenderer', () => {
 			},
 		});
 
-		renderer = new TemplateRenderer(mockApp, 'http://localhost:8765');
+		renderer = new TemplateRenderer(mockApp, mockRepo);
 	});
 
 	it('should use MarkdownRenderer in obsidian mode', async () => {

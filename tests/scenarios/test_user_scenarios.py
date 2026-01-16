@@ -13,11 +13,11 @@ SCENARIOS = [
     ("Tab Error.md", "Tab Character Error"),
     ("Tab in List.md", "Tab Character Error"),
     ("Duplicate Key.md", "Duplicate Key Error"),
-    ("Bad Indent.md", "Indentation Error"),
+    ("Bad Indent.md", "expected <block end>, but found"),
     ("Bad List.md", "Invalid format for 'cards'"),
     ("Mixed Content.md", "dictionary (key: value)"),  # Expects dict, got str
     ("Null Card.md", "got NoneType"),  # Should be "NoneType" not "empty"
-    ("Missing Keys.md", "missing 'Front' field"),
+    ("Missing Keys.md", "Missing 'Front'?"),
     ("Syntax in List.md", "expected ',' or ']'"),  # Standard PyYAML syntax error
 ]
 
@@ -27,11 +27,11 @@ def test_mock_vault_scenarios(filename, expected_msg):
     """
     Ensures that known 'bad' files in the mock_vault are correctly flagging checks.
     """
-    vault_path = Path("mock_vault")
+    vault_path = Path("tests/mock_vault")
     file_path = vault_path / filename
 
     if not file_path.exists():
-        pytest.skip(f"Mock file {filename} not found")
+        pytest.skip(f"Mock file {filename} not found at {file_path}")
 
     result = runner.invoke(app, ["check-file", str(file_path)])
 

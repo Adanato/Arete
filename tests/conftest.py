@@ -35,7 +35,7 @@ sys.modules["anki.notes"] = mock_notes
 sys.modules["anki.models"] = mock_models
 sys.modules["anki.errors"] = mock_errors
 
-import pytest
+import pytest  # noqa: E402
 
 
 @pytest.fixture

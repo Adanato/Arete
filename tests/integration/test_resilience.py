@@ -9,7 +9,7 @@ def test_invalid_model(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - model: NonExistentModelXYZ
     Front: Should Fail

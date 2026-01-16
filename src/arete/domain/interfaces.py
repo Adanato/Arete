@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
-from .models import AnkiDeck, UpdateItem, WorkItem
+from .models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 
 
 class AnkiBridge(ABC):
@@ -60,4 +61,27 @@ class AnkiBridge(ABC):
     @abstractmethod
     async def delete_decks(self, names: list[str]) -> bool:
         """Permanently delete specified decks (and their notes) from Anki."""
+        pass
+
+    @abstractmethod
+    async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
+        """
+        Fetch learning statistics and identify problematic notes.
+        Returns a LearningStats-compatible object or data.
+        """
+        pass
+
+    @abstractmethod
+    async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
+        """
+        Fetch detailed statistics for a list of Note IDs.
+        Used by the dashboard to show lapses, difficulty, etc.
+        """
+        pass
+
+    @abstractmethod
+    async def gui_browse(self, query: str) -> bool:
+        """
+        Open the Anki browser with the specified search query.
+        """
         pass

@@ -17,7 +17,7 @@ def test_list_reordering(tmp_path, anki_url, setup_anki, run_arete, test_deck):
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - Front: Card A
     Back: Back A
@@ -77,7 +77,7 @@ cards:
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - nid: {nid_b}
     Front: Card B

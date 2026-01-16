@@ -1,15 +1,14 @@
 import aqt
-import aqt.editor
 import aqt.browser.previewer
-from aqt import gui_hooks
-from aqt.qt import QDialog, Qt, QKeySequence, QShortcut
-from aqt.utils import disable_help_button, restoreGeom, saveGeom, tooltip
-from anki.errors import NotFoundError
+import aqt.editor
 from anki.consts import QUEUE_TYPE_SUSPENDED
+from anki.errors import NotFoundError
 from anki.utils import ids2str
+from aqt import gui_hooks
+from aqt.qt import QDialog, QKeySequence, QShortcut, Qt
+from aqt.utils import disable_help_button, restoreGeom, saveGeom, tooltip
 
 from . import anki_version
-
 
 # Edit dialog. Like Edit Current, but:
 #   * has a Preview button to preview the cards for the note
@@ -183,7 +182,7 @@ class Edit(aqt.editcurrent.EditCurrent):
     dialog_registry_tag = DOMAIN_PREFIX + "Edit"
     dialog_search_tag = DOMAIN_PREFIX + "edit.history"
 
-    # depending on whether the dialog already exists, 
+    # depending on whether the dialog already exists,
     # upon a request to open the dialog via `aqt.dialogs.open()`,
     # the manager will call either the constructor or the `reopen` method
     def __init__(self, note):
@@ -271,7 +270,7 @@ class Edit(aqt.editcurrent.EditCurrent):
         self.editor.card = cards[0] if cards else None
 
         if any(is_card_suspended(card) for card in cards):
-            tooltip("Some of the cards associated with this note " 
+            tooltip("Some of the cards associated with this note "
                     "have been suspended", parent=self)
 
     def reload_notes_after_user_action_elsewhere(self):
@@ -357,7 +356,7 @@ class Edit(aqt.editcurrent.EditCurrent):
         if anki_version < (2, 1, 50):
             editor._links = editor._links.copy()
             editor.web.eval("""
-                $editorToolbar.then(({notetypeButtons}) => 
+                $editorToolbar.then(({notetypeButtons}) =>
                     notetypeButtons.appendButton(
                         {component: editorToolbar.PreviewButton, id: 'preview'}
                     )
@@ -396,10 +395,10 @@ class Edit(aqt.editcurrent.EditCurrent):
 
         def add(cmd, function, label, tip, keys):
             button_html = editor.addButton(
-                icon=None, 
-                cmd=DOMAIN_PREFIX + cmd, 
+                icon=None,
+                cmd=DOMAIN_PREFIX + cmd,
                 id=DOMAIN_PREFIX + cmd,
-                func=function, 
+                func=function,
                 label=f"&nbsp;&nbsp;{label}&nbsp;&nbsp;",
                 tip=f"{tip} ({keys})",
                 keys=keys,

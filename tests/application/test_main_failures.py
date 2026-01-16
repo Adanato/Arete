@@ -36,7 +36,7 @@ async def test_run_sync_logic_failure_exit():
         mock_run.return_value = mock_stats
 
         # We also need to mock AnkiConnectAdapter / AnkiApyAdapter construction to avoid network calls
-        with patch("arete.main.AnkiConnectAdapter") as mock_adapter:
+        with patch("arete.infrastructure.adapters.factory.AnkiConnectAdapter") as mock_adapter:
             mock_instance = mock_adapter.return_value
             mock_instance.is_responsive = AsyncMock(return_value=True)
 

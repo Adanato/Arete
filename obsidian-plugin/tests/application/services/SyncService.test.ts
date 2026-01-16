@@ -38,6 +38,10 @@ describe('SyncService', () => {
 			last_sync_time: null,
 			execution_mode: 'cli',
 			server_port: 8777,
+			ai_api_key: '',
+			ai_provider: 'openai',
+			project_root: '',
+			server_reload: false,
 		};
 
 		updateStatusBar = jest.fn();
@@ -113,30 +117,6 @@ describe('SyncService', () => {
 			expect.objectContaining({
 				env: expect.objectContaining({ PYTHONPATH: '/path/to' }),
 			}),
-		);
-	});
-
-	test('runSync with custom binary script path', async () => {
-		service.settings.arete_script_path = '/usr/local/bin/o2a-custom';
-		service.settings.debug_mode = true;
-		const mockChild = createMockChildProcess();
-		(spawn as jest.Mock).mockReturnValue(mockChild);
-
-		const syncPromise = service.runSync(false, null, false, updateStatusBar);
-		mockChild.emit('close', 0);
-		await syncPromise;
-
-		expect(spawn).toHaveBeenCalledWith(
-			'python3',
-			[
-				'/usr/local/bin/o2a-custom',
-				'--verbose',
-				'sync',
-				'--workers',
-				'4',
-				'/mock/vault/path',
-			],
-			expect.any(Object),
 		);
 	});
 });

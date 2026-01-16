@@ -14,9 +14,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import json
-import jsonschema
 import select
 import socket
+
+import jsonschema
 
 from . import util
 
@@ -39,8 +40,8 @@ class WebClient:
     def __init__(self, sock, handler):
         self.sock = sock
         self.handler = handler
-        self.readBuff = bytes()
-        self.writeBuff = bytes()
+        self.readBuff = b''
+        self.writeBuff = b''
 
 
     def advance(self, recvSize=1024):
@@ -54,7 +55,7 @@ class WebClient:
             while True:
                 try:
                     msg = self.sock.recv(recvSize)
-                except (ConnectionResetError, socket.timeout):
+                except (TimeoutError, ConnectionResetError):
                     self.close()
                     return False
                 if not msg:
@@ -88,29 +89,29 @@ class WebClient:
             self.sock.close()
             self.sock = None
 
-        self.readBuff = bytes()
-        self.writeBuff = bytes()
+        self.readBuff = b''
+        self.writeBuff = b''
 
 
     def parseRequest(self, data):
-        parts = data.split('\r\n\r\n'.encode('utf-8'), 1)
+        parts = data.split(b'\r\n\r\n', 1)
         if len(parts) == 1:
             return None, 0
 
-        lines = parts[0].split('\r\n'.encode('utf-8'))
+        lines = parts[0].split(b'\r\n')
         method = None
 
         if len(lines) > 0:
-            request_line_parts = lines[0].split(' '.encode('utf-8'))
+            request_line_parts = lines[0].split(b' ')
             method = request_line_parts[0].upper() if len(request_line_parts) > 0 else None
 
         headers = {}
         for line in lines[1:]:
-            pair = line.split(': '.encode('utf-8'))
+            pair = line.split(b': ')
             headers[pair[0].lower()] = pair[1] if len(pair) > 1 else None
 
         headerLength = len(parts[0]) + 4
-        bodyLength = int(headers.get('content-length'.encode('utf-8'), 0))
+        bodyLength = int(headers.get(b'content-length', 0))
         totalLength = headerLength + bodyLength
 
         if totalLength > len(data):
@@ -165,7 +166,7 @@ class WebServer:
         allowed, corsOrigin = self.allowOrigin(req)
 
         if req.method == b'OPTIONS':
-            body = ''.encode('utf-8')
+            body = b''
             headers = self.buildHeaders(corsOrigin, body)
 
             if b'access-control-request-private-network' in req.headers and (
@@ -175,7 +176,7 @@ class WebServer:
                 headers.append(['Access-Control-Allow-Private-Network', 'true'])
 
             return self.buildResponse(headers, body)
-    
+
         try:
             params = json.loads(req.body.decode('utf-8'))
             jsonschema.validate(params, request_schema)
@@ -198,7 +199,7 @@ class WebServer:
                 params['params']['origin'] = b'origin' in req.headers and req.headers[b'origin'].decode() or ''
                 if not allowed :
                     corsOrigin = params['params']['origin']
-                        
+
             body = json.dumps(self.handler(params)).encode('utf-8')
             headers = self.buildHeaders(corsOrigin, body)
         else :
@@ -207,7 +208,7 @@ class WebServer:
                 ['Access-Control-Allow-Origin', corsOrigin],
                 ['Access-Control-Allow-Headers', '*']
             ]
-            body = ''.encode('utf-8')
+            body = b''
 
         return self.buildResponse(headers, body)
 
@@ -224,7 +225,7 @@ class WebServer:
         allowed = False
         corsOrigin = 'http://localhost'
         allowAllCors = '*' in webCorsOriginList  # allow CORS for all domains
-        
+
         if allowAllCors:
             corsOrigin = '*'
             allowed = True
@@ -233,7 +234,7 @@ class WebServer:
             if originStr in webCorsOriginList :
                 corsOrigin = originStr
                 allowed = True
-            elif 'http://localhost' in webCorsOriginList and ( 
+            elif 'http://localhost' in webCorsOriginList and (
             originStr == 'http://127.0.0.1' or originStr == 'https://127.0.0.1' or # allow 127.0.0.1 if localhost allowed
             originStr.startswith('http://127.0.0.1:') or originStr.startswith('http://127.0.0.1:') or
             originStr.startswith('chrome-extension://') or originStr.startswith('moz-extension://') or originStr.startswith('safari-web-extension://') ) : # allow chrome, firefox and safari extension if localhost allowed
@@ -241,9 +242,9 @@ class WebServer:
                 allowed = True
         else:
             allowed = True
-        
+
         return allowed, corsOrigin
-    
+
 
     def buildHeaders(self, corsOrigin, body):
         return [
@@ -256,14 +257,14 @@ class WebServer:
 
 
     def buildResponse(self, headers, body):
-        resp = bytes()
+        resp = b''
         for key, value in headers:
             if value is None:
-                resp += '{}\r\n'.format(key).encode('utf-8')
+                resp += f'{key}\r\n'.encode()
             else:
-                resp += '{}: {}\r\n'.format(key, value).encode('utf-8')
+                resp += f'{key}: {value}\r\n'.encode()
 
-        resp += '\r\n'.encode('utf-8')
+        resp += b'\r\n'
         resp += body
         return resp
 

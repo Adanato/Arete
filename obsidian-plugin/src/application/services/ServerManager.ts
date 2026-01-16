@@ -15,37 +15,60 @@ export class ServerManager {
 		this.manifest = manifest;
 	}
 
-	async start() {
+	private startPromise: Promise<void> | null = null;
+
+	async start(forceRestart = false) {
 		if (this.settings.execution_mode !== 'server') return;
 
-		// 1. Check if already running
-		const isRunning = await this.checkHealth();
-		if (isRunning) {
-			console.log('[Arete] Server already running.');
-			new Notice('Arete Server connected.');
-			return;
+		if (this.startPromise && !forceRestart) {
+			return this.startPromise;
 		}
 
-		// 2. Start Server
-		new Notice('Starting Arete Server...');
-		try {
-			this.spawnServer();
-
-			// 3. Wait for startup
-			let attempts = 0;
-			while (attempts < 10) {
-				await new Promise((r) => setTimeout(r, 1000));
-				if (await this.checkHealth()) {
-					new Notice('Arete Server started successfully!');
+		this.startPromise = (async () => {
+			// 1. Check if already running
+			const isRunning = await this.checkHealth();
+			if (isRunning) {
+				if (!forceRestart) {
+					console.log('[Arete] Server already running.');
+					// No Notice here to avoid noise
 					return;
 				}
-				attempts++;
+				console.log('[Arete] Force restarting server...');
+				await this.stop();
+				await new Promise((r) => setTimeout(r, 1000));
 			}
-			new Notice('Failed to connect to Arete Server after spawning.');
-		} catch (e) {
-			console.error(e);
-			new Notice('Failed to spawn Arete Server.');
-		}
+
+			// 2. Start Server
+			new Notice('Starting Arete Server...');
+			try {
+				this.spawnServer();
+
+				// 3. Wait for startup
+				let attempts = 0;
+				const maxAttempts = 15;
+				while (attempts < maxAttempts) {
+					await new Promise((r) => setTimeout(r, 1000));
+					if (await this.checkHealth()) {
+						console.log('[Arete] Server is ready.');
+						new Notice('Arete Server started successfully!');
+						return;
+					}
+					attempts++;
+					if (attempts % 5 === 0) {
+						console.log(
+							`[Arete] Still waiting for server... (${attempts}/${maxAttempts})`,
+						);
+					}
+				}
+				console.error('[Arete] Server failed to respond to health check.');
+				new Notice('Failed to connect to Arete Server after spawning.');
+			} catch (e) {
+				console.error(e);
+				new Notice('Failed to spawn Arete Server.');
+			}
+		})();
+
+		return this.startPromise;
 	}
 
 	async stop() {
@@ -69,6 +92,10 @@ export class ServerManager {
 		}
 	}
 
+	async restart() {
+		await this.start(true);
+	}
+
 	private async checkHealth(): Promise<boolean> {
 		const port = this.settings.server_port || 8777;
 		try {
@@ -83,52 +110,61 @@ export class ServerManager {
 	}
 
 	private spawnServer() {
-		// Reuse logic from SyncService but simplified
-		// We know exactly what to run: `arete server`
-		const python = this.settings.python_path || 'python3';
+		const pythonSetting = this.settings.python_path || 'python3';
 		const scriptPath = this.settings.arete_script_path || '';
+		const projectRoot = this.settings.project_root || '';
 
-		const args = [];
+		const parts = pythonSetting.split(' ');
+		const cmd = parts[0];
+		const args = parts.slice(1);
 		const env = Object.assign({}, process.env);
 
-		// Derive PYTHONPATH if using script
+		// 1. Resolve executable and initial args
 		if (scriptPath && scriptPath.endsWith('.py')) {
 			const scriptDir = path.dirname(scriptPath);
 			const packageRoot = path.dirname(scriptDir);
 			env['PYTHONPATH'] = packageRoot;
 			args.push('-m', 'arete');
 		} else {
-			// Binary or module default
-			args.push('-m', 'arete');
+			// Check if we need to add '-m arete'
+			// If args already contains 'arete' or '-m', skip
+			const hasArete = args.some((a) => a.toLowerCase().includes('arete'));
+			const hasModule = args.includes('-m');
+			if (!hasArete && !hasModule) {
+				args.push('-m', 'arete');
+			}
+		}
+
+		if (this.settings.server_reload) {
+			args.push('--reload');
 		}
 
 		args.push('server', '--port', (this.settings.server_port || 8777).toString());
 
-		// We probably want to detach it so it survives?
-		// Or keep it attached so we can kill it?
-		// Let's keep it attached but unref so it doesn't block Obsidian?
-		// Actually, Obsidian is Electron, spawn works fine.
+		console.log(`[Arete] Spawning server: ${cmd} ${args.join(' ')}`);
 
-		// Use 'uv' if not configured?
-		// User likely configured 'uv' in python_path or alias?
-		// If python_path is 'python3', assuming 'python3 -m arete' works.
-
-		console.log(`[Arete] Spawning server: ${python} ${args.join(' ')}`);
-
-		// TODO: Handle user-defined CWD properly
 		const vaultConfig = this.app.vault.adapter as any;
-		const cwd = vaultConfig.getBasePath ? vaultConfig.getBasePath() : process.cwd();
+		const vaultPath = vaultConfig.getBasePath ? vaultConfig.getBasePath() : process.cwd();
+		const cwd = projectRoot || vaultPath;
 
-		this.serverProcess = spawn(python, args, {
+		this.serverProcess = spawn(cmd, args, {
 			cwd: cwd,
 			env: env,
-			stdio: 'ignore', // Don't pipe stdio to avoid buffer issues, or maybe pipe to log file later
+			stdio: ['ignore', 'pipe', 'pipe'], // Pipe stdout and stderr to debug
+		});
+
+		this.serverProcess.stdout?.on('data', (data) => {
+			console.log(`[Arete Server] ${data.toString().trim()}`);
+		});
+
+		this.serverProcess.stderr?.on('data', (data) => {
+			console.error(`[Arete Server Error] ${data.toString().trim()}`);
 		});
 
 		this.serverProcess.on('error', (err) => {
 			console.error('[Arete] Server spawn error:', err);
 		});
 
-		this.serverProcess.unref(); // Allow Obsidian to close without waiting for this
+		this.serverProcess.unref();
 	}
 }

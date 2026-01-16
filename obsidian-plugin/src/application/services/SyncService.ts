@@ -1,4 +1,4 @@
-import { App, FileSystemAdapter, Notice } from 'obsidian';
+import { App, FileSystemAdapter, Notice, requestUrl } from 'obsidian';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import { AretePluginSettings } from '@domain/settings';
@@ -36,7 +36,7 @@ export class SyncService {
 		force: boolean,
 		updateStatusBar: (state: 'idle' | 'syncing' | 'error' | 'success', msg?: string) => void,
 	) {
-		const { requestUrl, Notice } = require('obsidian'); // Lazy load or assume global if needed, but better to import at top.
+		// const { requestUrl, Notice } = require('obsidian'); // Replaced by top-level import
 
 		updateStatusBar('syncing');
 		new Notice(targetPath ? 'Syncing file via Server...' : 'Starting sync via Server...');
@@ -136,12 +136,14 @@ export class SyncService {
 		log(`\n\n=== STARTING NEW SYNC RUN ===`);
 		log(`Vault: ${vaultPath}`);
 
-		const python = this.settings.python_path || 'python3';
+		const pythonSetting = this.settings.python_path || 'python3';
 		const scriptPath = this.settings.arete_script_path || '';
+		const projectRoot = this.settings.project_root || '';
 
-		const cmd = python;
-		const args = [];
-		const env = Object.assign({}, process.env); // Copy env
+		const parts = pythonSetting.split(' ');
+		const cmd = parts[0];
+		const args = parts.slice(1);
+		const env = Object.assign({}, process.env);
 
 		if (scriptPath && scriptPath.endsWith('.py')) {
 			log(`Trace: Detected .py script: ${scriptPath}`);
@@ -149,35 +151,21 @@ export class SyncService {
 			const packageRoot = path.dirname(scriptDir);
 			log(`Trace: Derived package root (PYTHONPATH): ${packageRoot}`);
 			env['PYTHONPATH'] = packageRoot;
-
-			args.push('-m');
-			args.push('arete');
-
-			if (this.settings.debug_mode) {
-				args.push('--verbose');
-			}
-
-			args.push('sync');
-		} else if (scriptPath) {
-			log(`Trace: Using custom script/binary: ${scriptPath}`);
-			args.push(scriptPath);
-
-			if (this.settings.debug_mode) {
-				args.push('--verbose');
-			}
-
-			args.push('sync');
+			args.push('-m', 'arete');
 		} else {
-			log(`Trace: No script path provided. Defaulting to 'python -m arete'`);
-			args.push('-m');
-			args.push('arete');
-
-			if (this.settings.debug_mode) {
-				args.push('--verbose');
+			// Check if we need to add '-m arete'
+			const hasArete = args.some((a) => a.toLowerCase().includes('arete'));
+			const hasModule = args.includes('-m');
+			if (!hasArete && !hasModule) {
+				args.push('-m', 'arete');
 			}
-
-			args.push('sync');
 		}
+
+		if (this.settings.debug_mode) {
+			args.push('--verbose');
+		}
+
+		args.push('sync');
 
 		if (prune) {
 			args.push('--prune');
@@ -217,8 +205,9 @@ export class SyncService {
 		log(`Spawning: ${cmd} ${args.join(' ')}`);
 
 		try {
+			const runCwd = projectRoot || vaultPath;
 			const child = spawn(cmd, args, {
-				cwd: vaultPath,
+				cwd: runCwd,
 				env: env,
 			});
 

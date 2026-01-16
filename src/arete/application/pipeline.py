@@ -8,7 +8,7 @@ from typing import Any
 try:
     from tqdm import tqdm  # type: ignore
 except ImportError:
-    pass
+    tqdm = None
 
 from arete.application.config import AppConfig
 from arete.application.parser import MarkdownParser
@@ -130,7 +130,7 @@ async def run_pipeline(
 
     producer_tasks = [asyncio.create_task(bounded_producer(p, meta)) for (p, meta) in compatible]
 
-    if use_tqdm:
+    if use_tqdm and tqdm:
         with tqdm(total=len(producer_tasks), desc="Processing", unit="file") as pbar:
             for coro in asyncio.as_completed(producer_tasks):
                 await coro

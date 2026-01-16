@@ -1,5 +1,5 @@
-import { App, FileSystemAdapter, Notice } from 'obsidian';
-import { spawn } from 'child_process';
+import { App, Notice } from 'obsidian';
+import { spawn, exec } from 'child_process';
 import * as path from 'path';
 import { AretePluginSettings } from '@domain/settings';
 import { CheckResultModal } from '@presentation/modals/CheckResultModal';
@@ -16,14 +16,48 @@ export class CheckService {
 		this.settings = plugin.settings;
 	}
 
-	async runCheck(filePath: string) {
-		new Notice('Checking file...');
-		const python = this.settings.python_path || 'python3';
+	private getPythonCommand(): { cmd: string; args: string[] } {
+		const raw = this.settings.python_path || 'python3';
+		const parts = raw.split(' ').filter((p) => p.trim() !== '');
+		return {
+			cmd: parts[0],
+			args: parts.slice(1),
+		};
+	}
+
+	private getEnv(cwd?: string) {
+		const env = Object.assign({}, process.env);
+		// Auto-detect 'src' folder in project root to fix PYTHONPATH
+		if (cwd) {
+			const srcPath = path.join(cwd, 'src');
+			const currentPath = env['PYTHONPATH'] || '';
+			env['PYTHONPATH'] = currentPath ? `${currentPath}:${srcPath}` : srcPath;
+		}
+
+		// Fix PATH on macOS for GUI apps (Obsidian often lacks .local/bin)
+		if (process.platform === 'darwin' && process.env.HOME) {
+			const home = process.env.HOME;
+			const extraPaths = [
+				path.join(home, '.local', 'bin'),
+				path.join(home, '.cargo', 'bin'),
+				'/opt/homebrew/bin',
+				'/usr/local/bin',
+			];
+			const currentPath = env['PATH'] || '';
+			env['PATH'] = `${currentPath}:${extraPaths.join(':')}`;
+		}
+
+		return env;
+	}
+
+	async getCheckResult(filePath: string): Promise<any> {
 		const scriptPath = this.settings.arete_script_path || '';
 
-		const cmd = python;
-		const args = [];
-		const env = Object.assign({}, process.env);
+		const { cmd, args: initialArgs } = this.getPythonCommand();
+		const args = [...initialArgs];
+
+		const cwd = this.settings.project_root || undefined;
+		const env = this.getEnv(cwd);
 
 		if (scriptPath && scriptPath.endsWith('.py')) {
 			const scriptDir = path.dirname(scriptPath);
@@ -41,8 +75,9 @@ export class CheckService {
 		args.push(filePath);
 		args.push('--json');
 
-		try {
-			const child = spawn(cmd, args, { env: env });
+		return new Promise((resolve, reject) => {
+			// CRITICAL: Set cwd to project root so 'uv run' finds pyproject.toml
+			const child = spawn(cmd, args, { env: env, cwd: cwd });
 			let stdout = '';
 			let stderr = '';
 
@@ -52,18 +87,42 @@ export class CheckService {
 			child.on('close', (code) => {
 				try {
 					const res = JSON.parse(stdout);
-					// NOTE: CheckResultModal needs plugin instance to run fix commands.
-					// Ideally we decouple this further, but for now passing plugin is fine.
-					new CheckResultModal(this.app, this.plugin, res, filePath).open();
+					resolve(res);
 				} catch (e) {
 					console.error('Failed to parse check output', stdout);
-					new Notice('Check failed. See console.');
+					console.error('Stderr:', stderr);
+
+					// Fallback: Try to extract JSON from stdout (in case of log spew)
+					try {
+						const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+						if (jsonMatch) {
+							const res = JSON.parse(jsonMatch[0]);
+							resolve(res);
+							return;
+						}
+					} catch (e2) {
+						// Fallback failed
+					}
+
+					const preview = stdout.trim().substring(0, 200);
+					const errPreview = stderr.trim().substring(0, 200);
+					reject(new Error(`Parse Error. Stdout: "${preview}" Stderr: "${errPreview}"`));
 				}
 			});
 
 			child.on('error', (err) => {
-				new Notice(`Error: ${err.message}`);
+				reject(err);
 			});
+		});
+	}
+
+	async runCheck(filePath: string) {
+		new Notice('Checking file...');
+		try {
+			const res = await this.getCheckResult(filePath);
+			// NOTE: CheckResultModal needs plugin instance to run fix commands.
+			// Ideally we decouple this further, but for now passing plugin is fine.
+			new CheckResultModal(this.app, this.plugin, res, filePath).open();
 		} catch (e: any) {
 			new Notice(`Error: ${e.message}`);
 		}
@@ -71,30 +130,27 @@ export class CheckService {
 
 	async runFix(filePath: string): Promise<void> {
 		const settings = this.settings;
-		const pythonPath = settings.python_path || 'python3';
 		const scriptPath = settings.arete_script_path;
 
-		let cmd = '';
-		let args: string[] = [];
+		const { cmd, args: initialArgs } = this.getPythonCommand();
+		const args = [...initialArgs];
 
-		if (scriptPath && scriptPath.endsWith('.py')) {
-			const scriptDir = path.dirname(settings.arete_script_path);
-			cmd = pythonPath;
-			args = ['-m', 'arete', 'fix-file', filePath];
-		} else {
-			cmd = pythonPath;
-			args = ['-m', 'arete', 'fix-file', filePath];
-		}
+		const cwd = this.settings.project_root || undefined;
+		const env = this.getEnv(cwd);
 
-		const env = Object.assign({}, process.env);
 		if (scriptPath && scriptPath.endsWith('.py')) {
 			const scriptDir = path.dirname(scriptPath);
 			const packageRoot = path.dirname(scriptDir);
 			env['PYTHONPATH'] = packageRoot;
 		}
 
+		args.push('-m');
+		args.push('arete');
+		args.push('fix-file');
+		args.push(filePath);
+
 		return new Promise((resolve) => {
-			const child = spawn(cmd, args, { env: env });
+			const child = spawn(cmd, args, { env: env, cwd: cwd });
 
 			child.on('close', (code) => {
 				if (code === 0) {
@@ -109,23 +165,30 @@ export class CheckService {
 
 	async testConfig() {
 		new Notice('Testing configuration...');
-		const python = this.settings.python_path || 'python3';
 
-		try {
-			const child = spawn(python, ['--version']);
-			child.on('close', (code) => {
-				if (code === 0) {
-					new Notice(`Success: Python found.`);
-				} else {
-					new Notice(`Error: Python command failed.`);
-				}
-			});
-			child.on('error', (err) => {
-				new Notice(`Error: Invalid Python Path. ${err.message}`);
-			});
-		} catch (e: any) {
-			new Notice(`Error: ${e.message}`);
+		const rawSettings = this.settings.python_path;
+		const cwd = this.settings.project_root || undefined;
+		const env = this.getEnv(cwd);
+
+		if (!rawSettings) {
+			new Notice('Error: Python Executable setting is empty.');
+			return;
 		}
+
+		// Use exec to let the shell handle argument parsing
+		// We need to carefully quote the python command
+		// If rawSettings is "uv run python", we append the -c command
+		const cmd = `${rawSettings} -c "import arete; print('Arete module found')"`;
+
+		exec(cmd, { cwd: cwd, env: env }, (error: any, stdout: string, stderr: string) => {
+			if (error) {
+				console.error('Test Config Failed:', error);
+				const msg = stderr || stdout || error.message;
+				new Notice(`Error: Command failed. ${msg.substring(0, 200)}`);
+			} else {
+				new Notice(`Success: Python found & Arete module available.`);
+			}
+		});
 	}
 
 	async checkVaultIntegrity() {

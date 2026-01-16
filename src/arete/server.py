@@ -121,6 +121,101 @@ async def trigger_sync(req: SyncRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+class CardsRequest(BaseModel):
+    cids: list[int]
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+
+
+@app.post("/anki/cards/suspend")
+async def suspend_cards(req: CardsRequest):
+    """Suspend cards by Card IDs."""
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        return {"ok": await anki.suspend_cards(req.cids)}
+    except Exception as e:
+        logger.error(f"Suspend failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/anki/cards/unsuspend")
+async def unsuspend_cards(req: CardsRequest):
+    """Unsuspend cards by Card IDs."""
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        return {"ok": await anki.unsuspend_cards(req.cids)}
+    except Exception as e:
+        logger.error(f"Unsuspend failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/anki/models/{name}/styling")
+async def get_model_styling(
+    name: str,
+    backend: str | None = None,
+    anki_connect_url: str | None = None,
+    anki_base: str | None = None,
+):
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": backend,
+            "anki_connect_url": anki_connect_url,
+            "anki_base": anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        css = await anki.get_model_styling(name)
+        return {"css": css}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/anki/models/{name}/templates")
+async def get_model_templates(
+    name: str,
+    backend: str | None = None,
+    anki_connect_url: str | None = None,
+    anki_base: str | None = None,
+):
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": backend,
+            "anki_connect_url": anki_connect_url,
+            "anki_base": anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        templates = await anki.get_model_templates(name)
+        return templates
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.post("/shutdown")
 async def shutdown_server():
     """
@@ -141,3 +236,128 @@ async def shutdown_server():
 
     threading.Thread(target=kill).start()
     return {"message": "Server shutting down..."}
+
+
+@app.post("/agent/chat")
+async def agent_chat(req: dict):
+    # Using Any for req to avoid complex Pydantic import issues if they arise
+    # but we'll import the real class inside for type safety.
+    from arete.agent import AgentChatRequest, BasicChatInputSchema, create_arete_agent
+
+    # Validate manually for now to keep it flexible
+    logger.info(f"Agent chat raw request: {req}")
+    try:
+        data = req if isinstance(req, dict) else req.dict()
+        chat_req = AgentChatRequest(**data)
+    except Exception as e:
+        logger.error(f"Validation failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e}") from None
+
+    logger.info(f"Agent chat request validated: {chat_req.message}")
+
+    try:
+        agent = create_arete_agent(chat_req.api_key, chat_req.provider)
+
+        # Pass 1: Initial user query
+        response = agent.run(BasicChatInputSchema(chat_message=chat_req.message))
+
+        message = response.chat_message
+        action_desc = response.action_taken
+        suggested_questions = response.suggested_questions
+
+        # Handle tool execution if requested
+        if response.tool_request:
+            from arete.agent import execute_agent_tool
+
+            tool_name = response.tool_request
+            logger.info(f"Agent requested tool: {tool_name}")
+
+            tool_result = await execute_agent_tool(tool_name)
+            action_desc = f"Action: {tool_name} | Result: {tool_result}"
+
+            # Pass 2: Give tool result back to agent so it can summarize/explain
+            # We add a hidden instruction to the agent to summarize the results.
+            follow_up_msg = (
+                f"The tool '{tool_name}' returned the following result:\n{tool_result}\n\n"
+                "Please provide a helpful, conversational summary of these results to the user. "
+                "Highlight what they need to know and identify specific notes "
+                "(using [[wiki link]]) if applicable."
+            )
+
+            # Atomic Agents maintains history in its current session.
+            # We run it again with the follow-up.
+            final_response = agent.run(BasicChatInputSchema(chat_message=follow_up_msg))
+
+            message = final_response.chat_message
+            suggested_questions = final_response.suggested_questions
+
+        return {
+            "chat_message": message,
+            "suggested_questions": suggested_questions,
+            "action_taken": action_desc,
+        }
+    except Exception as e:
+        logger.error(f"Agent failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class StatsRequest(BaseModel):
+    nids: list[int]
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+
+
+@app.post("/anki/stats")
+async def get_stats(req: StatsRequest):
+    """
+    Get stats for a list of Note IDs.
+    Uses the configured backend (Auto/Direct/Connect).
+    """
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        # Pass overrides from request to config
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        # Filter Nones
+        overrides = {k: v for k, v in overrides.items() if v is not None}
+
+        config = resolve_config(overrides)
+        anki = await get_anki_bridge(config)
+        stats = await anki.get_card_stats(req.nids)
+        return stats
+    except Exception as e:
+        logger.error(f"Stats fetch failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+class BrowseRequest(BaseModel):
+    query: str
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+
+
+@app.post("/anki/browse")
+async def browse_anki(req: BrowseRequest):
+    """
+    Open the Anki browser with a query.
+    """
+    from arete.application.config import resolve_config
+    from arete.infrastructure.adapters.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        return {"ok": await anki.gui_browse(req.query)}
+    except Exception as e:
+        logger.error(f"Browse failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e

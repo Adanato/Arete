@@ -1,0 +1,67 @@
+/* Editor Gutter & Highlights */
+
+.arete-card-gutter {
+	width: 32px;
+}
+
+.arete-gutter-spacer {
+	width: 32px;
+}
+
+.arete-gutter-marker {
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-end;
+	width: 100%;
+	height: calc(100% + 1px);
+	margin-bottom: -1px;
+	cursor: pointer;
+	transition: all 0.15s ease-out;
+	position: relative;
+}
+
+.arete-gutter-bar {
+	width: 4px;
+	height: 100%;
+	border-radius: 0;
+	transition: all 0.15s ease-out;
+}
+
+.arete-gutter-stats {
+	white-space: nowrap;
+	overflow: visible;
+	z-index: 100;
+	pointer-events: none;
+	text-shadow: 0 0 2px var(--background-primary);
+}
+
+.arete-gutter-marker.arete-gutter-hover .arete-gutter-bar,
+.arete-gutter-marker:hover .arete-gutter-bar {
+	width: 8px;
+}
+
+/* Card highlight - used for marking active card in main editor */
+.arete-card-highlight {
+	background-color: rgba(255, 165, 0, 0.15) !important;
+}
+
+.arete-skip-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: 12px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: all 0.15s ease-out;
+	margin: 2px;
+}
+
+.arete-skip-button:hover {
+	background: var(--interactive-accent-hover);
+	transform: scale(1.1);
+}

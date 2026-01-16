@@ -63,7 +63,7 @@ def test_cli_init_mock():
 
 def test_cli_check_file(tmp_path):
     f = tmp_path / "test.md"
-    f.write_text("---\nanki_template_version: 1\n---\n")
+    f.write_text("---\narete: true\ndeck: Default\ncards: [{Front: Q}]\n---\n")
 
     result = runner.invoke(app, ["check-file", str(f)])
     assert result.exit_code == 0
@@ -72,7 +72,7 @@ def test_cli_check_file(tmp_path):
 
 def test_cli_check_file_json(tmp_path):
     f = tmp_path / "test.md"
-    f.write_text("---\nanki_template_version: 1\n---\n")
+    f.write_text("---\narete: true\ndeck: Default\ncards: [{Front: Q}]\n---\n")
 
     result = runner.invoke(app, ["check-file", str(f), "--json"])
     assert result.exit_code == 0

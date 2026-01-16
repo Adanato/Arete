@@ -13,7 +13,7 @@ def test_nid_cid_writeback(tmp_path, anki_url, setup_anki, run_arete, test_deck)
     md_file.write_text(
         f"""---
 deck: {test_deck}
-anki_template_version: 1
+arete: true
 cards:
   - Front: Persistence Test
     Back: Persistence Content

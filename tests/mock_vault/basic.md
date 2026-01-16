@@ -1,7 +1,8 @@
 ---
-"anki_template_version": 1
+arete: true
 model: Basic
-deck: Test::Basic
+deck: |-
+  Test::Basic
 cards:
 - Front: What is the capital of France?
   Back: Paris
