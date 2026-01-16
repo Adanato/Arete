@@ -24,9 +24,11 @@ async def get_anki_bridge(config: AppConfig) -> AnkiBridge:
     ac = AnkiConnectAdapter(url=config.anki_connect_url)
     if await ac.is_responsive():
         import sys
+
         print("Backend: AnkiConnect", file=sys.stderr)
         return ac
 
     import sys
+
     print("Backend: AnkiDirect", file=sys.stderr)
     return AnkiDirectAdapter(anki_base=config.anki_base)

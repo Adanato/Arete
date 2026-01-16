@@ -334,6 +334,8 @@ async def get_stats(req: StatsRequest):
     except Exception as e:
         logger.error(f"Stats fetch failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 class BrowseRequest(BaseModel):
     query: str
     backend: str | None = None

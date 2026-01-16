@@ -362,6 +362,7 @@ class AnkiDirectAdapter(AnkiBridge):
             for tmpl in model["tmpls"]:
                 result[tmpl["name"]] = {"Front": tmpl.get("qfmt", ""), "Back": tmpl.get("afmt", "")}
             return result
+
     async def gui_browse(self, query: str) -> bool:
         """
         Open the Anki browser.
@@ -405,7 +406,9 @@ class AnkiDirectAdapter(AnkiBridge):
                 os.startfile(uri)
             else:
                 uri = f"anki://x-callback-url/search?query={urllib.parse.quote(query)}"
-                subprocess.run(["xdg-open", uri], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(
+                    ["xdg-open", uri], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
         except Exception:
             pass
 
@@ -416,7 +419,7 @@ class AnkiDirectAdapter(AnkiBridge):
         for i in range(40):  # 20s total polling
             if await _try_ankiconnect():
                 if i > 0:
-                    self.logger.debug(f"AnkiConnect ready after {i*0.5}s of polling")
+                    self.logger.debug(f"AnkiConnect ready after {i * 0.5}s of polling")
                 return True
             await asyncio.sleep(0.5)
 

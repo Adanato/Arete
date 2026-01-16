@@ -495,6 +495,7 @@ class AnkiConnectAdapter(AnkiBridge):
             return res
         except Exception:
             return {}
+
     async def gui_browse(self, query: str) -> bool:
         """Open the Anki browser via AnkiConnect's guiBrowse action."""
         try:

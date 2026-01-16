@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -16,8 +17,6 @@ app = typer.Typer(
 
 config_app = typer.Typer(help="Manage arete configuration.")
 app.add_typer(config_app, name="config")
-
-import logging
 
 # Configure logging to stderr so stdout remains clean for command results
 logging.basicConfig(
@@ -923,6 +922,8 @@ def model_templates(
         print(json.dumps(temps))
 
     asyncio.run(run())
+
+
 @anki_app.command("browse")
 def anki_browse(
     ctx: typer.Context,

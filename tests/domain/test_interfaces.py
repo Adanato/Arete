@@ -53,6 +53,9 @@ class TrivialAnkiBridge(AnkiBridge):
     async def delete_decks(self, names: list[str]) -> bool:
         return await super().delete_decks(names)
 
+    async def gui_browse(self, query: str) -> bool:
+        return await super().gui_browse(query)
+
 
 @pytest.mark.asyncio
 async def test_anki_bridge_abstract_coverage():
@@ -71,5 +74,6 @@ async def test_anki_bridge_abstract_coverage():
     await bridge.get_notes_in_deck("Default")
     await bridge.delete_notes([])
     await bridge.delete_decks([])
+    await bridge.gui_browse("nid:123")
 
     assert True  # If we got here without crash, coverage is triggered.
