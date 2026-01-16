@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from arete.infrastructure.utils.media import (
+from arete.application.utils.media import (
     _resolve_candidate_paths,
     build_filename_index,
     transform_images_in_text,

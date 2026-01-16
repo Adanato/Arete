@@ -1,4 +1,4 @@
-from arete.infrastructure.utils.text import apply_fixes
+from arete.application.utils.text import apply_fixes
 
 
 def test_fix_tabs():

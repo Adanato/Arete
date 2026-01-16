@@ -2,7 +2,7 @@ import hashlib
 from unittest.mock import MagicMock
 
 from arete.application.parser import MarkdownParser
-from arete.infrastructure.utils.text import make_editor_note
+from arete.application.utils.text import make_editor_note
 
 
 def test_parser_adds_obsidian_source(tmp_path):
@@ -61,7 +61,7 @@ def test_parser_extracts_correct_line_number(tmp_path):
     )
     md_file.write_text(content)
 
-    from arete.infrastructure.utils.text import parse_frontmatter
+    from arete.application.utils.text import parse_frontmatter
 
     meta, _ = parse_frontmatter(content)
 
@@ -91,7 +91,7 @@ def test_parser_ignores_cache_when_forced(tmp_path):
     )
     md_file.write_text(content)
 
-    from arete.infrastructure.utils.text import parse_frontmatter
+    from arete.application.utils.text import parse_frontmatter
 
     meta, _ = parse_frontmatter(content)
 
@@ -153,7 +153,7 @@ def test_parser_uses_posix_paths_for_relative_source(tmp_path):
     content = "---\ndeck: D\ncards:\n- model: Basic\n  Front: Q\n  Back: A\n---"
     md_file.write_text(content)
 
-    from arete.infrastructure.utils.text import parse_frontmatter
+    from arete.application.utils.text import parse_frontmatter
 
     meta, _ = parse_frontmatter(content)
 

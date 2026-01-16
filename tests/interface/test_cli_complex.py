@@ -65,7 +65,7 @@ def test_check_file_split_card_error(tmp_path):
 
 
 # Patch the SOURCE module where iter_markdown_files is defined
-@patch("arete.infrastructure.adapters.fs.iter_markdown_files")
+@patch("arete.application.utils.fs.iter_markdown_files")
 def test_migrate_command(mock_iter, tmp_path):
     f = tmp_path / "legacy.md"
     f.write_text("---\nanki_template_version: 1\n---\n")
@@ -77,7 +77,7 @@ def test_migrate_command(mock_iter, tmp_path):
     assert "arete: true" in f.read_text()
 
 
-@patch("arete.infrastructure.adapters.fs.iter_markdown_files")
+@patch("arete.application.utils.fs.iter_markdown_files")
 def test_migrate_dry_run(mock_iter, tmp_path):
     f = tmp_path / "legacy.md"
     f.write_text("---\nanki_template_version: 1\n---\n")
@@ -89,7 +89,7 @@ def test_migrate_dry_run(mock_iter, tmp_path):
     assert "anki_template_version: 1" in f.read_text()  # Unchanged
 
 
-@patch("arete.infrastructure.adapters.fs.iter_markdown_files")
+@patch("arete.application.utils.fs.iter_markdown_files")
 def test_migrate_skip_no_flag(mock_iter, tmp_path):
     f = tmp_path / "plain.md"
     f.write_text("---\ntitle: Hello\n---\n")
@@ -102,7 +102,7 @@ def test_migrate_skip_no_flag(mock_iter, tmp_path):
     assert "title: Hello" in f.read_text()
 
 
-@patch("arete.infrastructure.adapters.fs.iter_markdown_files")
+@patch("arete.application.utils.fs.iter_markdown_files")
 def test_migrate_auto_heal_split(mock_iter, tmp_path):
     f = tmp_path / "split.md"
     f.write_text("---\narete: true\ncards:\n- Front: Q\n- Back: A\n---\n")

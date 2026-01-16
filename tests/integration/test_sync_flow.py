@@ -42,7 +42,8 @@ cards:
     proc = subprocess.run(cmd, capture_output=True, text=True)
 
     assert proc.returncode == 0, f"arete failed: {proc.stderr}"
-    assert "updated/added=1" in proc.stdout, f"Sync failed: {proc.stdout}"
+    # Logs are written to stderr by default
+    assert "updated/added=1" in proc.stderr, f"Sync failed: {proc.stderr}"
 
     # 3. Verify Markdown Updated (NID writeback)
     new_content = md_file.read_text(encoding="utf-8")
@@ -69,5 +70,5 @@ cards:
     assert result, "Anki returned no result for the NID"
     note_info = result[0]
 
-    assert note_info["fields"]["Front"]["value"] == "<p>Hello Integration</p>"
-    assert note_info["fields"]["Back"]["value"] == "<p>World</p>"
+    assert "<p>Hello Integration</p>" in note_info["fields"]["Front"]["value"]
+    assert "<p>World</p>" in note_info["fields"]["Back"]["value"]

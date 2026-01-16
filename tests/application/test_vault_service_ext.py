@@ -10,7 +10,7 @@ from arete.infrastructure.persistence.cache import ContentCache
 @pytest.fixture
 def cache():
     c = MagicMock(spec=ContentCache)
-    c.get_file_meta.return_value = None
+    c.get_file_meta_by_stat.return_value = None
     return c
 
 
@@ -97,7 +97,7 @@ def test_vault_cache_hit(tmp_path, cache):
     f = vault / "test.md"
     f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
-    cache.get_file_meta.return_value = {
+    cache.get_file_meta_by_stat.return_value = {
         "arete": True,
         "cards": [{"Front": "f"}],
         "deck": "D",
@@ -105,7 +105,7 @@ def test_vault_cache_hit(tmp_path, cache):
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
     assert len(files) == 1
-    cache.get_file_meta.assert_called_once()
+    cache.get_file_meta_by_stat.assert_called_once()
 
 
 def test_vault_cache_exception(tmp_path, cache):
@@ -114,7 +114,7 @@ def test_vault_cache_exception(tmp_path, cache):
     f = vault / "test.md"
     f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
-    cache.get_file_meta.side_effect = Exception("DB Fail")
+    cache.get_file_meta_by_stat.side_effect = Exception("DB Fail")
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
     assert len(files) == 1
@@ -127,7 +127,7 @@ def test_vault_cache_corrupted(tmp_path, cache):
     f.write_text("---\narete: true\ncards: [{Front: f}]\ndeck: D\n---\n")
 
     # Return a truthy object that fails .get()
-    cache.get_file_meta.return_value = "Not a dict"
+    cache.get_file_meta_by_stat.return_value = "Not a dict"
     service = VaultService(vault, cache)
     files = list(service.scan_for_compatible_files())
     # Should fall back to parsing and succeed

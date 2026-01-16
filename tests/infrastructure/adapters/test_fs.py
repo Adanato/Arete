@@ -1,4 +1,4 @@
-from arete.infrastructure.adapters.fs import iter_markdown_files
+from arete.application.utils.fs import iter_markdown_files
 
 
 def test_iter_markdown_files_simple(tmp_path):

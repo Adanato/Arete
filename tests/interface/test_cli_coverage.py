@@ -26,7 +26,7 @@ def test_check_file_yaml_error_context(tmp_path):
     err.problem = "problem"  # type: ignore
     err.context = "context_info"  # type: ignore
 
-    with patch("arete.infrastructure.utils.text.validate_frontmatter", side_effect=err):
+    with patch("arete.application.utils.text.validate_frontmatter", side_effect=err):
         result = runner.invoke(app, ["check-file", str(f)])
         assert result.exit_code == 1
         assert "context_info" in result.stdout
@@ -37,7 +37,7 @@ def test_check_file_generic_exception(tmp_path):
     f.write_text("content")
 
     with patch(
-        "arete.infrastructure.utils.text.validate_frontmatter",
+        "arete.application.utils.text.validate_frontmatter",
         side_effect=Exception("Generic Error"),
     ):
         result = runner.invoke(app, ["check-file", str(f), "--json"])

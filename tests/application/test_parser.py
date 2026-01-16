@@ -122,3 +122,103 @@ def test_parse_missing_fields(parser_fixture, mock_cache):
     notes, skipped, inventory = parser.parse_file(md_file, meta, mock_cache)
     assert len(notes) == 0
     assert len(skipped) == 1
+
+
+def test_parse_hot_cache_hit(parser_fixture):
+    parser, vault = parser_fixture
+    mock_cache = MagicMock()
+    # Mock return value: (hash, json_str)
+    # is_fresh=False must be passed to parse_file
+
+    note_dict = {
+        "model": "Basic",
+        "deck": "Default",
+        "fields": {"Front": "F", "Back": "B"},
+        "tags": [],
+        "start_line": 1,
+        "end_line": 1,
+        "source_file": str(vault / "test.md"),
+        "source_index": 1,
+        "nid": "123",
+        "cid": "456",
+        "content_hash": "hash",
+    }
+    import json
+
+    mock_cache.get_note.return_value = ("hash", json.dumps(note_dict))
+
+    meta = {"cards": [{"model": "Basic"}]}  # Dummy meta, logic skips parsing
+
+    # is_fresh=False
+    notes, skipped, inventory = parser.parse_file(Path("test.md"), meta, mock_cache, is_fresh=False)
+
+    assert len(notes) == 1
+    assert notes[0].nid == "123"
+    assert len(skipped) == 0
+
+
+def test_parse_hot_cache_corruption(parser_fixture):
+    parser, vault = parser_fixture
+    mock_cache = MagicMock()
+    # Return invalid JSON
+    mock_cache.get_note.return_value = ("hash", "{invalid")
+
+    meta = {"cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
+
+    # Should fall back to parsing (which we need valid meta for)
+    # But parse logic needs deck.
+    meta["deck"] = "Default"
+
+    notes, kept, inv = parser.parse_file(vault / "test.md", meta, mock_cache, is_fresh=False)
+    assert len(notes) == 1  # fell back to parsing
+    # Warning logged
+
+
+def test_parse_deep_cache_hit(parser_fixture):
+    parser, vault = parser_fixture
+    mock_cache = MagicMock()
+
+    # parse normally returns "content_hash" for note.
+    # We mock cache.get_hash to return SAME hash.
+    # We need to know what hash will be calculated.
+    # Hash depends on content.
+
+    meta = {"deck": "Default", "cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
+
+    # We rely on cached_hash == content_hash logic
+    # We configure mock_cache.get_hash to return dynamic value?
+    # Or just mock it to return ANY matching string if we can predict it.
+
+    # Easier: Mock make_editor_note or hashlib?
+    # Or just run once to get hash, then run again with mocked cache return.
+
+    # Run 1:
+    notes1, _, _ = parser.parse_file(vault / "test.md", meta, MagicMock())
+    hash1 = notes1[0].content_hash
+
+    # Run 2:
+    mock_cache.get_hash.return_value = hash1
+    notes2, _, _ = parser.parse_file(vault / "test.md", meta, mock_cache)
+
+    assert len(notes2) == 0  # Skipped due to cache hit
+
+
+def test_parse_no_deck_set(parser_fixture):
+    parser, vault = parser_fixture
+    # No deck in global or card
+    meta = {"cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
+    notes, skipped, _ = parser.parse_file(vault / "test.md", meta, MagicMock())
+    assert len(notes) == 0
+    assert len(skipped) == 1
+
+
+def test_parse_cache_save_fail(parser_fixture):
+    parser, vault = parser_fixture
+    mock_cache = MagicMock()
+    mock_cache.set_note.side_effect = Exception("Write Fail")
+
+    meta = {"deck": "Default", "cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
+    notes, _, _ = parser.parse_file(vault / "test.md", meta, mock_cache)
+
+    assert len(notes) == 1
+    # Should catch exception and log warning (assert logic flows)

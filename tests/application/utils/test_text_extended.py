@@ -3,7 +3,7 @@ import yaml
 import yaml.constructor
 import yaml.scanner
 
-from arete.infrastructure.utils.text import (
+from arete.application.utils.text import (
     apply_fixes,
     make_editor_note,
     parse_frontmatter,

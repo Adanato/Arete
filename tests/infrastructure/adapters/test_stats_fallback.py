@@ -124,7 +124,7 @@ def test_server_stats_endpoint():
     ]
 
     with patch(
-        "arete.infrastructure.adapters.factory.get_anki_bridge",
+        "arete.application.factory.get_anki_bridge",
         new=AsyncMock(return_value=mock_bridge),
     ):
         # We also need to patch resolve_config to avoid loading real config
@@ -145,7 +145,7 @@ def test_server_suspend_endpoint():
     mock_bridge.suspend_cards.return_value = True
 
     with patch(
-        "arete.infrastructure.adapters.factory.get_anki_bridge",
+        "arete.application.factory.get_anki_bridge",
         new=AsyncMock(return_value=mock_bridge),
     ):
         with patch(
@@ -174,7 +174,7 @@ def test_server_model_templates_endpoint():
     mock_bridge.get_model_templates.return_value = {"Card 1": {"Front": "F", "Back": "B"}}
 
     with patch(
-        "arete.infrastructure.adapters.factory.get_anki_bridge",
+        "arete.application.factory.get_anki_bridge",
         new=AsyncMock(return_value=mock_bridge),
     ):
         with patch(

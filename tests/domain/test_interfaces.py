@@ -11,6 +11,10 @@ from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
 class TrivialAnkiBridge(AnkiBridge):
     """A concrete implementation of AnkiBridge to trigger coverage of abstract methods."""
 
+    @property
+    def is_sequential(self) -> bool:
+        return False
+
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
         return await super().sync_notes(work_items)
 
@@ -55,6 +59,9 @@ class TrivialAnkiBridge(AnkiBridge):
 
     async def gui_browse(self, query: str) -> bool:
         return await super().gui_browse(query)
+
+    async def close(self):
+        await super().close()
 
 
 @pytest.mark.asyncio

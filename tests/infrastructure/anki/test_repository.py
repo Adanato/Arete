@@ -1,161 +1,202 @@
+import importlib
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from arete.domain.models import AnkiNote
-from arete.infrastructure.anki.repository import AnkiRepository
 
 
-@pytest.fixture
-def mock_col():
-    """Mock the Anki Collection object"""
-    col = MagicMock()
-    col.close = MagicMock()
-    return col
-
-
-@pytest.fixture
-def mock_anki_import():
-    """Ensure Anki module mocks are in place via conftest, but catch any local import issues"""
-    import anki
-
-    return anki
-
-
-@pytest.fixture
-def mock_repo_cls(mock_col):
-    with (
-        patch("arete.infrastructure.anki.repository.Collection", return_value=mock_col),
-        patch.object(
-            AnkiRepository,
-            "_resolve_collection_path",
-            return_value=Path("/tmp/anki/collection.anki2"),
-        ),
+# Fixture to safely patch Anki modules only for this test module context
+@pytest.fixture(scope="module", autouse=True)
+def mock_anki_modules():
+    anki_mock = MagicMock()
+    with patch.dict(
+        sys.modules,
+        {
+            "anki": anki_mock,
+            "anki.collection": MagicMock(),
+            "anki.models": MagicMock(),
+            "anki.decks": MagicMock(),
+            "anki.notes": MagicMock(),
+        },
     ):
+        # We must reload the repository module to ensure it picks up the mocks
+        if "arete.infrastructure.anki.repository" in sys.modules:
+            importlib.reload(sys.modules["arete.infrastructure.anki.repository"])
         yield
 
-
-def test_repo_context_manager(mock_col, mock_repo_cls):
-    with AnkiRepository(Path("/tmp/anki")) as repo:
-        assert repo.col is mock_col
-    mock_col.close.assert_called()
+    # After tests, we should reload the real module if possible, or remove it so it's re-imported cleanly
+    if "arete.infrastructure.anki.repository" in sys.modules:
+        importlib.reload(sys.modules["arete.infrastructure.anki.repository"])
 
 
-def test_add_note(mock_col, mock_repo_cls):
-    # Setup
+from arete.infrastructure.anki.repository import AnkiRepository  # noqa: E402
+
+
+@pytest.fixture
+def repo(tmp_path):
+    repo = AnkiRepository(base_path=tmp_path)
+    return repo
+
+
+def test_init_raises():
+    with pytest.raises(ValueError):
+        AnkiRepository(base_path=None)
+
+
+def test_resolve_collection_path_profile_set(repo, tmp_path):
+    (tmp_path / "prefs21.db").touch()
+    repo.profile_name = "User1"
+    path = repo._resolve_collection_path()
+    assert path == tmp_path / "User1" / "collection.anki2"
+
+
+def test_resolve_collection_path_auto(repo, tmp_path):
+    prefs = tmp_path / "prefs21.db"
+    prefs.touch()
+
+    with patch("sqlite3.connect") as mock_conn:
+        mock_cursor = mock_conn.return_value.execute.return_value
+        import pickle
+
+        data = pickle.dumps({"last_loaded_profile_name": "AutoUser"})
+        mock_cursor.fetchone.return_value = [data]
+
+        path = repo._resolve_collection_path()
+        assert path == tmp_path / "AutoUser" / "collection.anki2"
+        assert repo.profile_name == "AutoUser"
+
+
+def test_resolve_collection_path_missing_prefs(repo, tmp_path):
+    # base_path exists but prefs21.db doesn't
+    with pytest.raises(FileNotFoundError, match="Anki prefs not found"):
+        repo._resolve_collection_path()
+
+
+def test_resolve_collection_path_no_global_profile(repo, tmp_path):
+    (tmp_path / "prefs21.db").touch()
+    with patch("sqlite3.connect") as mock_conn:
+        mock_cursor = mock_conn.return_value.execute.return_value
+        mock_cursor.fetchone.return_value = None  # No global profile
+        with pytest.raises(ValueError, match="Could not read global profile data"):
+            repo._resolve_collection_path()
+
+
+def test_resolve_collection_path_no_last_profile(repo, tmp_path):
+    (tmp_path / "prefs21.db").touch()
+    with patch("sqlite3.connect") as mock_conn:
+        mock_cursor = mock_conn.return_value.execute.return_value
+        import pickle
+
+        data = pickle.dumps({"other": "data"})  # No last_loaded_profile_name
+        mock_cursor.fetchone.return_value = [data]
+        with pytest.raises(ValueError, match="Could not determine last loaded profile"):
+            repo._resolve_collection_path()
+
+
+def test_enter_error(repo):
+    with patch.object(repo, "_resolve_collection_path", return_value=Path("/tmp/col.anki2")):
+        with patch(
+            "arete.infrastructure.anki.repository.Collection",
+            side_effect=Exception("Failed to open"),
+        ):
+            with pytest.raises(OSError, match="Could not open Anki collection"):
+                with repo:
+                    pass
+
+
+def test_runtime_errors_when_closed(repo):
+    with pytest.raises(RuntimeError, match="Collection not open"):
+        repo.find_notes("query")
+    with pytest.raises(RuntimeError, match="Collection not open"):
+        repo.get_model("Basic")
+    with pytest.raises(RuntimeError, match="Collection not open"):
+        repo.add_note(MagicMock())
+
+
+def test_enter_exit(repo):
+    with patch.object(repo, "_resolve_collection_path", return_value=Path("/tmp/col.anki2")):
+        # We assume Collection is patched by the fixture
+        # But we need to assert on it. The fixture patched sys.modules["anki.collection"].Collection?
+        # No, the fixture patches `sys.modules["anki.collection"] = MagicMock()`.
+        # So `from anki.collection import Collection` means `Collection` is `sys.modules["anki.collection"].Collection`.
+
+        # We need to access that mock to assert calls.
+        # It's safest to patch it again inside the test or use the imported symbol.
+
+        # Note: MockCol is the Mock object if reload worked.
+
+        with repo as r:
+            assert r.col is not None
+            captured_col = r.col
+
+        captured_col.close.assert_called_once()
+        assert repo.col is None
+
+
+def test_add_note(repo):
+    repo.col = MagicMock()
     note_data = AnkiNote(
         model="Basic",
-        deck="D",
-        fields={"Front": "F", "Back": "B"},
-        tags=["t"],
-        source_file=Path("f.md"),
-        source_index=0,
-        start_line=1,
-        end_line=2,
-    )
-
-    # Mocks
-    mock_model = {"id": 1, "name": "Basic", "flds": [{"name": "Front"}, {"name": "Back"}]}
-    mock_col.models.by_name.return_value = mock_model
-    mock_col.decks.id.return_value = 101
-
-    mock_note_instance = MagicMock()
-    mock_note_instance.id = 0
-    mock_col.new_note.return_value = mock_note_instance
-
-    with AnkiRepository(Path("/tmp")) as repo:
-        repo.add_note(note_data)
-
-        # Verify interactions
-        mock_col.decks.id.assert_called_with("D")
-        mock_col.new_note.assert_called()
-        mock_col.add_note.assert_called_with(mock_note_instance, 101)
-        # Verify fields set
-        mock_note_instance.__setitem__.assert_any_call("Front", "F")
-
-
-def test_update_note_success(mock_col, mock_repo_cls):
-    note_data = AnkiNote(
-        model="Basic",
-        deck="D",
-        fields={"Front": "F"},
+        deck="Default",
+        fields={"Front": "Q", "Back": "A"},
         tags=[],
-        nid="123",
-        source_file=Path("f.md"),
-        source_index=0,
-        start_line=1,
-        end_line=2,
-    )
-
-    # Mock get_note
-    mock_existing_note = MagicMock()
-    mock_existing_note.note_type = MagicMock(
-        return_value={"name": "Basic", "flds": [{"name": "Front"}]}
-    )
-    mock_existing_note.cards = MagicMock(return_value=[MagicMock(did=101)])
-    mock_existing_note.tags = []
-
-    # Configure __getitem__ to return current value for comparison check
-    # But repo logic: if note[f_name] != new_html: ...
-    # So we need __getitem__ to return DIFFERENT value initially to trigger update.
-    # Or same value to NOT trigger update.
-    # Logic: line 195: if note[f_name] != new_html:
-    # MagicMock() != "F" is True. So it sets it.
-
-    mock_col.get_note.return_value = mock_existing_note
-    mock_col.decks.id.return_value = 101
-
-    with AnkiRepository(Path("/tmp")) as repo:
-        res = repo.update_note(123, note_data)
-
-        assert res is True
-        mock_col.get_note.assert_called_with(123)
-        # Verify update
-        mock_existing_note.__setitem__.assert_any_call("Front", "F")
-        mock_col.update_note.assert_called_with(mock_existing_note)
-
-
-def test_update_note_not_found(mock_col, mock_repo_cls):
-    # Mock NotFound exception
-    from anki.errors import NotFound
-
-    mock_col.get_note.side_effect = NotFound
-
-    note_data = AnkiNote(
-        model="B",
-        deck="D",
-        fields={},
-        tags=[],
-        nid="999",
-        source_file=Path("f.md"),
-        source_index=0,
         start_line=1,
         end_line=1,
+        source_file=Path("f.md"),
+        source_index=1,
     )
 
-    with AnkiRepository(Path("/tmp")) as repo:
-        res = repo.update_note(999, note_data)
-        assert res is False
+    mock_model = {"flds": [{"name": "Front"}, {"name": "Back"}]}
+    repo.col.models.by_name.return_value = mock_model
+
+    mock_note = MagicMock()
+    mock_note.id = 12345
+    mock_note.note_type.return_value = {}
+    repo.col.new_note.return_value = mock_note
+    repo.col.add_note.return_value = 12345
+    repo.col.decks.id.return_value = 1
+
+    nid = repo.add_note(note_data)
+    assert nid == 12345
+    repo.col.models.set_current.assert_called_with(mock_model)
+    repo.col.add_note.assert_called()
 
 
-def test_find_notes(mock_col, mock_repo_cls):
-    mock_col.find_notes.return_value = [1, 2, 3]
-    with AnkiRepository(Path("/tmp")) as repo:
-        res = repo.find_notes("query")
-        assert res == [1, 2, 3]
-        mock_col.find_notes.assert_called_with("query")
+def test_add_note_missing_deck(repo):
+    repo.col = MagicMock()
+    mock_model = {"flds": [{"name": "Front"}, {"name": "Back"}]}
+    repo.col.models.by_name.return_value = mock_model
+    repo.col.decks.id.return_value = None  # Deck not found
+
+    note_data = AnkiNote(
+        model="Basic",
+        deck="MissingDeck",
+        fields={},
+        tags=[],
+        start_line=1,
+        end_line=1,
+        source_file=Path("f.md"),
+        source_index=1,
+    )
+    with pytest.raises(RuntimeError, match="Could not resolve deck: MissingDeck"):
+        repo.add_note(note_data)
 
 
-def test_access_col_methods(mock_col, mock_repo_cls):
-    """Verify repo exposes col for delete operations used by adapter"""
-    with AnkiRepository(Path("/tmp")) as repo:
-        repo.col.remove_notes = MagicMock()
-        repo.col.decks.remove = MagicMock()
-
-        # Simulate adapter logic
-        repo.col.remove_notes([1, 2])
-        repo.col.decks.remove([3])
-
-        repo.col.remove_notes.assert_called_with([1, 2])
-        repo.col.decks.remove.assert_called_with([3])
+def test_add_note_missing_model(repo):
+    repo.col = MagicMock()
+    repo.col.models.by_name.return_value = None
+    note_data = AnkiNote(
+        model="Missing",
+        deck="Default",
+        fields={},
+        tags=[],
+        start_line=1,
+        end_line=1,
+        source_file=Path("f.md"),
+        source_index=1,
+    )
+    with pytest.raises(ValueError, match="Model 'Missing' not found"):
+        repo.add_note(note_data)

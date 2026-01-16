@@ -1,7 +1,7 @@
 import yaml
 
 from arete import __version__
-from arete.infrastructure.utils.yaml import _LiteralDumper
+from arete.application.utils.yaml import _LiteralDumper
 
 
 def test_version_exists():

@@ -7,8 +7,8 @@ from httpx import Response
 
 from arete.application.config import AppConfig
 from arete.application.pipeline import _prune_orphans
+from arete.application.utils.logging import RunRecorder
 from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
-from arete.infrastructure.utils.logging import RunRecorder
 
 
 @pytest.fixture

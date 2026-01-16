@@ -1,57 +1,154 @@
+import os
+import shutil
+import subprocess
 import sys
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import patch
 
-# MOCK ANKI DEPENDENCY GLOBALLY
-# This prevents ImportErrors during test collection if 'anki' package
-# is missing or fails to initialize in the test environment.
-mock_anki = MagicMock()
-mock_anki.__path__ = []
-mock_anki.__spec__ = None  # Required for importlib
+import pytest
+import requests
 
-
-# Helper to create submodule mocks
-def create_mock_module():
-    m = MagicMock()
-    m.__spec__ = None
-    m.__path__ = []
-    return m
+# --- Global Config ---
 
 
-mock_collection = create_mock_module()
-mock_collection.Collection = MagicMock()
+@pytest.fixture(scope="session")
+def anki_url():
+    """
+    Returns the URL for AnkiConnect.
+    Defaults to 8766 (Anki 24+ default/Docker default).
+    """
+    return os.getenv("ANKI_CONNECT_URL", "http://127.0.0.1:8766")
 
-mock_notes = create_mock_module()
-mock_notes.Note = MagicMock()
 
-mock_models = create_mock_module()
-mock_models.NotetypeDict = dict
+@pytest.fixture(scope="session")
+def anki_media_dir():
+    """Returns the path to the Docker bind-mount media dir on the host."""
+    p = Path("docker/anki_data/.local/share/Anki2/User 1/collection.media").resolve()
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
-mock_errors = create_mock_module()
-mock_errors.NotFound = Exception
 
-sys.modules["anki"] = mock_anki
-sys.modules["anki.collection"] = mock_collection
-sys.modules["anki.notes"] = mock_notes
-sys.modules["anki.models"] = mock_models
-sys.modules["anki.errors"] = mock_errors
+@pytest.fixture(scope="session")
+def check_anki_available(anki_url):
+    """
+    Verifies AnkiConnect is running before running any integration tests.
+    """
+    try:
+        # Action version returns results like 6
+        resp = requests.post(anki_url, json={"action": "version", "version": 6}, timeout=2)
+        if resp.status_code != 200:
+            pytest.fail(f"AnkiConnect returned {resp.status_code} at {anki_url}")
+    except requests.exceptions.ConnectionError:
+        pytest.fail(f"AnkiConnect not running at {anki_url}. Start Anki or Docker.")
 
-import pytest  # noqa: E402
+
+@pytest.fixture
+def test_deck(anki_url):
+    """
+    Creates/Ensures a clean 'IntegrationTest' deck.
+    """
+    deck_name = "IntegrationTest"
+
+    # Ensure deck exists and is empty
+    requests.post(
+        anki_url, json={"action": "createDeck", "version": 6, "params": {"deck": deck_name}}
+    )
+
+    # Find notes in deck
+    resp = requests.post(
+        anki_url,
+        json={"action": "findNotes", "version": 6, "params": {"query": f"deck:{deck_name}"}},
+    )
+    notes = resp.json().get("result", [])
+    if notes:
+        requests.post(
+            anki_url, json={"action": "deleteNotes", "version": 6, "params": {"notes": notes}}
+        )
+
+    return deck_name
+
+
+@pytest.fixture
+def setup_anki(anki_url, test_deck):
+    """
+    Ensures O2A_Basic model exists with expected fields.
+    """
+    # Create it (ignore error if exists)
+    requests.post(
+        anki_url,
+        json={
+            "action": "createModel",
+            "version": 6,
+            "params": {
+                "modelName": "O2A_Basic",
+                "inOrderFields": ["Front", "Back", "nid"],
+                "css": "",
+                "cardTemplates": [
+                    {
+                        "Name": "Card 1",
+                        "Front": "{{Front}}",
+                        "Back": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}<div style='display:none'>{{nid}}</div>",
+                    }
+                ],
+            },
+        },
+    )
+
+
+@pytest.fixture
+def run_arete(anki_url):
+    """
+    Helper to run the CLI tool in subprocess.
+    """
+
+    def _run(vault_path, anki_url=anki_url, args=None, capture_output=True):
+        cmd = [
+            sys.executable,
+            "-m",
+            "arete.main",
+            "-v",
+            "sync",
+            str(vault_path),
+            "--anki-connect-url",
+            anki_url,
+        ]
+        if args:
+            cmd.extend(args)
+
+        return subprocess.run(
+            cmd,
+            capture_output=capture_output,
+            text=True,
+        )
+
+    return _run
+
+
+# --- Mocking Fixtures ---
+
+
+@pytest.fixture
+def mock_home(tmp_path):
+    """Mocks Path.home() to a temporary directory."""
+    with patch("pathlib.Path.home", return_value=tmp_path):
+        yield tmp_path
 
 
 @pytest.fixture
 def mock_vault(tmp_path):
-    """Creates a temporary directory structure mimicking a vault."""
-    d = tmp_path / "MyVault"
-    d.mkdir()
-    return d
+    """Creates a basic mock vault for unit tests."""
+    vault = tmp_path / "MockVault"
+    vault.mkdir()
+    (vault / "test.md").write_text("# Test Note\n\n- card :: back", encoding="utf-8")
+    return vault
 
 
 @pytest.fixture
-def mock_home(tmp_path, monkeypatch):
-    """Mocks Path.home() to point to a temp dir."""
-    home = tmp_path / "home"
-    home.mkdir()
-
-    # Mocking HOME to a temp directory to isolate config/logs
-    monkeypatch.setenv("HOME", str(home))
-    return home
+def integration_vault(tmp_path):
+    """Copies the static integration vault fixtures to a temp dir."""
+    src = Path(__file__).parent / "fixtures" / "integration_vault"
+    dest = tmp_path / "integration_vault"
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest)
+    return dest

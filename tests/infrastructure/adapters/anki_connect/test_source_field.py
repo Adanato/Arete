@@ -53,23 +53,31 @@ async def test_sync_notes_calls_ensure_model(adapter):
     # Mock sequence:
     # 1. createDeck (ensure_deck)
     # 2. modelFieldNames (ensure_model_has_source_field)
-    # 3. addNote (sync_notes)
-    # 4. notesInfo (sync_notes cards check - for CID)
+    # 3. findNotes (proactive healing)
+    # 4. addNote (sync_notes)
+    # 5. notesInfo (sync_notes cards check - for CID)
+    # 6. modelFieldNames (populate nid check)
+    # 7. updateNoteFields (populate nid update)
     respx.post("http://mock-anki:8765").mock(
         side_effect=[
             Response(200, json={"result": None, "error": None}),  # 1. createDeck
             Response(
                 200, json={"result": ["Front", "Back", "_obsidian_source"], "error": None}
             ),  # 2. modelFieldNames
-            Response(200, json={"result": 123, "error": None}),  # 3. addNote
+            Response(200, json={"result": [], "error": None}),  # 3. findNotes (no match)
+            Response(200, json={"result": 123, "error": None}),  # 4. addNote
             Response(
                 200, json={"result": [{"noteId": 123, "cards": [456]}], "error": None}
-            ),  # 4. notesInfo
+            ),  # 5. notesInfo
+            Response(
+                200, json={"result": ["Front", "Back", "nid"], "error": None}
+            ),  # 6. modelFieldNames
+            Response(200, json={"result": None, "error": None}),  # 7. updateNoteFields
         ]
     )
 
     results = await adapter.sync_notes([item])
     assert results[0].ok is True
-    assert len(respx.calls) == 4
-    assert "addNote" in respx.calls[2].request.content.decode()
+    assert len(respx.calls) == 7
+    assert "addNote" in respx.calls[3].request.content.decode()
     assert results[0].new_cid == "456"

@@ -4,7 +4,7 @@ import platform
 from pathlib import Path
 from unittest.mock import patch
 
-from arete.infrastructure.utils.common import detect_anki_paths, sanitize, to_list
+from arete.application.utils.common import detect_anki_paths, sanitize, to_list
 
 # --- to_list tests ---
 

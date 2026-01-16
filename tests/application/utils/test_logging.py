@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from arete.infrastructure.utils.logging import (
+from arete.application.utils.logging import (
     RunRecorder,
     rotate_logs,
     setup_logging,

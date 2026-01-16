@@ -22,11 +22,11 @@ async def test_pipeline_producer_error(config):
     bridge = AsyncMock()
     cache = MagicMock()
 
-    # Vault yields one file
-    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {})]
+    # Vault yields one file: (path, meta, fresh)
+    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {}, True)]
 
     # Parser raises Exception
-    parser.process_file.side_effect = Exception("Parser Boom")
+    parser.parse_file.side_effect = Exception("Parser Boom")
 
     stats = await run_pipeline(config, logger, "runid", vault, parser, bridge, cache)
 
@@ -42,7 +42,7 @@ async def test_pipeline_consumer_error(config):
     bridge = AsyncMock()
     cache = MagicMock()
 
-    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {})]
+    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {}, True)]
 
     # Parser yields one note
     note = AnkiNote(
@@ -56,8 +56,8 @@ async def test_pipeline_consumer_error(config):
         source_index=1,
         content_hash="h1",
     )
-    # Fix: Return notes in list at 2nd position
-    parser.process_file.return_value = ([], [note], [])
+    # Fix: Return (notes, skipped, inventory)
+    parser.parse_file.return_value = ([note], [], [note])
 
     # Bridge raises Exception
     bridge.sync_notes.side_effect = Exception("Bridge Boom")
@@ -77,7 +77,7 @@ async def test_pipeline_cache_update(config):
     bridge = AsyncMock()
     cache = MagicMock()
 
-    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {})]
+    vault.scan_for_compatible_files.return_value = [(Path("/v/test.md"), {}, True)]
 
     # Parser yields note with hash
     note = AnkiNote(
@@ -91,8 +91,8 @@ async def test_pipeline_cache_update(config):
         source_index=1,
         content_hash="hash123",
     )
-    # Fix: Return notes in list at 2nd position
-    parser.process_file.return_value = ([], [note], [])
+    # Fix: Return (notes, skipped, inventory)
+    parser.parse_file.return_value = ([note], [], [note])
 
     # Bridge success
     u = UpdateItem(

@@ -27,15 +27,15 @@ def test_vault_service_uses_cache_by_default(temp_vault, mock_cache):
     md_file.write_text("---\ncards:\n  - Front: F\n    Back: B\n---\nBody", encoding="utf-8")
 
     # Simulate a cache hit
-    mock_cache.get_file_meta.return_value = {"cards": [{"Front": "F"}], "arete": True}
+    mock_cache.get_file_meta_by_stat.return_value = {"cards": [{"Front": "F"}], "arete": True}
 
     service = VaultService(temp_vault, mock_cache, ignore_cache=False)
 
     files = list(service.scan_for_compatible_files())
 
     assert len(files) == 1
-    # Should have called get_file_meta
-    mock_cache.get_file_meta.assert_called_once()
+    # Should have called get_file_meta_by_stat
+    mock_cache.get_file_meta_by_stat.assert_called_once()
 
 
 def test_vault_service_bypasses_cache_when_ignored(temp_vault, mock_cache):
@@ -55,8 +55,8 @@ def test_vault_service_bypasses_cache_when_ignored(temp_vault, mock_cache):
     files = list(service.scan_for_compatible_files())
 
     assert len(files) == 1
-    # Should NOT have called get_file_meta
-    mock_cache.get_file_meta.assert_not_called()
+    # Should NOT have called get_file_meta_by_stat
+    mock_cache.get_file_meta_by_stat.assert_not_called()
 
     # Since we bypassed cache and parsed successfully (mocked file has content),
     # it should set the new meta into cache

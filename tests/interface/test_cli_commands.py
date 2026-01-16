@@ -46,8 +46,8 @@ def test_fix_file_already_clean(tmp_path):
     f = tmp_path / "clean.md"
     f.write_text("---\nfoo: bar\n---\n")
     # Patch SOURCE because CLI imports it inside function
-    # Note: 'arete.infrastructure.utils.text.validate_frontmatter' is what we patch
-    with patch("arete.infrastructure.utils.text.validate_frontmatter", return_value={"foo": "bar"}):
+    # Note: 'arete.application.utils.text.validate_frontmatter' is what we patch
+    with patch("arete.application.utils.text.validate_frontmatter", return_value={"foo": "bar"}):
         result = runner.invoke(app, ["fix-file", str(f)])
         assert result.exit_code == 0
         assert "No fixable issues found" in result.stdout

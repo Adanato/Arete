@@ -36,7 +36,7 @@ async def test_run_pipeline_no_compatible_files(logger):
 async def test_run_pipeline_sync_failure(logger, tmp_path):
     config = AppConfig(vault_root=tmp_path, workers=1)
     vault_service = MagicMock()
-    vault_service.scan_for_compatible_files.return_value = [(tmp_path / "test.md", {})]
+    vault_service.scan_for_compatible_files.return_value = [(tmp_path / "test.md", {}, True)]
 
     parser = MagicMock()
     # Mock parse_file to return one note
@@ -77,7 +77,7 @@ async def test_run_pipeline_consumer_crash(logger, tmp_path):
     config = AppConfig(vault_root=tmp_path, workers=1)
     vault_service = MagicMock()
     file_path = tmp_path / "test.md"
-    vault_service.scan_for_compatible_files.return_value = [(file_path, {})]
+    vault_service.scan_for_compatible_files.return_value = [(file_path, {}, True)]
 
     parser = MagicMock()
     note = AnkiNote(

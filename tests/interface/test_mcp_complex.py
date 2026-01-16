@@ -9,7 +9,7 @@ from arete.mcp_server import _get_stats, read_resource
 async def test_get_stats_success():
     # Patch the SOURCE modules because _get_stats imports them locally
     with patch("arete.application.config.resolve_config"):
-        with patch("arete.infrastructure.adapters.factory.get_anki_bridge", new_callable=AsyncMock):
+        with patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock):
             with patch("arete.application.stats_service.StatsService") as MockService:
                 # Setup service mock
                 mock_service_instance = MockService.return_value

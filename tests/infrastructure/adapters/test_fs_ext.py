@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from arete.infrastructure.adapters.fs import file_md5, iter_markdown_files
+from arete.application.utils.fs import file_md5, iter_markdown_files
 
 
 def test_fs_iter_single_file(tmp_path):

@@ -17,7 +17,10 @@ def mock_components():
     cache = MagicMock()
 
     # Setup mocks
-    vault.scan_for_compatible_files.return_value = [(Path("/vault/test.md"), {"deck": "Default"})]
+    # Return 3-tuple: path, meta, is_fresh=True
+    vault.scan_for_compatible_files.return_value = [
+        (Path("/vault/test.md"), {"deck": "Default"}, True)
+    ]
 
     # Mock parser to return one note and one inventory item
     note = AnkiNote(

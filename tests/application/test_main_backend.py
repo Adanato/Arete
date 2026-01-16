@@ -1,7 +1,7 @@
 """Tests for the main entry point (Backend Selection)."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -50,11 +50,21 @@ async def test_backend_selection_ankiconnect(
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
 
     # Mock successful AnkiConnect response
+    # It must be awaitable
     mock_is_responsive.return_value = True
+    if not isinstance(mock_is_responsive, AsyncMock):
+        # Force it to be an AsyncMock for await support
+        mock_is_responsive.side_effect = AsyncMock(return_value=True)
 
-    mock_run_pipeline.return_value = MagicMock(
+    # run_pipeline must return an awaitable. Since it returns `Stats` object, we wrap it.
+    mock_pipeline_stats = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
+    # mock_run_pipeline is called with await, so it must return a coroutine.
+    if not isinstance(mock_run_pipeline, AsyncMock):
+        mock_run_pipeline.side_effect = AsyncMock(return_value=mock_pipeline_stats)
+    else:
+        mock_run_pipeline.return_value = mock_pipeline_stats
 
     # Execute with auto backend
     mock_config.backend = "auto"
@@ -84,10 +94,16 @@ async def test_backend_selection_apy_fallback(
 
     # Mock AnkiConnect failure
     mock_is_responsive.return_value = False
+    if not isinstance(mock_is_responsive, AsyncMock):
+        mock_is_responsive.side_effect = AsyncMock(return_value=False)
 
-    mock_run_pipeline.return_value = MagicMock(
+    mock_pipeline_stats = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
+    if not isinstance(mock_run_pipeline, AsyncMock):
+        mock_run_pipeline.side_effect = AsyncMock(return_value=mock_pipeline_stats)
+    else:
+        mock_run_pipeline.return_value = mock_pipeline_stats
 
     # Execute with auto backend
     mock_config.backend = "auto"
@@ -101,25 +117,30 @@ async def test_backend_selection_apy_fallback(
 
 
 @pytest.mark.asyncio
-@patch("arete.infrastructure.adapters.factory.AnkiConnectAdapter")
+@patch("arete.application.factory.AnkiConnectAdapter")
 @patch("arete.main.run_pipeline")
 @patch("arete.main.setup_logging")
 async def test_backend_manual_ankiconnect_and_fallback(
     mock_setup_logging, mock_run_pipeline, mock_anki_connect_adapter_cls, mock_config
 ):
     """Test manual selection of AnkiConnect backend and its fallback."""
-    from unittest.mock import AsyncMock
 
     mock_logger = MagicMock()
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
 
-    mock_run_pipeline.return_value = MagicMock(
+    mock_pipeline_stats = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
+    if not isinstance(mock_run_pipeline, AsyncMock):
+        mock_run_pipeline.side_effect = AsyncMock(return_value=mock_pipeline_stats)
+    else:
+        mock_run_pipeline.return_value = mock_pipeline_stats
 
     # Mock an instance of AnkiConnectAdapter
     mock_ac_instance = MagicMock()
+    # is_responsive is an async method on the instance
     mock_ac_instance.is_responsive = AsyncMock(return_value=True)
+    mock_ac_instance.close = AsyncMock()
     mock_anki_connect_adapter_cls.return_value = mock_ac_instance
 
     # 1. Force AnkiConnect (should succeed)
@@ -148,9 +169,14 @@ async def test_backend_manual_direct(mock_setup_logging, mock_run_pipeline, mock
     """Test manual selection of direct backend."""
     mock_logger = MagicMock()
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
-    mock_run_pipeline.return_value = MagicMock(
+
+    mock_pipeline_stats = MagicMock(
         files_scanned=0, total_errors=0, total_generated=0, total_imported=0
     )
+    if not isinstance(mock_run_pipeline, AsyncMock):
+        mock_run_pipeline.side_effect = AsyncMock(return_value=mock_pipeline_stats)
+    else:
+        mock_run_pipeline.return_value = mock_pipeline_stats
 
     # Force direct
     mock_config.backend = "direct"

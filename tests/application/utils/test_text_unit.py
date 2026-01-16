@@ -1,8 +1,8 @@
 import pytest
 from yaml.scanner import ScannerError
 
-from arete.infrastructure.utils.common import sanitize
-from arete.infrastructure.utils.text import (
+from arete.application.utils.common import sanitize
+from arete.application.utils.text import (
     apply_fixes,
     convert_math_to_tex_delimiters,
     fix_mathjax_escapes,

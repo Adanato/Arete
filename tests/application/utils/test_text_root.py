@@ -1,4 +1,4 @@
-from arete.infrastructure.utils.text import (
+from arete.application.utils.text import (
     convert_math_to_tex_delimiters,
     make_editor_note,
     parse_frontmatter,

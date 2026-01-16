@@ -141,3 +141,119 @@ def test_agent_chat_validation_error(MockRequest):
     # Since we can't easily force our block over FastAPI's, we accept either as proof of validation failure.
     assert response.status_code in [400, 422]
     # Detail message varies, so just checking status is enough for coverage of the failure path
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_suspend_endpoint(mock_get_bridge):
+    mock_bridge = AsyncMock()
+    mock_bridge.suspend_cards.return_value = True
+    mock_get_bridge.return_value = mock_bridge
+
+    response = client.post("/anki/cards/suspend", json={"cids": [1, 2]})
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_unsuspend_endpoint(mock_get_bridge):
+    mock_bridge = AsyncMock()
+    mock_bridge.unsuspend_cards.return_value = True
+    mock_get_bridge.return_value = mock_bridge
+
+    response = client.post("/anki/cards/unsuspend", json={"cids": [1, 2]})
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_styling_endpoint(mock_get_bridge):
+    mock_bridge = AsyncMock()
+    mock_bridge.get_model_styling.return_value = "css"
+    mock_get_bridge.return_value = mock_bridge
+
+    response = client.get("/anki/models/Basic/styling")
+    assert response.status_code == 200
+    assert response.json()["css"] == "css"
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_templates_endpoint(mock_get_bridge):
+    mock_bridge = AsyncMock()
+    mock_bridge.get_model_templates.return_value = {"C1": "T1"}
+    mock_get_bridge.return_value = mock_bridge
+
+    response = client.get("/anki/models/Basic/templates")
+    assert response.status_code == 200
+    assert response.json() == {"C1": "T1"}
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_gui_browse_endpoint(mock_get_bridge):
+    mock_bridge = AsyncMock()
+    mock_bridge.gui_browse.return_value = True
+    mock_get_bridge.return_value = mock_bridge
+
+    response = client.post("/anki/browse", json={"query": "deck:Default"})
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_suspend_cards_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.post("/anki/cards/suspend", json={"cids": [1]})
+    assert response.status_code == 500
+    assert "Bridge Fail" in response.json()["detail"]
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_unsuspend_cards_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.post("/anki/cards/unsuspend", json={"cids": [1]})
+    assert response.status_code == 500
+    assert "Bridge Fail" in response.json()["detail"]
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_get_model_styling_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.get("/anki/models/Basic/styling")
+    assert response.status_code == 500
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_get_model_templates_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.get("/anki/models/Basic/templates")
+    assert response.status_code == 500
+
+
+def test_agent_chat_validation_fail():
+    response = client.post("/agent/chat", json={"invalid": "req"})
+    assert response.status_code == 400
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_get_stats_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.post("/anki/stats", json={"nids": [1]})
+    assert response.status_code == 500
+
+
+@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
+def test_browse_anki_endpoint_fail(mock_get_anki):
+    mock_get_anki.side_effect = Exception("Bridge Fail")
+    response = client.post("/anki/browse", json={"query": "test"})
+    assert response.status_code == 500
+
+
+@patch("os.kill")
+def test_shutdown_endpoint(mock_kill):
+    response = client.post("/shutdown")
+    assert response.status_code == 200
+    assert "shutting down" in response.json()["message"]
+    # Wait for the thread to (potentially) call kill
+    import time
+
+    time.sleep(0.6)
+    mock_kill.assert_called_once()

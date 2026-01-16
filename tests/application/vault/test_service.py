@@ -11,7 +11,7 @@ from arete.infrastructure.persistence.cache import ContentCache
 def mock_cache():
     # Helper to mock ContentCache
     c = MagicMock(spec=ContentCache)
-    c.get_file_meta.return_value = None
+    c.get_file_meta_by_stat.return_value = None
     c.set_file_meta.return_value = None
     return c
 
@@ -32,12 +32,13 @@ Content
     )
 
     service = VaultService(root=tmp_path, cache=mock_cache)
-    ok, count, err, meta = service._quick_check_file(f)
+    ok, count, err, meta, fresh = service._quick_check_file(f)
     assert ok is True
     assert count == 1
     assert err is None
     assert meta is not None
     assert meta["deck"] == "Test"
+    assert fresh is True  # New file = fresh
 
 
 def test_quick_check_invalid_version(tmp_path, mock_cache):
@@ -52,7 +53,7 @@ cards: []
     )
 
     service = VaultService(root=tmp_path, cache=mock_cache)
-    ok, count, err, meta = service._quick_check_file(f)
+    ok, count, err, meta, fresh = service._quick_check_file(f)
     assert ok is False
     assert err == "bad_template_version"
 
@@ -69,7 +70,7 @@ deck: Test
     )
 
     service = VaultService(root=tmp_path, cache=mock_cache)
-    ok, count, err, meta = service._quick_check_file(f)
+    ok, count, err, meta, fresh = service._quick_check_file(f)
     assert ok is False
     assert err == "no_cards"
 
@@ -78,12 +79,13 @@ def test_quick_check_cache_hit(tmp_path, mock_cache):
     f = tmp_path / "cached.md"
     f.write_text("Dummy content on disk", encoding="utf-8")
 
-    # Simulate cache hit
-    mock_cache.get_file_meta.return_value = {"cards": [1, 2, 3], "deck": "D"}
+    # Simulate cache hit: logic uses get_file_meta_by_stat now
+    mock_cache.get_file_meta_by_stat.return_value = {"cards": [1, 2, 3], "deck": "D"}
 
     service = VaultService(root=tmp_path, cache=mock_cache)
-    ok, count, err, meta = service._quick_check_file(f)
+    ok, count, err, meta, fresh = service._quick_check_file(f)
 
     assert ok is True
     assert count == 3
+    assert fresh is False  # Cache hit = not fresh
     # Should not have parsed the "Dummy content" as YAML because it hit cache
