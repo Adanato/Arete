@@ -460,7 +460,7 @@ export class CardYamlEditorView extends ItemView {
 		});
 
 		Object.entries(card).forEach(([key, value]) => {
-			if (['model', 'Model', 'nid', 'NID'].includes(key)) return;
+			if (['model', 'Model', 'nid', 'NID', 'cid', 'CID'].includes(key)) return;
 
 			const group = this.fieldEditorContainer?.createDiv({ cls: 'arete-field-group' });
 			group?.createEl('label', { cls: 'arete-field-label', text: key });
@@ -485,7 +485,7 @@ export class CardYamlEditorView extends ItemView {
 		if (!card) return;
 
 		Object.entries(card).forEach(async ([key, value]) => {
-			if (['model', 'Model', 'nid', 'NID'].includes(key)) return;
+			if (['model', 'Model', 'nid', 'NID', 'cid', 'CID'].includes(key)) return;
 
 			const section = this.previewContainer?.createDiv({ cls: 'arete-preview-section' });
 			section?.createDiv({ cls: 'arete-preview-label', text: key });
