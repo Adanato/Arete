@@ -30,13 +30,13 @@ DOMAIN_PREFIX = "foosoft.ankiconnect."
 def get_note_by_note_id(note_id):
     return aqt.mw.col.get_note(note_id)
 
+
 def is_card_suspended(card):
     return card.queue == QUEUE_TYPE_SUSPENDED
 
+
 def filter_valid_note_ids(note_ids):
-    return aqt.mw.col.db.list(
-        "select id from notes where id in " + ids2str(note_ids)
-    )
+    return aqt.mw.col.db.list("select id from notes where id in " + ids2str(note_ids))
 
 
 ##############################################################################
@@ -44,14 +44,23 @@ def filter_valid_note_ids(note_ids):
 
 class DecentPreviewer(aqt.browser.previewer.MultiCardPreviewer):
     class Adapter:
-        def get_current_card(self): raise NotImplementedError
-        def can_select_previous_card(self): raise NotImplementedError
-        def can_select_next_card(self): raise NotImplementedError
-        def select_previous_card(self): raise NotImplementedError
-        def select_next_card(self): raise NotImplementedError
+        def get_current_card(self):
+            raise NotImplementedError
+
+        def can_select_previous_card(self):
+            raise NotImplementedError
+
+        def can_select_next_card(self):
+            raise NotImplementedError
+
+        def select_previous_card(self):
+            raise NotImplementedError
+
+        def select_next_card(self):
+            raise NotImplementedError
 
     def __init__(self, adapter: Adapter):
-        super().__init__(parent=None, mw=aqt.mw, on_close=lambda: None) # noqa
+        super().__init__(parent=None, mw=aqt.mw, on_close=lambda: None)  # noqa
         self.adapter = adapter
         self.last_card_id = 0
 
@@ -80,12 +89,12 @@ class DecentPreviewer(aqt.browser.previewer.MultiCardPreviewer):
             self.render_card()
 
     def _should_enable_prev(self):
-        return self.showing_answer_and_can_show_question() or \
-               self.adapter.can_select_previous_card()
+        return (
+            self.showing_answer_and_can_show_question() or self.adapter.can_select_previous_card()
+        )
 
     def _should_enable_next(self):
-        return self.showing_question_and_can_show_answer() or \
-               self.adapter.can_select_next_card()
+        return self.showing_question_and_can_show_answer() or self.adapter.can_select_next_card()
 
     def _render_scheduled(self):
         super()._render_scheduled()  # noqa
@@ -133,7 +142,7 @@ class History:
         if note.id in self.note_ids:
             self.note_ids.remove(note.id)
         self.note_ids.append(note.id)
-        self.note_ids = self.note_ids[-self.number_of_notes_to_keep_in_history:]
+        self.note_ids = self.note_ids[-self.number_of_notes_to_keep_in_history :]
 
     def has_note_to_left_of(self, note):
         return note.id in self.note_ids and note.id != self.note_ids[0]
@@ -149,26 +158,24 @@ class History:
         note_id = self.note_ids[self.note_ids.index(note.id) + 1]
         return get_note_by_note_id(note_id)
 
-    def get_last_note(self):            # throws IndexError if history empty
+    def get_last_note(self):  # throws IndexError if history empty
         return get_note_by_note_id(self.note_ids[-1])
 
     def remove_invalid_notes(self):
         self.note_ids = filter_valid_note_ids(self.note_ids)
+
 
 history = History()
 
 
 # see method `find_cards` of `collection.py`
 def trigger_search_for_dialog_history_notes(search_context, use_history_order):
-    search_context.search = " or ".join(
-        f"nid:{note_id}" for note_id in history.note_ids
-    )
+    search_context.search = " or ".join(f"nid:{note_id}" for note_id in history.note_ids)
 
     if use_history_order:
         search_context.order = f"""case c.nid {
             " ".join(
-                f"when {note_id} then {n}"
-                for (n, note_id) in enumerate(reversed(history.note_ids))
+                f"when {note_id} then {n}" for (n, note_id) in enumerate(reversed(history.note_ids))
             )
         } end asc"""
 
@@ -196,7 +203,7 @@ class Edit(aqt.editcurrent.EditCurrent):
         restoreGeom(self, self.dialog_geometry_tag)
         disable_help_button(self)
 
-        self.form.buttonBox.setVisible(False)   # hides the Close button bar
+        self.form.buttonBox.setVisible(False)  # hides the Close button bar
         self.setup_editor_buttons()
 
         self.show()
@@ -270,14 +277,13 @@ class Edit(aqt.editcurrent.EditCurrent):
         self.editor.card = cards[0] if cards else None
 
         if any(is_card_suspended(card) for card in cards):
-            tooltip("Some of the cards associated with this note "
-                    "have been suspended", parent=self)
+            tooltip("Some of the cards associated with this note have been suspended", parent=self)
 
     def reload_notes_after_user_action_elsewhere(self):
         history.remove_invalid_notes()
 
         try:
-            self.note.load()                    # this also updates the fields
+            self.note.load()  # this also updates the fields
         except NotFoundError:
             try:
                 self.note = history.get_last_note()
@@ -300,6 +306,7 @@ class Edit(aqt.editcurrent.EditCurrent):
         def search_input_select_all(hook_browser, *_):
             hook_browser.form.searchEdit.lineEdit().selectAll()
             gui_hooks.browser_did_change_row.remove(search_input_select_all)
+
         gui_hooks.browser_did_change_row.append(search_input_select_all)
 
         browser = aqt.dialogs.open("Browser", aqt.mw)
@@ -334,12 +341,11 @@ class Edit(aqt.editcurrent.EditCurrent):
         gui_hooks.editor_did_init_buttons.append(self.add_right_hand_side_buttons)
 
         # on Anki 2.1.50, browser mode makes the Preview button visible
-        extra_kwargs = {} if anki_version < (2, 1, 50) else {
-            "editor_mode": aqt.editor.EditorMode.BROWSER
-        }
+        extra_kwargs = (
+            {} if anki_version < (2, 1, 50) else {"editor_mode": aqt.editor.EditorMode.BROWSER}
+        )
 
-        self.editor = aqt.editor.Editor(aqt.mw, self.form.fieldsArea, self,
-                                        **extra_kwargs)
+        self.editor = aqt.editor.Editor(aqt.mw, self.form.fieldsArea, self, **extra_kwargs)
 
         gui_hooks.editor_did_init_buttons.remove(self.add_right_hand_side_buttons)
         gui_hooks.editor_did_init.remove(self.add_preview_button)
@@ -404,8 +410,7 @@ class Edit(aqt.editcurrent.EditCurrent):
                 keys=keys,
             )
 
-            button_html = button_html.replace('class="',
-                                              f'class="{extra_button_class} ')
+            button_html = button_html.replace('class="', f'class="{extra_button_class} ')
             buttons.append(button_html)
 
         add("browse", self.show_browser, "Browse", "Browse", "Ctrl+F")
@@ -415,7 +420,7 @@ class Edit(aqt.editcurrent.EditCurrent):
     def run_javascript_after_toolbar_ready(self, js):
         js = f"setTimeout(function() {{ {js} }}, 1)"
         if anki_version < (2, 1, 50):
-            js = f'$editorToolbar.then(({{ toolbar }}) => {js})'
+            js = f"$editorToolbar.then(({{ toolbar }}) => {js})"
         else:
             js = f'require("anki/ui").loaded.then(() => {js})'
         self.editor.web.eval(js)
@@ -424,8 +429,8 @@ class Edit(aqt.editcurrent.EditCurrent):
         def to_js(boolean):
             return "true" if boolean else "false"
 
-        disable_previous = not(history.has_note_to_left_of(self.note))
-        disable_next = not(history.has_note_to_right_of(self.note))
+        disable_previous = not (history.has_note_to_left_of(self.note))
+        disable_next = not (history.has_note_to_right_of(self.note))
 
         self.run_javascript_after_toolbar_ready(f"""
             document.getElementById("{DOMAIN_PREFIX}previous")
@@ -441,8 +446,8 @@ class Edit(aqt.editcurrent.EditCurrent):
         if search_context.search == cls.dialog_search_tag:
             trigger_search_for_dialog_history_notes(
                 search_context=search_context,
-                use_history_order=cls.dialog_search_tag ==
-                        search_context.browser.table._state.sort_column  # noqa
+                use_history_order=cls.dialog_search_tag
+                == search_context.browser.table._state.sort_column,  # noqa
             )
 
     @classmethod
@@ -452,6 +457,6 @@ class Edit(aqt.editcurrent.EditCurrent):
             gui_hooks.browser_will_search.append(cls.browser_will_search)
 
     @classmethod
-    def open_dialog_and_show_note_with_id(cls, note_id):    # raises NotFoundError
+    def open_dialog_and_show_note_with_id(cls, note_id):  # raises NotFoundError
         note = get_note_by_note_id(note_id)
         return aqt.dialogs.open(cls.dialog_registry_tag, note)

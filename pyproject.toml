@@ -71,20 +71,18 @@ type = "layers"
 layers = [
     "interface",
     "application",
+    "infrastructure",
     "domain",
 ]
 containers = [
     "arete",
 ]
 
-
 [[tool.importlinter.contracts]]
-name = "Infrastructure Layer"
-type = "independence"
-modules = [
-    "arete.infrastructure",
-    "arete.domain",
-]
+name = "Domain isolation"
+type = "forbidden"
+source_modules = ["arete.domain"]
+forbidden_modules = ["arete.infrastructure", "arete.application", "arete.interface"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/arete"]
@@ -100,6 +98,7 @@ exclude = [
     "docker/anki_data",
     "ankiconnect",
     "anki-plugin",
+    "arete_ankiconnect",
     "tests/fixtures",
     "obsidian-plugin",
 ]

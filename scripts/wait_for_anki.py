@@ -1,9 +1,10 @@
+import os
 import sys
 import time
 
 import requests
 
-ANKI_URL = "http://127.0.0.1:8765"
+ANKI_URL = os.getenv("ANKI_CONNECT_URL", "http://127.0.0.1:8766")
 MAX_RETRIES = 30  # 30 retries * 1 second = 30 seconds max wait
 DELAY = 1
 

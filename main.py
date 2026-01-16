@@ -33,7 +33,7 @@ def setup_logging(log_dir: Path) -> tuple[logging.Logger, Path, str]:
     run_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{uuid.uuid4().hex[:8]}"
     log_path = log_dir / f"run_{run_id}.log"
 
-    logger = logging.getLogger("obsidian2apy")
+    logger = logging.getLogger("arete")
     logger.setLevel(logging.INFO)
     logger.handlers.clear()
 

@@ -4,18 +4,86 @@
 default:
     @just --list
 
-# Install dependencies and pre-commit hooks
+# --- Install & Setup ---
+
+# Install dependencies for both Python (uv) and Obsidian (npm)
 install:
     uv sync
+    cd obsidian-plugin && npm install
     uv run pre-commit install
 
-# Run all unit and functional tests (excludes integration)
+# --- Backend (Python) ---
+
+# Run backend tests
 test:
     uv run pytest tests/application tests/interface tests/infrastructure tests/domain
 
-# Run integration tests (Anki must be running)
+# Run backend integration tests (requires Anki)
 test-integration:
     uv run pytest tests/integration
+
+# Lint backend code with Ruff
+lint:
+    uv run ruff check src tests
+
+# Format backend code with Ruff
+format:
+    uv run ruff format src tests
+
+# Fix all auto-fixable backend issues
+fix:
+    uv run ruff check --fix src tests
+    uv run ruff format src tests
+
+# Static type checking
+check-types:
+    uv run pyright src
+
+# --- Frontend (Obsidian Plugin) ---
+
+# Build Obsidian plugin
+build-obsidian:
+    cd obsidian-plugin && npm run build
+
+# Lint Obsidian plugin
+lint-obsidian:
+    cd obsidian-plugin && npm run lint
+
+# Test Obsidian plugin
+test-obsidian:
+    cd obsidian-plugin && npm test
+
+# --- Release & Artifacts ---
+
+# Build Python package (sdist + wheel)
+build-python:
+    uv run python -m build
+
+# Zip Anki plugin
+build-anki:
+    mkdir -p release_artifacts
+    cd arete_ankiconnect && zip -r ../release_artifacts/arete_ankiconnect.zip . -x "__pycache__/*"
+
+# Full release build (all artifacts)
+release: build-python build-obsidian build-anki
+    @echo "📦 Release artifacts ready in release_artifacts/"
+    cp dist/* release_artifacts/
+    cp obsidian-plugin/main.js obsidian-plugin/manifest.json obsidian-plugin/styles.css release_artifacts/
+
+# --- QA & CI ---
+
+# Run full project QA (Tests + Linting for both Backend & Frontend)
+qa:
+    @echo "--- 🐍 Backend QA ---"
+    just test
+    just lint
+    @echo "--- 🟦 Frontend QA ---"
+    just test-obsidian
+    just lint-obsidian
+    just build-obsidian
+    @echo "✅ QA Complete!"
+
+# --- Docker & Integration ---
 
 # Download and configure AnkiConnect for Docker
 setup-anki-data:
@@ -30,46 +98,15 @@ docker-up:
 docker-down:
     docker compose -f docker/docker-compose.yml down
 
-# Format and lint with ruff
-lint:
-    uv run ruff format src tests
-    uv run ruff check src tests
-
-# Run Astral's ty type checker
-check-types:
-    uv run ty check .
-
-# Fix lint issues with ruff
-fix:
-    uv run ruff check --fix .
-    uv run ruff format .
-
-# Clear local cache
-clear-cache:
-    rm -rf .pytest_cache .ruff_cache
-    find . -name "__pycache__" -type d -exec rm -rf {} +
-
-# Run tests with coverage report
-coverage:
-    uv run pytest --cov=src/arete --cov-report=term-missing --cov-report=html tests/application tests/interface tests/infrastructure tests/domain
-
 # Wait for Anki to be ready
 wait-for-anki:
     uv run python scripts/wait_for_anki.py
 
-# Run comprehensive checks (Python + TS: Lint, Format, Test)
-check:
-    @echo "--- 🐍 Python: Formatting & Linting ---"
-    uv run ruff format src tests
-    uv run ruff check src tests
-    @echo "--- 🐍 Python: Testing ---"
-    uv run pytest tests/application tests/interface tests/infrastructure tests/domain
-    @echo "--- 🟦 TypeScript: Linting ---"
-    cd obsidian-plugin && npm run lint
-    @echo "--- 🟦 TypeScript: Testing ---"
-    cd obsidian-plugin && npm test
-    @echo "✅ All Checks Passed!"
-
-# Deploy documentation to GitHub Pages
-deploy-docs:
-    uv run mkdocs gh-deploy --force
+# Start Dockerized Anki (optimized for Mac/OrbStack)
+mac-docker-up:
+    @echo "Starting OrbStack..."
+    @orb start
+    @echo "Waiting for Docker daemon..."
+    @while ! docker info > /dev/null 2>&1; do sleep 1; done
+    @just setup-anki-data
+    docker compose -f docker/docker-compose.yml up -d

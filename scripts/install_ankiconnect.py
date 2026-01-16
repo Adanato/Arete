@@ -1,9 +1,5 @@
-import io
 import os
-import zipfile
 from pathlib import Path
-
-import requests
 
 # AnkiConnect ID and GitHub URL
 ADDON_ID = "2055492159"
@@ -20,13 +16,16 @@ REPO_ZIP_URL = "https://github.com/FooSoft/anki-connect/archive/refs/heads/maste
 def install_ankiconnect():
     # We now mount 'arete_ankiconnect' via Docker volume, so we DO NOT install the official addon.
     # This prevents port 8765 conflicts.
-    
+
     # Clean up official addon if it exists to avoid conflicts
-    official_addon_path = Path(__file__).parent.parent / "docker/anki_data/.local/share/Anki2/addons21/2055492159"
+    official_addon_path = (
+        Path(__file__).parent.parent / "docker/anki_data/.local/share/Anki2/addons21/2055492159"
+    )
     if official_addon_path.exists():
         print(f"Removing official AnkiConnect to avoid conflict: {official_addon_path}")
         try:
             import shutil
+
             shutil.rmtree(official_addon_path)
         except Exception as e:
             print(f"Warning: Failed to remove official addon: {e}")
