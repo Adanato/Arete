@@ -1,6 +1,3 @@
 [submodule "apy"]
 	path = apy
 	url = git@github.com:Adanato/apy.git
-[submodule "ankiconnect"]
-	path = ankiconnect
-	url = https://github.com/Adanato/anki-connect.git

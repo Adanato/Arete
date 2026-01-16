@@ -59,6 +59,7 @@ dev = [
     "mkdocs-material>=9.5.0",
     "import-linter>=2.1.0",
     "pyright>=1.1.408",
+    "build>=1.4.0",
 ]
 
 [tool.importlinter]
