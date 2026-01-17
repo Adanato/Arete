@@ -328,8 +328,28 @@ async def get_stats(req: StatsRequest):
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
         config = resolve_config(overrides)
-        anki = await get_anki_bridge(config)
-        stats = await anki.get_card_stats(req.nids)
+        
+        # Determine strict or flexible repository based on config/backend
+        # For now, we reuse the configured backend (Direct or Connect)
+        from arete.infrastructure.adapters.stats import DirectStatsRepository, ConnectStatsRepository
+        from arete.application.stats.metrics_calculator import MetricsCalculator
+        from arete.application.stats.service import FsrsStatsService
+
+        repo = None
+        # Naive backend selection - logic should align with factory/config
+        backend_type = config.backend
+        if backend_type == "ankiconnect":
+             # Currently we don't have a configured ConnectStatsRepository with URL from config readily available
+             # without duplicating factory logic. But ConnectStatsRepository expects url/config.
+             # Ideally we construct it from the config object.
+             # However, let's look at how factory makes AnkiBridge
+             # For now, let's assume direct if not explicitly connect, or check config.
+             repo = ConnectStatsRepository(base_url=config.anki_connect_url or "http://localhost:8765")
+        else:
+             repo = DirectStatsRepository(config.anki_base)
+
+        service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
+        stats = await service.get_enriched_stats(req.nids)
         return stats
     except Exception as e:
         logger.error(f"Stats fetch failed: {e}", exc_info=True)

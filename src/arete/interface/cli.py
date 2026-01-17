@@ -779,8 +779,19 @@ def anki_stats(
             "anki_base": anki_base,
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
-        anki = await get_anki_bridge(config)
-        return await anki.get_card_stats(nids_list)
+        
+        from arete.infrastructure.adapters.stats import DirectStatsRepository, ConnectStatsRepository
+        from arete.application.stats.metrics_calculator import MetricsCalculator
+        from arete.application.stats.service import FsrsStatsService
+
+        repo = None
+        if config.backend == "ankiconnect":
+             repo = ConnectStatsRepository(base_url=config.anki_connect_url or "http://localhost:8765")
+        else:
+             repo = DirectStatsRepository(config.anki_base)
+
+        service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
+        return await service.get_enriched_stats(nids_list)
 
     stats = asyncio.run(run())
     result = [asdict(s) for s in stats]
