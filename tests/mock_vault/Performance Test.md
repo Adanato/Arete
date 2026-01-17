@@ -26,8 +26,7 @@ cards:
   cid: '1767583699005'
 - id: test-card-5
   Front: What happens if **Anki is closed** when using the `apy` backend?
-  Back: |-
-    The sync still works! `apy` reads and writes to the database files directly.
+  Back: The sync still works! `apy` reads and writes to the database files directly.
   nid: '1768444496537'
   cid: '1767583699186'
 - id: test-card-6
@@ -37,8 +36,7 @@ cards:
   cid: '1767583699232'
 - id: test-card-7
   Front: Does increasing workers always make it faster?
-  Back: |-
-    Up to a point. High concurrency can speed up network-bound tasks, but setting it too high (e.g., >8) may cause overhead or rate-limiting in AnkiConnect.
+  Back: Up to a point. High concurrency can speed up network-bound tasks, but setting it too high (e.g., >8) may cause overhead or rate-limiting in AnkiConnect.
   nid: '1768444496543'
   cid: '1767583699255'
 - id: test-card-8
