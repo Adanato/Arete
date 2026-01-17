@@ -14,6 +14,13 @@ export interface AnkiCardStats {
 	reps: number;
 	averageTime: number; // ms
 	front?: string; // Content from Obsidian
+
+	// FSRS Enriched Metrics
+	stability?: number;
+	retrievability?: number;
+	daysOverdue?: number;
+	volatility?: number;
+	lapseRate?: number;
 }
 
 export interface ProblematicCard {
@@ -283,7 +290,11 @@ export class StatsService {
 
 	async fetchAnkiCardStats(nids: number[]): Promise<AnkiCardStats[]> {
 		try {
-			const data = await this.client.invoke('/anki/stats', { nids });
+			// Decide which endpoint to use based on algorithm setting
+			const isFsrs = this.settings.stats_algorithm === 'fsrs';
+			const endpoint = isFsrs ? '/anki/stats/enriched' : '/anki/stats';
+
+			const data = await this.client.invoke(endpoint, { nids });
 
 			if (Array.isArray(data)) {
 				// Map snake_case (Python) to camelCase (TS)
@@ -299,6 +310,12 @@ export class StatsService {
 					reps: d.reps,
 					averageTime: d.average_time,
 					front: d.front,
+					// Enriched fields mapping (only for FSRS)
+					stability: d.stability,
+					retrievability: d.current_retrievability,
+					daysOverdue: d.days_overdue,
+					volatility: d.volatility,
+					lapseRate: d.lapse_rate,
 				}));
 			} else {
 				console.warn('[Arete] Unexpected stats response format:', data);

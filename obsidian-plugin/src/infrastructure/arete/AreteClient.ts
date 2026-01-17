@@ -81,8 +81,8 @@ export class AreteClient {
 					args.push(modelName);
 				}
 			}
-		} else if (endpoint === '/anki/stats') {
-			args.push('stats');
+		} else if (endpoint === '/anki/stats' || endpoint === '/anki/stats/enriched') {
+			args.push(endpoint === '/anki/stats' ? 'stats' : 'stats-enriched');
 			args.push('--nids');
 			args.push(JSON.stringify(body.nids || []));
 		} else if (endpoint === '/anki/browse') {

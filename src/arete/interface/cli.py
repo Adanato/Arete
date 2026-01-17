@@ -747,6 +747,22 @@ def mcp_server():
     mcp_main()
 
 
+def _parse_nids(nids: str) -> list[int]:
+    """Helper to parse NIDs from comma-sep or JSON list string."""
+    nids_list = []
+    if nids.startswith("["):
+        try:
+            import json
+
+            nids_list = json.loads(nids)
+        except json.JSONDecodeError as e:
+            typer.secho("Invalid JSON for --nids", fg="red")
+            raise typer.Exit(1) from e
+    else:
+        nids_list = [int(n.strip()) for n in nids.split(",") if n.strip().isdigit()]
+    return nids_list
+
+
 @anki_app.command("stats")
 def anki_stats(
     ctx: typer.Context,
@@ -771,15 +787,7 @@ def anki_stats(
     from arete.application.factory import get_anki_bridge
 
     # Parse NIDs
-    nids_list = []
-    if nids.startswith("["):
-        try:
-            nids_list = json.loads(nids)
-        except json.JSONDecodeError as e:
-            typer.secho("Invalid JSON for --nids", fg="red")
-            raise typer.Exit(1) from e
-    else:
-        nids_list = [int(n.strip()) for n in nids.split(",") if n.strip().isdigit()]
+    nids_list = _parse_nids(nids)
 
     if not nids_list:
         if json_output:
@@ -819,6 +827,75 @@ def anki_stats(
         for s in result:
             diff_str = f"{int(s['difficulty'] * 100)}%" if s["difficulty"] is not None else "-"
             t.add_row(str(s["card_id"]), s["deck_name"], diff_str)
+        rich.print(t)
+
+
+@anki_app.command("stats-enriched")
+def anki_stats_enriched(
+    ctx: typer.Context,
+    nids: Annotated[str, typer.Option(help="Comma-separated list of Note IDs (or JSON list).")],
+    json_output: Annotated[
+        bool, typer.Option("--json/--no-json", help="Output results as JSON.")
+    ] = True,
+    backend: Annotated[
+        str | None, typer.Option(help="Force backend (auto|apy|ankiconnect)")
+    ] = None,
+    anki_connect_url: Annotated[str | None, typer.Option(help="AnkiConnect URL Override")] = None,
+    anki_base: Annotated[str | None, typer.Option(help="Anki Base Directory Override")] = None,
+):
+    """
+    Fetch enriched card statistics (FSRS stability, retrievability, etc.).
+    """
+    import asyncio
+    import json
+    from dataclasses import asdict
+
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_stats_repository
+    from arete.application.stats import FsrsStatsService
+
+    # Parse NIDs
+    nids_list = _parse_nids(nids)
+
+    if not nids_list:
+        if json_output:
+            typer.echo("[]")
+        else:
+            typer.echo("No valid NIDs provided.")
+        return
+
+    async def run():
+        overrides = {
+            "backend": backend,
+            "anki_connect_url": anki_connect_url,
+            "anki_base": anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        repo = await get_stats_repository(config)
+        service = FsrsStatsService(stats_repo=repo)
+        return await service.get_enriched_stats(nids_list)
+
+    stats = asyncio.run(run())
+    result = [asdict(s) for s in stats]
+
+    if json_output:
+        typer.echo(json.dumps(result, indent=2))
+    else:
+        import rich
+        from rich.table import Table
+
+        t = Table(title="Enriched FSRS Stats")
+        t.add_column("CID")
+        t.add_column("Deck")
+        t.add_column("Stability")
+        t.add_column("Retrieve")
+        t.add_column("Overdue")
+
+        for s in result:
+            stability = f"{s['stability']:.1f}d" if s["stability"] is not None else "-"
+            retrieve = f"{int(s['current_retrievability'] * 100)}%" if s["current_retrievability"] is not None else "-"
+            overdue = f"{s['days_overdue']}d" if s["days_overdue"] is not None else "-"
+            t.add_row(str(s["card_id"]), s["deck_name"], stability, retrieve, overdue)
         rich.print(t)
 
 
