@@ -610,8 +610,8 @@ def migrate(
     )
 
     # Upgrade patterns
-    p1 = re.compile(r"^[\"\']?anki_template_version[\"\']?:\s*1\s*$", re.MULTILINE)
-    p2 = re.compile(r"^[\"\']?anki_template_version[\"\']?:\s*['\"]1['\"]\s*$", re.MULTILINE)
+    p1 = re.compile(r"^\s*[\"\']?anki_template_version[\"\']?:\s*1\s*$", re.MULTILINE)
+    p2 = re.compile(r"^\s*[\"\']?anki_template_version[\"\']?:\s*['\"]1['\"]\s*$", re.MULTILINE)
 
     scanned = 0
     migrated = 0
