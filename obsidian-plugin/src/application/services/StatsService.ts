@@ -1,4 +1,3 @@
-```typescript
 import { App, TFile, Notice } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
 import { AreteClient } from '@/infrastructure/arete/AreteClient';
@@ -60,6 +59,32 @@ export interface ConceptStats {
 	totalLapses: number;
 	score: number; // 0.0 to 1.0 (Problematic Ratio)
 	lastUpdated: number;
+	// Raw sums for aggregation (optional but helpful if we re-implement aggregation)
+	sumDifficulty?: number;
+	countDifficulty?: number;
+	sumStability?: number;
+	countStability?: number;
+	sumRetrievability?: number;
+	countRetrievability?: number;
+}
+
+export interface StatsNode {
+	title: string;
+	filePath: string;
+	deckName: string; // If leaf, primary deck. If node, aggregation.
+	isLeaf: boolean;
+	children: StatsNode[];
+	
+	// Aggregated Metrics
+	count: number;
+	lapses: number;
+	difficulty: number | null; // Avg
+	stability: number | null; // Avg
+	retrievability: number | null; // Avg
+	
+	// Problematic
+	problematicCount: number;
+	score: number; // For sorting
 }
 
 export interface StatsCache {
@@ -118,6 +143,13 @@ export class StatsService {
 						totalLapses: 0,
 						score: 0,
 						lastUpdated: Date.now(),
+						// Init raw sums
+						sumDifficulty: 0,
+						countDifficulty: 0,
+						sumStability: 0,
+						countStability: 0,
+						sumRetrievability: 0,
+						countRetrievability: 0
 					};
 					conceptDeckCounts[file.path] = {};
 
@@ -206,6 +238,18 @@ export class StatsService {
 				}
 				concept.averageDifficulty += stat.difficulty;
 				concept.difficultyCount = (concept.difficultyCount || 0) + 1;
+				
+				// Extended agg
+				concept.sumDifficulty = (concept.sumDifficulty || 0) + stat.difficulty;
+				concept.countDifficulty = (concept.countDifficulty || 0) + 1;
+			}
+			if (stat.stability !== undefined && stat.stability !== null) {
+				concept.sumStability = (concept.sumStability || 0) + stat.stability;
+				concept.countStability = (concept.countStability || 0) + 1;
+			}
+			if (stat.retrievability !== undefined && stat.retrievability !== null) {
+				concept.sumRetrievability = (concept.sumRetrievability || 0) + stat.retrievability;
+				concept.countRetrievability = (concept.countRetrievability || 0) + 1;
 			}
 
 			// Track Deck (pick primary later if not set by YAML)
@@ -299,6 +343,141 @@ export class StatsService {
 		return results.sort((a, b) => b.score - a.score); // Sort by problematic score desc
 	}
 
+	getAggregatedStats(concepts: ConceptStats[]): StatsNode {
+		// 1. Create Root
+		const root: StatsNode = {
+			title: 'Vault',
+			filePath: '',
+			deckName: 'All',
+			isLeaf: false,
+			children: [],
+			count: 0,
+			lapses: 0,
+			difficulty: null,
+			stability: null,
+			retrievability: null,
+			problematicCount: 0,
+			score: 0
+		};
+
+		// 2. Build Tree Structure
+		// Map deck names to nodes for quick lookup
+		const deckMap = new Map<string, StatsNode>();
+		deckMap.set('All', root); // 'All' concept is abstract root
+
+		for (const c of concepts) {
+			// Determine deck hierarchy
+			const deckPath = c.primaryDeck && c.primaryDeck !== 'Unknown' ? c.primaryDeck : 'Default';
+			const parts = deckPath.split('::');
+			
+			let currentPath = '';
+			let parent = root;
+
+			// Traverse/Create Deck Nodes
+			for (const part of parts) {
+				const fullPath = currentPath ? `${currentPath}::${part}` : part;
+				
+				if (!deckMap.has(fullPath)) {
+					const deckNode: StatsNode = {
+						title: part,
+						filePath: '', // Folder
+						deckName: fullPath,
+						isLeaf: false,
+						children: [],
+						count: 0,
+						lapses: 0,
+						difficulty: null,
+						stability: null,
+						retrievability: null,
+						problematicCount: 0,
+						score: 0
+					};
+					parent.children.push(deckNode);
+					deckMap.set(fullPath, deckNode);
+					parent = deckNode;
+				} else {
+					parent = deckMap.get(fullPath)!;
+				}
+				currentPath = fullPath;
+			}
+
+			// Add File Node (Leaf) to the specific deck
+			const diff = (c.countDifficulty && c.countDifficulty > 0) ? (c.sumDifficulty || 0) / c.countDifficulty : null;
+			const stab = (c.countStability && c.countStability > 0) ? (c.sumStability || 0) / c.countStability : null;
+			const ret = (c.countRetrievability && c.countRetrievability > 0) ? (c.sumRetrievability || 0) / c.countRetrievability : null;
+
+			const leaf: StatsNode = {
+				title: c.fileName.replace('.md', ''),
+				filePath: c.filePath,
+				deckName: currentPath,
+				isLeaf: true,
+				children: [],
+				count: c.totalCards,
+				lapses: c.totalLapses,
+				difficulty: diff,
+				stability: stab,
+				retrievability: ret,
+				problematicCount: c.problematicCardsCount,
+				score: c.score
+			};
+			parent.children.push(leaf);
+		}
+
+		// 3. Aggregate Metrics (Post-Order Traversal)
+		this.aggregateNode(root);
+
+		// 4. Sort (Optional: by score or name)
+		this.sortTree(root);
+
+		return root;
+	}
+
+	private aggregateNode(node: StatsNode) {
+		if (node.isLeaf) return;
+
+		let sumDiff = 0, countDiff = 0;
+		let sumStab = 0, countStab = 0;
+		let sumRet = 0, countRet = 0;
+
+		for (const child of node.children) {
+			this.aggregateNode(child);
+
+			node.count += child.count;
+			node.lapses += child.lapses;
+			node.problematicCount += child.problematicCount;
+
+			if (child.difficulty !== null) {
+				sumDiff += child.difficulty * child.count;
+				countDiff += child.count;
+			}
+			if (child.stability !== null) {
+				sumStab += child.stability * child.count;
+				countStab += child.count;
+			}
+			if (child.retrievability !== null) {
+				sumRet += child.retrievability * child.count;
+				countRet += child.count;
+			}
+		}
+
+		if (countDiff > 0) node.difficulty = sumDiff / countDiff;
+		if (countStab > 0) node.stability = sumStab / countStab;
+		if (countRet > 0) node.retrievability = sumRet / countRet;
+		
+		// Score based on density of issues
+		if (node.count > 0) node.score = node.problematicCount / node.count;
+	}
+	
+	private sortTree(node: StatsNode) {
+		if (node.isLeaf) return;
+		// Sort by Score Descending
+		node.children.sort((a, b) => b.score - a.score);
+		
+		for (const child of node.children) {
+			this.sortTree(child);
+		}
+	}
+
 	async fetchAnkiCardStats(nids: number[]): Promise<AnkiCardStats[]> {
 		try {
 			const data = await this.client.invoke('/anki/stats', { nids });
@@ -345,4 +524,3 @@ export class StatsService {
 		return [];
 	}
 }
-```
