@@ -93,7 +93,7 @@ async def test_suspend_cards_error(adapter):
 async def test_gui_browse_timeout(adapter):
     # Mock platform and ankiconnect polling
     with patch("sys.platform", "linux"):
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.Popen") as mock_popen:
             # _try_ankiconnect always False
             with patch("httpx.AsyncClient") as mock_client:
                 mock_client.return_value.__aenter__.return_value.post.side_effect = Exception(
@@ -102,7 +102,7 @@ async def test_gui_browse_timeout(adapter):
                 with patch("asyncio.sleep", AsyncMock()):  # Speed up test
                     res = await adapter.gui_browse("query")
                     assert res is False
-                    mock_run.assert_called()
+                    mock_popen.assert_called()
 
 
 @pytest.mark.asyncio
@@ -149,25 +149,33 @@ async def test_gui_browse_macos(adapter):
                 with patch("asyncio.sleep", AsyncMock()):
                     res = await adapter.gui_browse("query")
                     assert res is True
-                    mock_run.assert_called_with(["open", "-a", "Anki"], stdout=ANY, stderr=ANY)
+                    mock_run.assert_called_with(
+                        ["open", "-a", "Anki"], stdout=ANY, stderr=ANY
+                    )
 
 
 @pytest.mark.asyncio
 async def test_gui_browse_windows(adapter):
     with patch("sys.platform", "win32"):
-        with patch("os.startfile", create=True) as mock_start:
-            with patch("httpx.AsyncClient") as mock_client_cls:
-                mock_client = AsyncMock()
-                mock_client_cls.return_value.__aenter__.return_value = mock_client
-                mock_resp = MagicMock()
-                mock_resp.status_code = 200
-                mock_resp.json.return_value = {"result": True, "error": None}
-                mock_client.post.return_value = mock_resp
+        # Mock Popen for success path
+        with patch("subprocess.Popen") as mock_popen:
+            with patch("os.path.exists", return_value=False): # Default fail path search
+                # But if we mock subprocess.Popen to NOT raise, it simulates 'anki' command found
+                # Or we can test fallback.
+                # Let's test PATH success first (first try block)
+                with patch("httpx.AsyncClient") as mock_client_cls:
+                    mock_client = AsyncMock()
+                    mock_client_cls.return_value.__aenter__.return_value = mock_client
+                    mock_resp = MagicMock()
+                    mock_resp.status_code = 200
+                    mock_resp.json.return_value = {"result": True, "error": None}
+                    mock_client.post.return_value = mock_resp
 
-                with patch("asyncio.sleep", AsyncMock()):
-                    res = await adapter.gui_browse("query")
-                    assert res is True
-                    mock_start.assert_called()
+                    with patch("asyncio.sleep", AsyncMock()):
+                        res = await adapter.gui_browse("query")
+                        assert res is True
+                        # Should call Popen(["anki"], ...)
+                        mock_popen.assert_called()
 
 
 @pytest.mark.asyncio
