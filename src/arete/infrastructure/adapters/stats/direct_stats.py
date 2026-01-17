@@ -123,7 +123,7 @@ class DirectStatsRepository(StatsRepository):
 
             # Query revlog for all cids
             # revlog columns: id, cid, usn, ease, ivl, lastIvl, factor, time, type...
-            columns = [c[1] for c in repo.col.db.execute("PRAGMA table_info(revlog)")]
+            columns = [c[1] for c in repo.col.db.execute("PRAGMA table_info(revlog)")] if repo.col.db else []
             has_data = "data" in columns
             
             # Select essential columns + lastIvl + time

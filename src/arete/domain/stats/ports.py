@@ -44,3 +44,17 @@ class StatsRepository(ABC):
             List of ReviewEntry objects, sorted by review_time ascending.
         """
         pass
+
+    @abstractmethod
+    async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
+        """
+        Fetch FSRS parameters (desired retention, weights) for the given decks.
+
+        Args:
+            deck_names: List of deck names to fetch parameters for.
+
+        Returns:
+            Dictionary mapping deck names to their FSRS parameters.
+        """
+        pass
+

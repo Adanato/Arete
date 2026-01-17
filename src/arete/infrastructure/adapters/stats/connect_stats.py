@@ -135,6 +135,8 @@ class ConnectStatsRepository(StatsRepository):
                                 review_time=rev.get("id", 0) // 1000,
                                 rating=rev.get("ease", 0),
                                 interval=rev.get("ivl", 0),
+                                last_interval=rev.get("lastIvl", 0),
+                                time_taken=rev.get("time", 0),
                                 review_type=rev.get("type", 0),
                             )
                         )
@@ -160,3 +162,41 @@ class ConnectStatsRepository(StatsRepository):
                 raise RuntimeError(f"AnkiConnect error: {data['error']}")
 
             return data.get("result")
+
+    async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
+        """
+        Fetch FSRS parameters for the given decks via AnkiConnect.
+        
+        Falls back to defaults if the custom action isn't available.
+        """
+        params: dict[str, dict] = {}
+        
+        for deck_name in deck_names:
+            try:
+                # Try to get deck config via AnkiConnect
+                deck_config = await self._invoke("getDeckConfig", deck=deck_name)
+                if deck_config:
+                    fsrs = deck_config.get("fsrs", {})
+                    params[deck_name] = {
+                        "desired_retention": deck_config.get("desiredRetention", fsrs.get("desiredRetention", 0.9)),
+                        "weights": fsrs.get("w", []),
+                        "sm2_retention": deck_config.get("sm2Retention", 0.9),
+                    }
+                else:
+                    # Default values
+                    params[deck_name] = {
+                        "desired_retention": 0.9,
+                        "weights": [],
+                        "sm2_retention": 0.9,
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to fetch deck params for {deck_name}: {e}")
+                # Provide defaults on failure
+                params[deck_name] = {
+                    "desired_retention": 0.9,
+                    "weights": [],
+                    "sm2_retention": 0.9,
+                }
+        
+        return params
+
