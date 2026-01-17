@@ -376,10 +376,8 @@ class AnkiDirectAdapter(AnkiBridge):
         import os
         import subprocess
         import sys
-        import urllib.parse
 
         import httpx
-
         # Suppress httpx logging for this operation
         logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -399,22 +397,56 @@ class AnkiDirectAdapter(AnkiBridge):
         # 1. ALWAYS launch/bring Anki to front first
         try:
             if sys.platform == "darwin":
-                # User requested simple launch
+                # MacOS: Use 'open' command
                 subprocess.run(
                     ["open", "-a", "Anki"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
             elif sys.platform == "win32":
-                uri = f"anki://x-callback-url/search?query={urllib.parse.quote(query)}"
-                os.startfile(uri)
+                launched = False
+                # 1. Try by name (works if PATH or App Execution Alias / App Paths is set)
+                try:
+                    # 0x00000008 is DETACHED_PROCESS
+                    subprocess.Popen(
+                        ["anki"], close_fds=True, creationflags=0x00000008
+                    )
+                    launched = True
+                except Exception:
+                    pass
+
+                # 2. Common install locations
+                if not launched:
+                    anki_paths = [
+                        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Anki\anki.exe"),
+                        r"C:\Program Files\Anki\anki.exe",
+                    ]
+                    for path in anki_paths:
+                        if os.path.exists(path):
+                            subprocess.Popen(
+                                [path],
+                                close_fds=True,
+                                creationflags=0x00000008,
+                            )
+                            launched = True
+                            break
+
+                # 3. Fallback: Try generic 'start anki'
+                if not launched:
+                    subprocess.run("start anki", shell=True)
+
             else:
-                uri = f"anki://x-callback-url/search?query={urllib.parse.quote(query)}"
-                subprocess.run(
-                    ["xdg-open", uri], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-        except Exception:
-            pass
+                # Linux: Try 'anki' command
+                # Use shutil.which or just try Popen
+                try:
+                    subprocess.Popen(
+                        ["anki"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                except FileNotFoundError:
+                    self.logger.warning("Could not find 'anki' executable in PATH.")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to launch Anki application: {e}")
 
         # 2. Wait 1 second per user request to allow Anki to settle
         await asyncio.sleep(1.0)

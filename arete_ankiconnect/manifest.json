@@ -1,5 +1,5 @@
 {
-    "package": "ankiconnect_fsrs",
     "name": "AnkiConnect (Arete FSRS)",
-    "mod": 1736997600
+    "package": "arete_ankiconnect",
+    "version": "1.4.0"
 }
