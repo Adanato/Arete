@@ -1,22 +1,10 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice, MarkdownView, TFile, Menu } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, MarkdownView, TFile, Menu, Modal, App } from 'obsidian';
 import AretePlugin from '@/main';
-import { ConceptStats, ProblematicCard } from '@application/services/StatsService';
+import { ConceptStats, ProblematicCard, AnkiCardStats, StatsNode } from '@application/services/StatsService';
 import { BrokenReference } from '@application/services/LinkCheckerService';
 import { LeechCard } from '@application/services/LeechService';
 
-export const DASHBOARD_VIEW_TYPE = 'arete-stats-view'; // Keep ID for compatibility
-
-interface DeckTreeNode {
-	name: string;
-	fullName: string;
-	concepts: ConceptStats[];
-	children: Record<string, DeckTreeNode>;
-	totalProblematic: number;
-	totalCards: number;
-	totalLapses: number;
-	sumDifficulty: number;
-	countDifficulty: number;
-}
+export const DASHBOARD_VIEW_TYPE = 'arete-stats-view';
 
 type DashboardTab = 'overview' | 'leeches' | 'integrity';
 
@@ -27,7 +15,7 @@ export class DashboardView extends ItemView {
 	// Overview State
 	expandedConcepts: Set<string>;
 	expandedDecks: Set<string>;
-	overviewMode: 'hierarchy' | 'leaderboard' = 'hierarchy';
+	overviewMode: 'hierarchy' | 'leaderboard' = 'hierarchy'; // Leaderboard deprecated for now
 
 	// Integrity State
 	brokenRefs: BrokenReference[] | null = null;
@@ -53,6 +41,14 @@ export class DashboardView extends ItemView {
 	}
 
 	async onOpen() {
+		// Auto-load stats if cache is empty
+		if (Object.keys(this.plugin.statsService.getCache().concepts).length === 0) {
+			// Don't await here directly if we want instant UI, but we want to avoid empty state.
+			// Let's show a loading notice and render, then re-render when done?
+			// Or just await. Ensuring data on open is better UX than empty state.
+			new Notice('Syncing Anki stats...');
+			await this.plugin.statsService.refreshStats();
+		}
 		this.render();
 	}
 
@@ -179,52 +175,345 @@ export class DashboardView extends ItemView {
 		});
 	}
 
-	// --- 1. OVERVIEW TAB (Logic adapted from StatisticsView) ---
-	renderOverview(container: HTMLElement) {
-		// View Switcher (Hierarchy vs Leaderboard)
-		const controls = container.createDiv({ cls: 'arete-overview-controls' });
-		controls.style.display = 'flex';
-		controls.style.justifyContent = 'flex-end';
-		controls.style.marginBottom = '1rem';
-		controls.style.gap = '0.5rem';
+	// --- 1. OVERVIEW TAB ---
+	// --- 1. OVERVIEW TAB ---
+	async renderOverview(container: HTMLElement) {
+		container.empty(); // Clear previous render to prevent duplication
 
-		const viewSelect = controls.createEl('select');
-		const optHierarchy = viewSelect.createEl('option', {
-			text: 'Folder View',
-			value: 'hierarchy',
-		});
-		const optLeaderboard = viewSelect.createEl('option', {
-			text: 'Worst Concepts',
-			value: 'leaderboard',
-		});
-		if (this.overviewMode === 'hierarchy') optHierarchy.selected = true;
-		else optLeaderboard.selected = true;
-
-		viewSelect.onchange = () => {
-			this.overviewMode = viewSelect.value as any;
-			this.render();
-		};
-
-		const concepts = Object.values(this.plugin.statsService.getCache().concepts);
+		// FIX: Do NOT await refreshStats() here. It causes re-fetching on every UI click (expand/collapse).
+		// Use cached data.
+		const conceptsMap = this.plugin.statsService.getCache().concepts;
+		const concepts = Object.values(conceptsMap);
+		
 		if (concepts.length === 0) {
-			this.renderEmptyState(container, 'No statistics available. Please sync.');
+			this.renderEmptyState(container, 'No statistics available. Please click Refresh to sync.');
 			return;
 		}
 
-		if (this.overviewMode === 'hierarchy') {
-			const rootNode = this.buildDeckTree(concepts);
-			const sortedDeckKeys = Object.keys(rootNode.children).sort();
-			sortedDeckKeys.forEach((key) => {
-				this.renderDeckNode(container, rootNode.children[key], 0);
-			});
-			if (rootNode.concepts.length > 0) {
-				rootNode.concepts.sort((a, b) => b.score - a.score);
-				rootNode.concepts.forEach((c) => this.renderConceptRow(container, c));
-			}
+		// Use the service to get the pre-calculated tree
+		const root = this.plugin.statsService.getAggregatedStats(concepts);
+
+		// Render Tree
+		const list = container.createDiv({ cls: 'arete-deck-list' });
+		
+		// Render children directly to avoid abstract 'Vault' root node
+		if (root.children.length === 0) {
+			this.renderEmptyState(container, 'No stats available.');
 		} else {
-			// Leaderboard
-			const sorted = [...concepts].sort((a, b) => b.score - a.score);
-			sorted.forEach((c) => this.renderConceptRow(container, c));
+			root.children.forEach(child => {
+				this.renderDeckNode(list, child, 0);
+			});
+		}
+	}
+
+	renderDeckNode(container: HTMLElement, node: StatsNode, depth: number) {
+		const deckContainer = container.createDiv();
+		const header = deckContainer.createDiv();
+		header.style.padding = `8px 16px 8px ${8 + depth * 16}px`;
+		header.style.cursor = 'pointer';
+		header.style.display = 'flex';
+		header.style.alignItems = 'center';
+		header.style.borderBottom = '1px solid var(--background-modifier-border)';
+		// Highlight if issues
+		if (node.problematicCount > 0) header.style.background = 'rgba(var(--color-red-rgb), 0.05)';
+
+		const icon = header.createSpan();
+		icon.style.marginRight = '8px';
+		// If leaf, key is filePath, else deckName. Expanded set keys match this logic.
+		const expansionKey = node.isLeaf ? node.filePath : node.deckName;
+		
+		if (!node.isLeaf) {
+			setIcon(icon, this.expandedDecks.has(expansionKey) ? 'chevron-down' : 'chevron-right');
+		} else {
+			setIcon(icon, 'file-text');
+			icon.style.color = 'var(--text-muted)';
+		}
+
+		const title = header.createSpan({ text: node.title });
+		title.style.fontWeight = '600';
+		if (node.isLeaf) title.style.fontWeight = 'normal';
+
+		const statsContainer = header.createDiv({ cls: 'arete-deck-stats' });
+		statsContainer.style.marginLeft = 'auto';
+		statsContainer.style.display = 'flex';
+		statsContainer.style.gap = '20px';
+		statsContainer.style.fontSize = '0.9em';
+		statsContainer.style.color = 'var(--text-muted)';
+
+		// 0. Card Count
+		const countSpan = statsContainer.createSpan({ text: `${node.count} cards` });
+		countSpan.style.width = '80px';
+		countSpan.style.whiteSpace = 'nowrap';
+		countSpan.style.textAlign = 'right';
+
+		// 1. Difficulty (Avg)
+		const diffSpan = statsContainer.createSpan();
+		diffSpan.style.width = '70px';
+		diffSpan.style.whiteSpace = 'nowrap';
+		diffSpan.style.textAlign = 'right';
+		if (node.difficulty != null) {
+			diffSpan.textContent = `${node.difficulty.toFixed(1)} D`;
+			if (node.difficulty > 6) diffSpan.style.color = 'var(--color-orange)';
+		} else {
+			diffSpan.textContent = '-';
+		}
+
+		// 1b. Stability (Avg)
+		const stabSpan = statsContainer.createSpan();
+		stabSpan.style.width = '90px';
+		stabSpan.style.whiteSpace = 'nowrap';
+		stabSpan.style.textAlign = 'right';
+		if (node.stability != null) {
+			stabSpan.textContent = `${node.stability.toFixed(1)}d Stab`;
+			if (node.stability < 7) stabSpan.style.color = 'var(--color-orange)';
+		} else {
+			stabSpan.textContent = '-';
+		}
+
+		// 1c. Retrievability (Avg)
+		const retSpan = statsContainer.createSpan();
+		retSpan.style.width = '70px';
+		retSpan.style.whiteSpace = 'nowrap';
+		retSpan.style.textAlign = 'right';
+		if (node.retrievability != null) {
+			retSpan.textContent = `${(node.retrievability * 100).toFixed(0)}% Ret`;
+			if (node.retrievability < 0.85) retSpan.style.color = 'var(--color-red)';
+		} else {
+			retSpan.textContent = '-';
+		}
+
+		// 2. Lapses
+		const lapseSpan = statsContainer.createSpan({ text: `${node.lapses} laps` });
+		lapseSpan.style.width = '60px';
+		lapseSpan.style.whiteSpace = 'nowrap';
+		lapseSpan.style.textAlign = 'right';
+		if (node.lapses > 0) lapseSpan.style.color = 'var(--text-error)';
+
+		// 3. Score (Issues)
+		if (node.problematicCount > 0) {
+			const scoreBadge = statsContainer.createSpan({
+				text: `${node.problematicCount} issues`,
+			});
+			scoreBadge.style.background = 'var(--color-red)';
+			scoreBadge.style.color = 'var(--text-on-accent)';
+			scoreBadge.style.padding = '2px 6px';
+			scoreBadge.style.borderRadius = '4px';
+			scoreBadge.style.fontSize = '0.8em';
+			scoreBadge.style.marginLeft = '10px';
+		}
+
+		header.onclick = async () => {
+			if (!node.isLeaf) {
+				if (this.expandedDecks.has(expansionKey)) {
+					this.expandedDecks.delete(expansionKey);
+				} else {
+					this.expandedDecks.add(expansionKey);
+				}
+				this.plugin.saveSettings();
+				// Re-render whole view to refresh tree state
+				this.renderOverview(container.parentElement!); 
+			} else {
+				// Leaf click: Toggle file expansion
+				if (this.expandedConcepts.has(node.filePath)) {
+					this.expandedConcepts.delete(node.filePath);
+				} else {
+					this.expandedConcepts.add(node.filePath);
+				}
+				this.plugin.saveSettings();
+				// Re-render handled by parent refresh usually, but here we can just rebuild.
+				// Actually re-rendering the whole view is safest.
+				this.renderOverview(container.parentElement!);
+			}
+		};
+        
+        // Leaf name click action (go to file)
+        if (node.isLeaf) {
+            title.addClass('arete-clickable');
+            title.onclick = (e) => {
+                e.stopPropagation();
+                this.openFile(node.filePath);
+            };
+        }
+
+		// Children Rendering
+		if (!node.isLeaf && this.expandedDecks.has(expansionKey)) {
+			// Render children nodes
+			Object.values(node.children).forEach(child => this.renderDeckNode(deckContainer, child, depth + 1));
+		} else if (node.isLeaf && this.expandedConcepts.has(node.filePath)) {
+			// This is a file, find ConceptStats to render individual cards
+			const concepts = this.plugin.statsService.getCache().concepts[node.filePath];
+			if (concepts) {
+				const cardListWrapper = deckContainer.createDiv({ cls: 'arete-card-list-wrapper' });
+				cardListWrapper.style.paddingLeft = `${24 + depth * 16}px`;
+				this.renderCardList(cardListWrapper, concepts);
+			}
+		}
+	}
+
+	renderCardList(container: HTMLElement, concept: ConceptStats) {
+		const cardList = container.createDiv();
+		cardList.style.background = 'var(--background-primary-alt)';
+		cardList.style.borderBottom = '1px solid var(--background-modifier-border)';
+		cardList.style.borderRadius = '4px';
+		cardList.style.marginBottom = '8px';
+
+		// Get all cards for this concept
+		const cards = Object.values(concept.cardStats);
+
+		if (cards.length === 0) {
+			cardList.createDiv({ text: 'No card stats synced.' }).style.padding = '8px 32px';
+		} else {
+			// Header
+			const header = cardList.createDiv();
+			header.style.display = 'flex';
+			header.style.padding = '4px 8px 4px 12px';
+			header.style.fontSize = '0.75em';
+			header.style.color = 'var(--text-muted)';
+			header.style.borderBottom = '1px solid var(--background-modifier-border)';
+
+			const h1 = header.createSpan({ text: 'Card Question' });
+			h1.style.flex = '1';
+			const h2 = header.createSpan({ text: 'Diff' });
+			h2.style.width = '50px';
+			const hStab = header.createSpan({ text: 'Stab' });
+			hStab.style.width = '50px';
+			const hGain = header.createSpan({ text: 'Gain' });
+			hGain.style.width = '40px';
+			const hRet = header.createSpan({ text: 'Ret' });
+			hRet.style.width = '50px';
+			const h3 = header.createSpan({ text: 'Lapses' });
+			h3.style.width = '60px';
+			const hFlags = header.createSpan({ text: '!' });
+			hFlags.style.width = '20px';
+			hFlags.style.textAlign = 'center';
+			hFlags.title = 'Flags (e.g. Overlearning)';
+
+			cards
+				.sort((a, b) => b.lapses - a.lapses)
+				.forEach((card) => {
+					const cRow = cardList.createDiv();
+					cRow.style.display = 'flex';
+					cRow.style.alignItems = 'center';
+					cRow.style.padding = '4px 8px 4px 12px';
+					cRow.style.fontSize = '0.8em';
+					cRow.style.borderBottom = '1px solid var(--background-modifier-border)';
+
+					// Hover effect
+					cRow.addEventListener(
+						'mouseenter',
+						() => (cRow.style.backgroundColor = 'var(--background-modifier-hover)'),
+					);
+					cRow.addEventListener(
+						'mouseleave',
+						() => (cRow.style.backgroundColor = 'transparent'),
+					);
+
+					cRow.onclick = (e) => {
+						e.stopPropagation();
+						if (card.front) this.goToCard(concept.filePath, card.front);
+					};
+
+					try {
+						const frontText = card.front
+							? card.front.replace(/<[^>]*>?/gm, '')
+							: `#${card.cardId}`;
+						const qSpan = cRow.createSpan({ text: frontText, cls: 'arete-clickable' });
+						qSpan.title = frontText;
+						qSpan.style.flex = '1';
+						qSpan.style.whiteSpace = 'nowrap';
+						qSpan.style.overflow = 'hidden';
+						qSpan.style.textOverflow = 'ellipsis';
+						qSpan.style.cursor = 'pointer';
+						
+						qSpan.addEventListener('mouseenter', () => qSpan.style.textDecoration = 'underline');
+						qSpan.addEventListener('mouseleave', () => qSpan.style.textDecoration = 'none');
+
+						qSpan.onclick = (e) => {
+							e.stopPropagation();
+							if (card.front) this.goToCard(concept.filePath, card.front);
+						};
+
+						// --- Stats Group (Click for Modal) ---
+						const sGroup = cRow.createDiv({ cls: 'arete-card-stats-group' });
+						sGroup.style.display = 'flex';
+						sGroup.style.alignItems = 'center';
+						sGroup.style.cursor = 'help';
+						
+						sGroup.addEventListener('mouseenter', () => sGroup.style.background = 'var(--background-modifier-hover)');
+						sGroup.addEventListener('mouseleave', () => sGroup.style.background = 'transparent');
+
+						sGroup.onclick = (e) => {
+							e.stopPropagation();
+							new CardStatsModal(this.plugin.app, card).open();
+						};
+						
+						// 1. Difficulty
+						const dSpan = sGroup.createSpan();
+						dSpan.style.width = '50px';
+						dSpan.style.textAlign = 'right';
+						if (card.difficulty) {
+							dSpan.textContent = card.difficulty.toFixed(1);
+							if (card.difficulty > 7) dSpan.style.color = 'var(--color-orange)';
+						} else {
+							dSpan.textContent = '-';
+						}
+
+						// 2. Stability
+						const stSpan = sGroup.createSpan();
+						stSpan.style.width = '50px';
+						stSpan.style.textAlign = 'right';
+						if (card.stability) {
+							stSpan.textContent = card.stability.toFixed(0);
+						} else {
+							stSpan.textContent = '-';
+						}
+
+						// 3. Interval Growth (was Stability Gain)
+						const growthSpan = sGroup.createSpan();
+						growthSpan.style.width = '50px';
+						growthSpan.style.textAlign = 'right';
+						if (card.intervalGrowth != null) {
+							growthSpan.textContent = `x${card.intervalGrowth.toFixed(1)}`;
+							if (card.intervalGrowth < 1.0) growthSpan.style.color = 'var(--color-red)';
+							else growthSpan.style.color = 'var(--color-green)';
+						} else {
+							growthSpan.textContent = '-';
+						}
+
+						// 4. Retrievability
+						const rSpan = sGroup.createSpan();
+						rSpan.style.width = '50px';
+						rSpan.style.textAlign = 'right';
+						if (card.retrievability) {
+							rSpan.textContent = `${(card.retrievability * 100).toFixed(0)}%`;
+							if (card.retrievability < 0.85) rSpan.style.color = 'var(--color-red)';
+						} else {
+							rSpan.textContent = '-';
+						}
+
+						// 5. Lapses
+						const lSpan = sGroup.createSpan();
+						lSpan.style.width = '60px'; // Matching header
+						lSpan.style.textAlign = 'right';
+						lSpan.textContent = card.lapses.toString();
+						if (card.lapses > 5) lSpan.style.color = 'var(--color-red)';
+						
+						// 6. Flags
+						const fSpan = sGroup.createSpan();
+						fSpan.style.width = '20px';
+						fSpan.style.textAlign = 'center';
+						if (card.isOverlearning) {
+							fSpan.textContent = 'OL';
+							fSpan.style.fontSize = '0.7em';
+							fSpan.style.fontWeight = 'bold';
+							fSpan.style.color = 'var(--color-blue)';
+							fSpan.title = 'Overlearning Detected';
+						}
+
+					} catch (e) {
+						console.error('Error rendering card row', e);
+					}
+				});
 		}
 	}
 
@@ -446,297 +735,6 @@ export class DashboardView extends ItemView {
 		box.createDiv({ text: message }).style.marginTop = '1rem';
 	}
 
-	// ... [Re-use buildDeckTree, renderDeckNode, renderConceptRow from StatisticsView]
-	// To save space in this response, I'm assuming those methods are copied or refactored.
-	// For this task, I will include abbreviated versions or copy them fully.
-	// Since I cannot "inherit" them easily without mixins, I will copy them for now.
-
-	buildDeckTree(concepts: ConceptStats[]): DeckTreeNode {
-		/* ... Same as StatisticsView ... */
-		const root: DeckTreeNode = {
-			name: 'Root',
-			fullName: '',
-			concepts: [],
-			children: {},
-			totalProblematic: 0,
-			totalCards: 0,
-			totalLapses: 0,
-			sumDifficulty: 0,
-			countDifficulty: 0,
-		};
-		concepts.forEach((c) => {
-			const deckName = c.primaryDeck || 'Default';
-			const parts = deckName.split('::');
-			let currentNode = root;
-			let currentPath = '';
-			parts.forEach((part) => {
-				currentPath = currentPath ? `${currentPath}::${part}` : part;
-				if (!currentNode.children[part]) {
-					currentNode.children[part] = {
-						name: part,
-						fullName: currentPath,
-						concepts: [],
-						children: {},
-						totalProblematic: 0,
-						totalCards: 0,
-						totalLapses: 0,
-						sumDifficulty: 0,
-						countDifficulty: 0,
-					};
-				}
-				currentNode = currentNode.children[part];
-			});
-			currentNode.concepts.push(c);
-		});
-		this.aggregateTree(root);
-		return root;
-	}
-
-	aggregateTree(node: DeckTreeNode) {
-		node.concepts.forEach((c) => {
-			node.totalProblematic += c.problematicCardsCount;
-			node.totalCards += c.totalCards;
-			node.totalLapses += c.totalLapses;
-			if (this.plugin.settings.stats_algorithm === 'fsrs' && c.averageDifficulty) {
-				if (c.difficultyCount) {
-					node.sumDifficulty += c.averageDifficulty * c.difficultyCount;
-					node.countDifficulty += c.difficultyCount;
-				}
-			}
-		});
-		Object.values(node.children).forEach((child) => {
-			this.aggregateTree(child);
-			node.totalProblematic += child.totalProblematic;
-			node.totalCards += child.totalCards;
-			node.totalLapses += child.totalLapses;
-			node.sumDifficulty += child.sumDifficulty;
-			node.countDifficulty += child.countDifficulty;
-		});
-	}
-
-	renderDeckNode(container: HTMLElement, node: DeckTreeNode, depth: number) {
-		const deckContainer = container.createDiv();
-		const header = deckContainer.createDiv();
-		header.style.padding = `8px 16px 8px ${8 + depth * 16}px`;
-		header.style.cursor = 'pointer';
-		header.style.display = 'flex';
-		header.style.alignItems = 'center';
-		header.style.borderBottom = '1px solid var(--background-modifier-border)';
-		// Highlight if issues
-		if (node.totalProblematic > 0) header.style.background = 'rgba(var(--color-red-rgb), 0.05)';
-
-		const icon = header.createSpan();
-		icon.style.marginRight = '8px';
-		const isExpanded = this.expandedDecks.has(node.fullName);
-		setIcon(icon, isExpanded ? 'chevron-down' : 'chevron-right');
-
-		const title = header.createSpan({ text: node.name });
-		title.style.fontWeight = '600';
-
-		const statsContainer = header.createDiv({ cls: 'arete-deck-stats' });
-		statsContainer.style.marginLeft = 'auto';
-		statsContainer.style.display = 'flex';
-		statsContainer.style.gap = '16px';
-		statsContainer.style.fontSize = '0.9em';
-		statsContainer.style.color = 'var(--text-muted)';
-
-		// 1. Difficulty (Avg)
-		const avgDiff = node.countDifficulty ? node.sumDifficulty / node.countDifficulty : 0;
-		if (avgDiff > 0) {
-			const diffSpan = statsContainer.createSpan({
-				text: `${(avgDiff * 100).toFixed(0)}% Diff`,
-			});
-			if (avgDiff > 0.6) diffSpan.style.color = 'var(--color-orange)';
-		}
-
-		// 2. Lapses (Avg) - User Requested
-		const avgLapse = node.totalCards > 0 ? node.totalLapses / node.totalCards : 0;
-		const lapseSpan = statsContainer.createSpan({ text: `${avgLapse.toFixed(1)} Lap. Avg` });
-		if (avgLapse > 2) lapseSpan.style.color = 'var(--color-red)';
-
-		// 3. Issues (Total)
-		const badge = statsContainer.createSpan({
-			text: `${node.totalProblematic} Issues`,
-			cls: 'arete-badge',
-		});
-		if (node.totalProblematic > 0) badge.style.color = 'var(--color-red)';
-
-		const content = deckContainer.createDiv();
-		if (!isExpanded) content.style.display = 'none';
-
-		header.onclick = async () => {
-			if (this.expandedDecks.has(node.fullName)) this.expandedDecks.delete(node.fullName);
-			else this.expandedDecks.add(node.fullName);
-			await this.plugin.saveSettings();
-			this.render(); // Crude re-render
-		};
-
-		if (isExpanded) {
-			// Concepts
-			node.concepts.forEach((c) => {
-				const rowWrapper = content.createDiv();
-				rowWrapper.style.paddingLeft = `${24 + depth * 16}px`;
-				this.renderConceptRow(rowWrapper, c);
-			});
-			// Children
-			Object.values(node.children).forEach((child) =>
-				this.renderDeckNode(content, child, depth + 1),
-			);
-		}
-	}
-
-	renderConceptRow(container: HTMLElement, concept: ConceptStats) {
-		const row = container.createDiv();
-		row.style.display = 'flex';
-		row.style.justifyContent = 'space-between';
-		row.style.alignItems = 'center';
-		row.style.padding = '6px 8px';
-		row.style.borderBottom = '1px solid var(--background-modifier-border)';
-
-		const leftGroup = row.createDiv();
-		leftGroup.style.display = 'flex';
-		leftGroup.style.alignItems = 'center';
-		leftGroup.style.gap = '8px';
-		leftGroup.style.flex = '1';
-
-		// Expand Toggle for Card Stats
-		const expandBtn = leftGroup.createSpan({ cls: 'arete-icon-btn' });
-		expandBtn.style.cursor = 'pointer';
-		expandBtn.title = 'Show individual cards';
-		const isExpanded = this.expandedConcepts.has(concept.filePath);
-		setIcon(expandBtn, isExpanded ? 'chevron-down' : 'chevron-right');
-
-		expandBtn.onclick = async (e) => {
-			e.stopPropagation();
-			if (isExpanded) this.expandedConcepts.delete(concept.filePath);
-			else this.expandedConcepts.add(concept.filePath);
-			await this.plugin.saveSettings();
-			this.render();
-		};
-
-		const name = leftGroup.createSpan({ text: concept.fileName, cls: 'arete-clickable' });
-		name.style.fontWeight = '500';
-		name.onclick = () => this.openFile(concept.filePath);
-
-		const statsContainer = row.createDiv();
-		statsContainer.style.display = 'flex';
-		statsContainer.style.gap = '16px';
-		statsContainer.style.fontSize = '0.85em';
-		statsContainer.style.color = 'var(--text-muted)';
-		statsContainer.style.marginRight = '8px';
-
-		// 1. Card Count
-		statsContainer.createSpan({ text: `${concept.totalCards} cards` });
-
-		// 2. FSRS Difficulty
-		if (this.plugin.settings.stats_algorithm === 'fsrs' && concept.averageDifficulty) {
-			const dVal = concept.averageDifficulty;
-			const dSpan = statsContainer.createSpan({ text: `${(dVal * 100).toFixed(0)}% Diff` });
-			if (dVal > 0.6) dSpan.style.color = 'var(--color-orange)';
-		}
-
-		// 3. Lapses
-		if (concept.totalLapses > 0) {
-			const lSpan = statsContainer.createSpan({ text: `${concept.totalLapses} Lapses` });
-			if (concept.totalLapses > 5) lSpan.style.color = 'var(--color-red)';
-		}
-
-		// 4. Issues
-		if (concept.problematicCardsCount > 0) {
-			const iSpan = statsContainer.createSpan({
-				text: `${concept.problematicCardsCount} Issues`,
-			});
-			iSpan.style.color = 'var(--color-red)';
-			iSpan.style.fontWeight = 'bold';
-		}
-
-		// --- Render Card Details if Expanded ---
-		if (isExpanded) {
-			const cardList = container.createDiv();
-			cardList.style.background = 'var(--background-primary-alt)';
-			cardList.style.borderBottom = '1px solid var(--background-modifier-border)';
-
-			// Get all cards for this concept
-			// cardStats is indexed by number (cardId), but confusingly generic typing might make keys strings
-			const cards = Object.values(concept.cardStats);
-
-			if (cards.length === 0) {
-				cardList.createDiv({ text: 'No card stats synced.' }).style.padding = '8px 32px';
-			} else {
-				// Header
-				const header = cardList.createDiv();
-				header.style.display = 'flex';
-				header.style.padding = '4px 8px 4px 48px';
-				header.style.fontSize = '0.75em';
-				header.style.color = 'var(--text-muted)';
-				header.style.borderBottom = '1px solid var(--background-modifier-border)';
-
-				const h1 = header.createSpan({ text: 'Card Question' });
-				h1.style.flex = '1';
-				const h2 = header.createSpan({ text: 'Difficulty' });
-				h2.style.width = '80px';
-				const h3 = header.createSpan({ text: 'Lapses' });
-				h3.style.width = '60px'; // Fixed width instead of flex
-
-				cards
-					.sort((a, b) => b.lapses - a.lapses)
-					.forEach((card) => {
-						const cRow = cardList.createDiv();
-						cRow.style.display = 'flex';
-						cRow.style.alignItems = 'center';
-						cRow.style.padding = '4px 8px 4px 48px';
-						cRow.style.fontSize = '0.8em';
-						cRow.style.borderBottom = '1px solid var(--background-modifier-border)';
-						cRow.style.cursor = 'pointer';
-
-						// Hover effect
-						cRow.addEventListener(
-							'mouseenter',
-							() => (cRow.style.backgroundColor = 'var(--background-modifier-hover)'),
-						);
-						cRow.addEventListener(
-							'mouseleave',
-							() => (cRow.style.backgroundColor = 'transparent'),
-						);
-
-						cRow.onclick = (e) => {
-							e.stopPropagation();
-							if (card.front) this.goToCard(concept.filePath, card.front);
-						};
-
-						const frontText = card.front
-							? card.front.replace(/<[^>]*>?/gm, '')
-							: `#${card.cardId}`;
-						const qSpan = cRow.createSpan({ text: frontText });
-						qSpan.title = frontText;
-						qSpan.style.flex = '1';
-						qSpan.style.whiteSpace = 'nowrap';
-						qSpan.style.overflow = 'hidden';
-						qSpan.style.textOverflow = 'ellipsis';
-						qSpan.style.marginRight = '16px';
-						qSpan.style.fontFamily = card.front ? 'var(--font-interface)' : 'monospace';
-
-						const diff =
-							card.difficulty !== undefined
-								? `${(card.difficulty * 100).toFixed(0)}%`
-								: card.ease
-									? `${(card.ease / 10).toFixed(0)}% Ease`
-									: '-';
-						const dSpan = cRow.createSpan({ text: diff });
-						dSpan.style.width = '80px';
-						dSpan.style.flexShrink = '0';
-						if (card.difficulty && card.difficulty > 0.6)
-							dSpan.style.color = 'var(--color-orange)';
-
-						const laps = cRow.createSpan({ text: card.lapses.toString() });
-						laps.style.width = '60px';
-						laps.style.flexShrink = '0';
-						if (card.lapses > 5) laps.style.color = 'var(--color-red)';
-					});
-			}
-		}
-	}
-
 	async openFile(filePath: string) {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (file instanceof TFile) await this.app.workspace.getLeaf().openFile(file);
@@ -780,5 +778,150 @@ export class DashboardView extends ItemView {
 				new Notice(`Could not automatically find text: "${cleanText.substring(0, 20)}..."`);
 			}
 		}
+	}
+}
+
+class CardStatsModal extends Modal {
+	card: AnkiCardStats;
+
+	constructor(app: App, card: AnkiCardStats) {
+		super(app);
+		this.card = card;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('arete-stats-modal');
+
+		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1.5rem';
+		
+		const c = this.card;
+
+		// --- Section 1: Memory State ---
+		this.renderSection(contentEl, 'Memory State', [
+			{ label: 'Difficulty (1-10)', value: c.difficulty != null ? c.difficulty.toFixed(1) : '-', color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined },
+			{ label: 'Stability', value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-', color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined },
+			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
+		]);
+
+
+		// --- Section 2: Learning Dynamics ---
+		// const noHistory = c.fsrsHistoryMissing; // Not strictly needed if we rely on plausible metrics
+		this.renderSection(contentEl, 'Learning Dynamics', [
+			{ 
+				label: 'Interval Growth', 
+				value: c.intervalGrowth != null ? `${c.intervalGrowth.toFixed(2)}x` : 'N/A',
+				color: c.intervalGrowth != null && c.intervalGrowth < 1.2 ? 'var(--color-orange)' : undefined 
+			},
+			{ 
+				label: 'Retrievability @ Review', 
+				value: c.retAtReview != null ? `${(c.retAtReview * 100).toFixed(1)}%` : 'N/A' 
+			},
+			{ 
+				label: 'Press Fatigue (Hard%)', 
+				value: c.pressFatigue != null ? `${(c.pressFatigue * 100).toFixed(0)}%` : 'N/A',
+				color: c.pressFatigue != null && c.pressFatigue > 0.3 ? 'var(--color-red)' : undefined
+			},
+			{ 
+				label: 'Schedule Adherence', 
+				value: c.scheduleAdherence != null ? `${(c.scheduleAdherence * 100).toFixed(1)}%` : 'N/A' 
+			}
+		]);
+
+		// --- Section 3: Review History ---
+		this.renderSection(contentEl, 'Review History', [
+			{ label: 'Total Lapses', value: c.lapses != null ? c.lapses : '0', color: c.lapses != null && c.lapses > 5 ? 'var(--color-red)' : undefined },
+			{ label: 'Lapse Rate', value: c.lapseRate != null ? `${(c.lapseRate * 100).toFixed(1)}%` : '-' },
+			{ label: 'Total Reps', value: c.reps != null ? c.reps : '0' },
+			{ label: 'Avg Time', value: c.averageTime ? `${(c.averageTime / 1000).toFixed(1)}s` : '-' }
+		]);
+
+		// Answer Distribution Details
+		if (c.answerDistribution) {
+			const distHeader = contentEl.createEl('h3', { text: 'Rating Distribution' });
+			distHeader.style.margin = '1rem 0 0.5rem 0';
+			distHeader.style.fontSize = '1em';
+			
+			const distTable = contentEl.createDiv({ cls: 'arete-modal-dist' });
+			distTable.style.display = 'flex';
+			distTable.style.gap = '0.5rem';
+			distTable.style.marginBottom = '1.5rem';
+
+			const ratings = [
+				{ label: 'Again', key: 1, color: 'var(--color-red)' },
+				{ label: 'Hard', key: 2, color: 'var(--color-orange)' },
+				{ label: 'Good', key: 3, color: 'var(--color-green)' },
+				{ label: 'Easy', key: 4, color: 'var(--color-blue)' }
+			];
+
+			ratings.forEach(r => {
+				const box = distTable.createDiv();
+				box.style.flex = '1';
+				box.style.padding = '8px';
+				box.style.background = 'var(--background-secondary)';
+				box.style.borderRadius = '4px';
+				box.style.textAlign = 'center';
+				box.createDiv({ text: r.label }).style.fontSize = '0.7em';
+				box.createDiv({ text: (c.answerDistribution![r.key] || 0).toString() }).style.fontWeight = 'bold';
+			});
+		}
+
+		// Flags section
+		if (c.isOverlearning) {
+			const alert = contentEl.createDiv({ cls: 'arete-alert' });
+			alert.style.background = 'rgba(var(--color-yellow-rgb), 0.1)';
+			alert.style.padding = '10px';
+			alert.style.borderRadius = '5px';
+			alert.style.marginTop = '1rem';
+			alert.style.border = '1px solid var(--color-yellow)';
+			const title = alert.createDiv({ cls: 'arete-alert-title' });
+			setIcon(title.createSpan(), 'zap');
+			title.createSpan({ text: ' Overlearning Detected' }).style.fontWeight = 'bold';
+			alert.createDiv({ text: 'This card is being reviewed significantly before its FSRS-recommended due date with high retrievability. Consider increasing your desired retention or following the schedule more strictly.', cls: 'arete-alert-body' }).style.fontSize = '0.85em';
+		}
+
+		// Footer
+		const footer = contentEl.createDiv();
+		footer.style.marginTop = '2rem';
+		footer.style.textAlign = 'right';
+		const closeBtn = footer.createEl('button', { text: 'Close' });
+		closeBtn.onclick = () => this.close();
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+
+	private renderSection(container: HTMLElement, title: string, stats: { label: string, value: string | number, color?: string }[]) {
+		const section = container.createDiv({ cls: 'arete-modal-section' });
+		section.style.marginBottom = '1.2rem';
+		
+		const h3 = section.createEl('h3', { text: title });
+		h3.style.margin = '0 0 0.6rem 0';
+		h3.style.fontSize = '0.9em';
+		h3.style.textTransform = 'uppercase';
+		h3.style.letterSpacing = '1px';
+		h3.style.color = 'var(--text-accent)';
+		h3.style.borderBottom = '1px solid var(--background-modifier-border)';
+		h3.style.paddingBottom = '4px';
+
+		const grid = section.createDiv();
+		grid.style.display = 'grid';
+		grid.style.gridTemplateColumns = '1fr 1fr';
+		grid.style.gap = '0.8rem 1.5rem';
+
+		stats.forEach(s => {
+			const sub = grid.createDiv();
+			const labelEl = sub.createDiv({ text: s.label });
+			labelEl.style.fontSize = '0.75em';
+			labelEl.style.color = 'var(--text-muted)';
+			
+			const valEl = sub.createDiv({ text: s.value.toString() });
+			valEl.style.fontSize = '1.1em';
+			valEl.style.fontWeight = '600';
+			if (s.color) valEl.style.color = s.color;
+		});
 	}
 }

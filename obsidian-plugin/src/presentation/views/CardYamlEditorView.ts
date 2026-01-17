@@ -470,17 +470,7 @@ export class CardYamlEditorView extends ItemView {
 				text: String(value),
 			}) as HTMLTextAreaElement;
 
-			// Auto-resize helper
-			const adjustHeight = (el: HTMLTextAreaElement) => {
-				el.style.height = 'auto';
-				el.style.height = el.scrollHeight + 2 + 'px'; // +2 for border
-			};
-
-			// Initial resize
-			requestAnimationFrame(() => adjustHeight(input));
-
 			input?.addEventListener('input', () => {
-				adjustHeight(input);
 				card[key] = input.value;
 				this.debouncedSyncToMain();
 			});

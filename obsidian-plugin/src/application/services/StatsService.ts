@@ -1,3 +1,4 @@
+```typescript
 import { App, TFile, Notice } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
 import { AreteClient } from '@/infrastructure/arete/AreteClient';
@@ -21,6 +22,16 @@ export interface AnkiCardStats {
 	daysOverdue?: number;
 	volatility?: number;
 	lapseRate?: number;
+	intervalGrowth?: number; // Replaces stabilityGain
+	pressFatigue?: number; // New metric
+	stabilityGain?: number; // Deprecated but kept for type safety if needed
+	retAtReview?: number;
+	scheduleAdherence?: number;
+	isOverlearning?: boolean;
+	answerDistribution?: Record<number, number>;
+	desiredRetention?: number;
+	weights?: number[];
+	fsrsHistoryMissing?: boolean;
 }
 
 export interface ProblematicCard {
@@ -290,11 +301,7 @@ export class StatsService {
 
 	async fetchAnkiCardStats(nids: number[]): Promise<AnkiCardStats[]> {
 		try {
-			// Decide which endpoint to use based on algorithm setting
-			const isFsrs = this.settings.stats_algorithm === 'fsrs';
-			const endpoint = isFsrs ? '/anki/stats/enriched' : '/anki/stats';
-
-			const data = await this.client.invoke(endpoint, { nids });
+			const data = await this.client.invoke('/anki/stats', { nids });
 
 			if (Array.isArray(data)) {
 				// Map snake_case (Python) to camelCase (TS)
@@ -308,7 +315,7 @@ export class StatsService {
 					interval: d.interval,
 					due: d.due,
 					reps: d.reps,
-					averageTime: d.average_time,
+					averageTime: d.average_time_ms, // Updated field name
 					front: d.front,
 					// Enriched fields mapping (only for FSRS)
 					stability: d.stability,
@@ -316,6 +323,16 @@ export class StatsService {
 					daysOverdue: d.days_overdue,
 					volatility: d.volatility,
 					lapseRate: d.lapse_rate,
+					intervalGrowth: d.interval_growth,
+					pressFatigue: d.press_fatigue,
+					stabilityGain: d.stability_gain,
+					retAtReview: d.ret_at_review,
+					scheduleAdherence: d.schedule_adherence,
+					isOverlearning: d.is_overlearning,
+					answerDistribution: d.answer_distribution,
+					desiredRetention: d.desired_retention,
+					weights: d.weights,
+					fsrsHistoryMissing: d.fsrs_history_missing,
 				}));
 			} else {
 				console.warn('[Arete] Unexpected stats response format:', data);
@@ -328,3 +345,4 @@ export class StatsService {
 		return [];
 	}
 }
+```

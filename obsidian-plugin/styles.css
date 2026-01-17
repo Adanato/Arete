@@ -570,8 +570,6 @@
 	font-size: 14px;
 	resize: vertical;
 	min-height: 80px;
-	white-space: pre-wrap;
-	word-wrap: break-word;
 }
 
 .arete-field-input:focus {

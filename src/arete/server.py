@@ -336,37 +336,6 @@ async def get_stats(req: StatsRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/anki/stats/enriched")
-async def get_enriched_stats(req: StatsRequest):
-    """
-    Get enriched stats with computed metrics (retrievability, lapse rate, etc.).
-    Uses the new FSRS stats module.
-    """
-    from dataclasses import asdict
-
-    from arete.application.config import resolve_config
-    from arete.application.factory import get_stats_repository
-    from arete.application.stats import FsrsStatsService
-
-    try:
-        overrides = {
-            "backend": req.backend,
-            "anki_connect_url": req.anki_connect_url,
-            "anki_base": req.anki_base,
-        }
-        overrides = {k: v for k, v in overrides.items() if v is not None}
-
-        config = resolve_config(overrides)
-        repo = await get_stats_repository(config)
-        service = FsrsStatsService(stats_repo=repo)
-        enriched = await service.get_enriched_stats(req.nids)
-        return [asdict(s) for s in enriched]
-    except Exception as e:
-        logger.error(f"Enriched stats fetch failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-
 class BrowseRequest(BaseModel):
     query: str
     backend: str | None = None

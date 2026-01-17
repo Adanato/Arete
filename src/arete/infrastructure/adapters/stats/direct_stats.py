@@ -78,6 +78,12 @@ class DirectStatsRepository(StatsRepository):
                         except Exception:
                             pass
 
+                        # Get answer distribution from revlog
+                        answer_dist = self._get_answer_distribution(repo, cid)
+
+                        # Get average time
+                        avg_time = self._get_average_time(repo, cid)
+
                         stats_list.append(
                             CardStatsAggregate(
                                 card_id=card.id,
@@ -90,9 +96,10 @@ class DirectStatsRepository(StatsRepository):
                                 reps=card.reps,
                                 fsrs=fsrs_state,
                                 last_review=last_review,
-                                average_time_ms=0,  # TODO: Compute from revlog
+                                average_time_ms=avg_time,
                                 reviews=[],  # Populated on demand via get_review_history
                                 front=front,
+                                answer_distribution=answer_dist,
                             )
                         )
 
@@ -115,31 +122,114 @@ class DirectStatsRepository(StatsRepository):
                 return []
 
             # Query revlog for all cids
-            # revlog columns: id, cid, usn, ease, ivl, lastIvl, factor, time, type
+            # revlog columns: id, cid, usn, ease, ivl, lastIvl, factor, time, type...
+            columns = [c[1] for c in repo.col.db.execute("PRAGMA table_info(revlog)")]
+            has_data = "data" in columns
+            
+            # Select essential columns + lastIvl + time
+            col_subset = "id, cid, ease, ivl, lastIvl, time, type"
+            if has_data:
+                col_subset += ", data"
+
             cid_str = ",".join(str(c) for c in cids)
             query = (
-                f"SELECT id, cid, ease, ivl, type FROM revlog "
+                f"SELECT {col_subset} FROM revlog "
                 f"WHERE cid IN ({cid_str}) ORDER BY id ASC"
             )
 
             try:
+                import json
+
                 if repo.col.db is None:
                     return []
                 for row in repo.col.db.execute(query):
-                    # id is the timestamp in ms
+                    # Indices:
+                    # 0: id, 1: cid, 2: ease, 3: ivl, 4: lastIvl, 5: time, 6: type
+                    # 7: data (if exists) via 'col_subset' length logic?
+                    
+                    data_idx = 7
+                    s_at_review = None
+                    d_at_review = None
+                    r_at_review = None
+
+                    if has_data and len(row) > data_idx and row[data_idx]:
+                        try:
+                            data = json.loads(row[data_idx])
+                            s_at_review = data.get("s")
+                            d_at_review = data.get("d")
+                            r_at_review = data.get("r")
+                        except Exception:
+                            pass
+
                     entries.append(
                         ReviewEntry(
                             card_id=row[1],
-                            review_time=row[0] // 1000,  # Convert ms to seconds
+                            review_time=row[0] // 1000,
                             rating=row[2],
                             interval=row[3],
-                            review_type=row[4],
+                            last_interval=row[4],
+                            time_taken=row[5],
+                            review_type=row[6],
+                            stability=s_at_review,
+                            difficulty=d_at_review,
+                            retrievability=r_at_review,
                         )
                     )
             except Exception as e:
                 logger.warning(f"Failed to fetch review history: {e}")
 
         return entries
+
+    async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
+        """
+        Fetch FSRS parameters (desired retention, weights) for the given decks.
+        """
+        params: dict[str, dict] = {}
+
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return {}
+
+            for deck_name in deck_names:
+                try:
+                    deck = repo.col.decks.by_name(deck_name)
+                    if not deck:
+                        continue
+
+                    # Get deck config (config id is 'conf')
+                    config = repo.col.decks.get_config(deck["conf"])
+                    if not config:
+                        continue
+
+                    # Look for FSRS settings in the config
+                    # Modern Anki: config['fsrs']
+                    fsrs = config.get("fsrs", {})
+                    
+                    params[deck_name] = {
+                        "desired_retention": config.get("desiredRetention", fsrs.get("desiredRetention", 0.9)),
+                        "weights": fsrs.get("w", []),
+                        "sm2_retention": config.get("sm2Retention", 0.9), # Fallback for non-FSRS
+                    }
+                except Exception as e:
+                    logger.warning(f"Failed to fetch params for deck {deck_name}: {e}")
+
+        return params
+
+    def _get_answer_distribution(self, repo: AnkiRepository, cid: int) -> dict[int, int]:
+        """
+        Get counts of each answer button rating for a card.
+        """
+        try:
+            if repo.col is None or repo.col.db is None:
+                return {}
+            
+            dist: dict[int, int] = {}
+            query = f"SELECT ease, COUNT(*) FROM revlog WHERE cid = {cid} GROUP BY ease"
+            for rating, count in repo.col.db.execute(query):
+                dist[rating] = count
+            return dist
+        except Exception:
+            return {}
 
     def _get_last_review_time(self, repo: AnkiRepository, cid: int) -> int | None:
         """
@@ -156,3 +246,19 @@ class DirectStatsRepository(StatsRepository):
         except Exception:
             pass
         return None
+
+    def _get_average_time(self, repo: AnkiRepository, cid: int) -> int:
+        """
+        Get average time taken (ms) for a card.
+        """
+        try:
+            if repo.col is None or repo.col.db is None:
+                return 0
+            # time limit is usually capped at 60s (60000ms) in revlog logic but here we just avg
+            result = repo.col.db.scalar(
+                f"SELECT AVG(time) FROM revlog WHERE cid = {cid}"
+            )
+            return int(result) if result else 0
+        except Exception:
+            pass
+        return 0
