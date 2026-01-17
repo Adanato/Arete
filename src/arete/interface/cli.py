@@ -30,6 +30,18 @@ anki_app = typer.Typer(help="Direct Anki interactions.")
 app.add_typer(anki_app, name="anki")
 
 
+def version_callback(value: bool):
+    if value:
+        import importlib.metadata
+
+        try:
+            version = importlib.metadata.version("arete")
+            typer.echo(f"arete {version}")
+        except importlib.metadata.PackageNotFoundError:
+            typer.echo("arete (version unknown)")
+        raise typer.Exit()
+
+
 @app.callback()
 def main_callback(
     ctx: typer.Context,
@@ -39,6 +51,15 @@ def main_callback(
             "--verbose", "-v", count=True, help="Increase verbosity. Repeat for more detail."
         ),
     ] = 1,
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show the version and exit.",
+        ),
+    ] = None,
 ):
     """
     Global settings for arete.
