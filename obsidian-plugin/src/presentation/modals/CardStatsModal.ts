@@ -31,39 +31,43 @@ export class CardStatsModal extends Modal {
 		// Main 2-column layout: Stats on left, Curve on right
 		const mainLayout = contentEl.createDiv({ cls: 'arete-stats-layout' });
 		mainLayout.style.display = 'flex';
-		mainLayout.style.gap = '1.5rem';
-		mainLayout.style.alignItems = 'flex-start';
+		mainLayout.style.gap = '1rem';
+		mainLayout.style.alignItems = 'stretch';
 
-		// Left column: Stats
-		const leftCol = mainLayout.createDiv({ cls: 'arete-stats-left' });
-		leftCol.style.flex = '1';
-		leftCol.style.minWidth = '250px';
+		// Left panel: Stats
+		const leftPanel = mainLayout.createDiv({ cls: 'arete-stats-panel' });
+		leftPanel.style.flex = '1';
+		leftPanel.style.minWidth = '280px';
+		leftPanel.style.background = 'var(--background-secondary)';
+		leftPanel.style.borderRadius = '8px';
+		leftPanel.style.padding = '1rem';
 
-		// Right column: Forgetting Curve
-		const rightCol = mainLayout.createDiv({ cls: 'arete-stats-right' });
-		rightCol.style.minWidth = '280px';
+		// Right panel: Forgetting Curve
+		const rightPanel = mainLayout.createDiv({ cls: 'arete-curve-panel' });
+		rightPanel.style.minWidth = '300px';
+		rightPanel.style.background = 'var(--background-secondary)';
+		rightPanel.style.borderRadius = '8px';
+		rightPanel.style.padding = '1rem';
 
 		// --- Section 1: Memory State ---
 		// Note: difficulty comes from backend already in 1-10 scale
-		this.renderSection(leftCol, 'Memory State', [
+		this.renderSection(leftPanel, 'Memory State', [
 			{ label: 'Difficulty (1-10)', value: c.difficulty != null ? c.difficulty.toFixed(1) : '-', color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Stability', value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-', color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
 		]);
 
-		// --- Forgetting Curve Visualization (on right) ---
+		// --- Forgetting Curve Visualization (in right panel) ---
 		if (c.stability != null && c.stability > 0.1) {
-			this.renderForgettingCurve(rightCol, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
+			this.renderForgettingCurve(rightPanel, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
 		} else {
 			// No meaningful stability yet - show placeholder
-			const placeholder = rightCol.createDiv({ cls: 'arete-curve-placeholder' });
+			const placeholder = rightPanel.createDiv({ cls: 'arete-curve-placeholder' });
 			placeholder.style.display = 'flex';
 			placeholder.style.flexDirection = 'column';
 			placeholder.style.alignItems = 'center';
 			placeholder.style.justifyContent = 'center';
 			placeholder.style.height = '150px';
-			placeholder.style.background = 'var(--background-secondary)';
-			placeholder.style.borderRadius = '8px';
 			placeholder.style.color = 'var(--text-muted)';
 			placeholder.style.fontSize = '0.85em';
 			placeholder.createDiv({ text: 'Forgetting Curve' }).style.fontWeight = 'bold';
