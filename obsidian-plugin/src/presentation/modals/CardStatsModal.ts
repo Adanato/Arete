@@ -34,16 +34,12 @@ export class CardStatsModal extends Modal {
 		]);
 
 
-		// --- Section 2: Learning Dynamics ---
+		// --- Section 2: Learning Dynamics (Plausible Metrics) ---
 		this.renderSection(contentEl, 'Learning Dynamics', [
 			{ 
 				label: 'Interval Growth', 
 				value: c.intervalGrowth != null ? `${c.intervalGrowth.toFixed(2)}x` : 'N/A',
 				color: c.intervalGrowth != null && c.intervalGrowth < 1.2 ? 'var(--color-orange)' : undefined 
-			},
-			{ 
-				label: 'Retrievability @ Review', 
-				value: c.retAtReview != null ? `${(c.retAtReview * 100).toFixed(1)}%` : 'N/A' 
 			},
 			{ 
 				label: 'Press Fatigue (Hard%)', 
@@ -53,6 +49,11 @@ export class CardStatsModal extends Modal {
 			{ 
 				label: 'Schedule Adherence', 
 				value: c.scheduleAdherence != null ? `${(c.scheduleAdherence * 100).toFixed(1)}%` : 'N/A' 
+			},
+			{ 
+				label: 'Days Overdue', 
+				value: c.daysOverdue != null ? `${c.daysOverdue}d` : '-',
+				color: c.daysOverdue != null && c.daysOverdue > 7 ? 'var(--color-red)' : undefined
 			}
 		]);
 
