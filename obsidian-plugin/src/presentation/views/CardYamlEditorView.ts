@@ -313,18 +313,17 @@ export class CardYamlEditorView extends ItemView {
 
 				if (algo === 'fsrs' && stats.difficulty !== undefined) {
 					if (stats.difficulty !== null) {
-						// Backend provides 0-1 scale, display as 1-10
-						const displayDiff = stats.difficulty * 10;
+						// difficulty is already 1-10 scale from backend
 						let diffCls = 'arete-stat-badge';
-						if (displayDiff > 8) diffCls += ' mod-warning';
-						else if (displayDiff > 5) diffCls += ' mod-orange';
+						if (stats.difficulty > 8) diffCls += ' mod-warning';
+						else if (stats.difficulty > 5) diffCls += ' mod-orange';
 						else diffCls += ' mod-success';
 
 						statsContainer.createDiv({
 							cls: diffCls,
-							text: `D: ${displayDiff.toFixed(1)}`,
+							text: `D: ${stats.difficulty.toFixed(1)}`,
 							attr: {
-								title: `FSRS Difficulty: ${displayDiff.toFixed(1)}/10`,
+								title: `FSRS Difficulty: ${stats.difficulty.toFixed(1)}/10`,
 							},
 						});
 					} else {

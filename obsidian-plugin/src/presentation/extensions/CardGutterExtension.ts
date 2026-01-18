@@ -142,11 +142,10 @@ class CardGutterMarker extends GutterMarker {
 						this.stats.difficulty !== null &&
 						this.stats.difficulty > 0
 					) {
-						// Backend provides 0-1 scale, display as 1-10
-						const diff = Math.round(this.stats.difficulty * 10);
-						diffText = `${diff.toFixed(0)}`;
-						if (this.stats.difficulty > 0.9) diffColor = 'var(--color-red)';
-						else if (this.stats.difficulty > 0.5) diffColor = 'var(--color-orange)';
+						// difficulty is already 1-10 scale from backend
+						diffText = `${this.stats.difficulty.toFixed(0)}`;
+						if (this.stats.difficulty > 9) diffColor = 'var(--color-red)';
+						else if (this.stats.difficulty > 5) diffColor = 'var(--color-orange)';
 						else diffColor = 'var(--color-green)';
 					} else {
 						diffText = 'D:?';
@@ -185,7 +184,7 @@ class CardGutterMarker extends GutterMarker {
 				// Tooltip on the container or marker
 				const tooltipLines = [];
 				if (this.stats.difficulty)
-					tooltipLines.push(`Difficulty: ${(this.stats.difficulty * 10).toFixed(1)}/10`);
+					tooltipLines.push(`Difficulty: ${this.stats.difficulty.toFixed(1)}/10`);
 				if (this.stats.ease)
 					tooltipLines.push(`Ease: ${Math.round(this.stats.ease / 10)}%`);
 				if (this.stats.lapses) tooltipLines.push(`Lapses: ${this.stats.lapses}`);

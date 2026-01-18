@@ -52,7 +52,7 @@ class DirectStatsRepository(StatsRepository):
                         if hasattr(card, "memory_state") and card.memory_state:
                             ms = card.memory_state
                             difficulty = (
-                                ms.difficulty / 10.0
+                                ms.difficulty  # FSRS uses 1-10 scale natively
                                 if hasattr(ms, "difficulty")
                                 else None
                             )
