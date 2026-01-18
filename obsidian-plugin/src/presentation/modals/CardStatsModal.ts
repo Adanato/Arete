@@ -67,14 +67,15 @@ export class CardStatsModal extends Modal {
 			placeholder.style.flexDirection = 'column';
 			placeholder.style.alignItems = 'center';
 			placeholder.style.justifyContent = 'center';
-			placeholder.style.height = '150px';
+		placeholder.style.height = '150px';
 			placeholder.style.color = 'var(--text-muted)';
 			placeholder.style.fontSize = '0.85em';
 			placeholder.createDiv({ text: 'Forgetting Curve' }).style.fontWeight = 'bold';
 			placeholder.createDiv({ text: 'Not enough review history' }).style.marginTop = '0.5rem';
 		}
-		// --- Section 2: Learning Dynamics (Plausible Metrics) ---
-		this.renderSection(contentEl, 'Learning Dynamics', [
+
+		// --- Section 2: Learning Dynamics (in left panel) ---
+		this.renderSection(leftPanel, 'Learning Dynamics', [
 			{ 
 				label: 'Interval Growth', 
 				value: c.intervalGrowth != null ? `${c.intervalGrowth.toFixed(2)}x` : 'N/A',
@@ -96,24 +97,27 @@ export class CardStatsModal extends Modal {
 			}
 		]);
 
-		// --- Section 3: Review History ---
-		this.renderSection(contentEl, 'Review History', [
+		// --- Section 3: Review History (in left panel) ---
+		this.renderSection(leftPanel, 'Review History', [
 			{ label: 'Total Lapses', value: c.lapses != null ? c.lapses : '0', color: c.lapses != null && c.lapses > 5 ? 'var(--color-red)' : undefined },
 			{ label: 'Lapse Rate', value: c.lapseRate != null ? `${(c.lapseRate * 100).toFixed(1)}%` : '-' },
 			{ label: 'Total Reps', value: c.reps != null ? c.reps : '0' },
 			{ label: 'Avg Time', value: c.averageTime ? `${(c.averageTime / 1000).toFixed(1)}s` : '-' }
 		]);
 
-		// Answer Distribution Details
+		// Answer Distribution (in left panel)
 		if (c.answerDistribution) {
-			const distHeader = contentEl.createEl('h3', { text: 'Rating Distribution' });
+			const distHeader = leftPanel.createEl('h3', { text: 'Rating Distribution' });
 			distHeader.style.margin = '1rem 0 0.5rem 0';
-			distHeader.style.fontSize = '1em';
+			distHeader.style.fontSize = '0.85em';
+			distHeader.style.textTransform = 'uppercase';
+			distHeader.style.letterSpacing = '1px';
+			distHeader.style.color = 'var(--text-accent)';
 			
-			const distTable = contentEl.createDiv({ cls: 'arete-modal-dist' });
+			const distTable = leftPanel.createDiv({ cls: 'arete-modal-dist' });
 			distTable.style.display = 'flex';
-			distTable.style.gap = '0.5rem';
-			distTable.style.marginBottom = '1.5rem';
+			distTable.style.gap = '0.3rem';
+			distTable.style.marginBottom = '0.5rem';
 
 			const ratings = [
 				{ label: 'Again', key: 1, color: 'var(--color-red)' },
@@ -125,8 +129,8 @@ export class CardStatsModal extends Modal {
 			ratings.forEach(r => {
 				const box = distTable.createDiv();
 				box.style.flex = '1';
-				box.style.padding = '8px';
-				box.style.background = 'var(--background-secondary)';
+				box.style.padding = '6px';
+				box.style.background = 'var(--background-primary)';
 				box.style.borderRadius = '4px';
 				box.style.textAlign = 'center';
 				box.createDiv({ text: r.label }).style.fontSize = '0.7em';
