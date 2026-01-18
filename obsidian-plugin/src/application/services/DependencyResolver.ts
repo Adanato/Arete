@@ -7,17 +7,14 @@
 
 import { App, TFile } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
-import {
-	CardNode,
-	DependencyGraphBuilder,
-	LocalGraphResult,
-} from '@/domain/graph/types';
+import { CardNode, DependencyGraphBuilder, LocalGraphResult } from '@/domain/graph/types';
 
 export class DependencyResolver {
 	private app: App;
 	private settings: AretePluginSettings;
 	private graphBuilder: DependencyGraphBuilder;
-	private lastRefresh: number = 0;
+	private lastRefresh = 0;
+	private fileIndex: Map<string, string[]> = new Map(); // basename → card IDs
 
 	constructor(app: App, settings: AretePluginSettings) {
 		this.app = app;
@@ -31,20 +28,131 @@ export class DependencyResolver {
 
 	/**
 	 * Build/rebuild the graph from all vault files.
+	 * Two-pass approach:
+	 * 1. Collect all cards and build file index (basename → card IDs)
+	 * 2. Resolve dependency references using the index
 	 */
 	async buildGraph(): Promise<void> {
 		this.graphBuilder = new DependencyGraphBuilder();
+		this.fileIndex = new Map();
 		const files = this.app.vault.getMarkdownFiles();
 
+		// Pending deps to resolve in second pass
+		const pendingDeps: Array<{
+			cardId: string;
+			requires: string[];
+			related: string[];
+		}> = [];
+
+		// First pass: collect all cards
 		for (const file of files) {
-			await this.parseFile(file);
+			try {
+				const cache = this.app.metadataCache.getFileCache(file);
+				const frontmatter = cache?.frontmatter;
+
+				if (!frontmatter || !frontmatter.cards) continue;
+
+				const cards = frontmatter.cards;
+				if (!Array.isArray(cards)) continue;
+
+				// Get file basename for index
+				const basename = file.basename; // "algebra.md" -> "algebra"
+				if (!this.fileIndex.has(basename)) {
+					this.fileIndex.set(basename, []);
+				}
+
+				for (const card of cards) {
+					if (typeof card !== 'object' || !card.id) continue;
+
+					// Extract title from fields
+					let title = card.id;
+					if (card.fields && typeof card.fields === 'object') {
+						title = card.fields.Front || card.id;
+					}
+
+					// Get line number if available
+					const lineNumber = card.__line__ || 1;
+
+					const node: CardNode = {
+						id: card.id,
+						title: String(title).slice(0, 100),
+						filePath: file.path,
+						lineNumber,
+					};
+
+					this.graphBuilder.addNode(node);
+
+					// Add to file index
+					this.fileIndex.get(basename)!.push(card.id);
+
+					// Collect deps for second pass
+					if (card.deps && typeof card.deps === 'object') {
+						const requires = Array.isArray(card.deps.requires)
+							? card.deps.requires
+							: [];
+						const related = Array.isArray(card.deps.related) ? card.deps.related : [];
+						if (requires.length > 0 || related.length > 0) {
+							pendingDeps.push({ cardId: card.id, requires, related });
+						}
+					}
+				}
+			} catch (e) {
+				console.warn(`[DependencyResolver] Failed to parse ${file.path}:`, e);
+			}
+		}
+
+		// Second pass: resolve references and add edges
+		for (const { cardId, requires, related } of pendingDeps) {
+			for (const ref of requires) {
+				if (typeof ref === 'string') {
+					const resolved = this.resolveReference(ref);
+					for (const targetId of resolved) {
+						this.graphBuilder.addRequires(cardId, targetId);
+					}
+				}
+			}
+
+			for (const ref of related) {
+				if (typeof ref === 'string') {
+					const resolved = this.resolveReference(ref);
+					for (const targetId of resolved) {
+						this.graphBuilder.addRelated(cardId, targetId);
+					}
+				}
+			}
 		}
 
 		this.lastRefresh = Date.now();
 	}
 
 	/**
+	 * Resolve a dependency reference to card ID(s).
+	 * - arete_XXX: Direct card ID (returns single-element array if exists)
+	 * - basename: All cards in that file (returns array of all card IDs)
+	 */
+	private resolveReference(ref: string): string[] {
+		if (ref.startsWith('arete_')) {
+			// Direct card ID lookup
+			if (this.graphBuilder.hasNode(ref)) {
+				return [ref];
+			} else {
+				console.warn(`[DependencyResolver] Reference '${ref}' not found in graph`);
+				return [];
+			}
+		} else {
+			// Note basename → all cards in that file
+			if (this.fileIndex.has(ref)) {
+				return this.fileIndex.get(ref)!;
+			} else {
+				console.warn(`[DependencyResolver] No file with basename '${ref}' found`);
+				return [];
+			}
+		}
+	}
+
+	/**
 	 * Parse a single file and add its cards to the graph.
+	 * Note: For incremental updates. For full rebuild, use buildGraph().
 	 */
 	async parseFile(file: TFile): Promise<void> {
 		try {
@@ -56,16 +164,19 @@ export class DependencyResolver {
 			const cards = frontmatter.cards;
 			if (!Array.isArray(cards)) return;
 
+			const basename = file.basename;
+			if (!this.fileIndex.has(basename)) {
+				this.fileIndex.set(basename, []);
+			}
+
 			for (const card of cards) {
 				if (typeof card !== 'object' || !card.id) continue;
 
-				// Extract title from fields
 				let title = card.id;
 				if (card.fields && typeof card.fields === 'object') {
 					title = card.fields.Front || card.id;
 				}
 
-				// Get line number if available
 				const lineNumber = card.__line__ || 1;
 
 				const node: CardNode = {
@@ -76,24 +187,25 @@ export class DependencyResolver {
 				};
 
 				this.graphBuilder.addNode(node);
+				this.fileIndex.get(basename)!.push(card.id);
 
-				// Parse deps
+				// Resolve deps immediately (file index may be incomplete for incremental)
 				if (card.deps && typeof card.deps === 'object') {
-					const requires = card.deps.requires;
-					const related = card.deps.related;
+					const requires = Array.isArray(card.deps.requires) ? card.deps.requires : [];
+					const related = Array.isArray(card.deps.related) ? card.deps.related : [];
 
-					if (Array.isArray(requires)) {
-						for (const prereqId of requires) {
-							if (typeof prereqId === 'string') {
-								this.graphBuilder.addRequires(card.id, prereqId);
+					for (const ref of requires) {
+						if (typeof ref === 'string') {
+							for (const targetId of this.resolveReference(ref)) {
+								this.graphBuilder.addRequires(card.id, targetId);
 							}
 						}
 					}
 
-					if (Array.isArray(related)) {
-						for (const relId of related) {
-							if (typeof relId === 'string') {
-								this.graphBuilder.addRelated(card.id, relId);
+					for (const ref of related) {
+						if (typeof ref === 'string') {
+							for (const targetId of this.resolveReference(ref)) {
+								this.graphBuilder.addRelated(card.id, targetId);
 							}
 						}
 					}
@@ -123,7 +235,9 @@ export class DependencyResolver {
 	/**
 	 * Get local subgraph centered on a card.
 	 */
-	getLocalGraph(cardId: string, depth: number = 2): LocalGraphResult | null {
+	// ... inside DependencyResolver
+	
+	getLocalGraph(cardId: string, depth = 2): LocalGraphResult | null {
 		if (!this.graphBuilder.hasNode(cardId)) {
 			return null;
 		}
@@ -145,6 +259,8 @@ export class DependencyResolver {
 				relatedIds.add(relId);
 			}
 		}
+
+		// ... (rest of method)
 
 		// Convert to CardNode arrays
 		const prerequisites: CardNode[] = [];
@@ -174,6 +290,7 @@ export class DependencyResolver {
 			dependents,
 			related,
 			cycles,
+	// ... end of getLocalGraph
 		};
 	}
 
@@ -208,7 +325,10 @@ export class DependencyResolver {
 		if (depth <= 0 || visited.has(cardId)) return;
 		visited.add(cardId);
 
-		for (const prereqId of this.graphBuilder.getPrerequisites(cardId)) {
+		const prereqs = this.graphBuilder.getPrerequisites(cardId);
+		// console.log(`[DependencyResolver] walkPrereqs ${cardId} depth=${depth} count=${prereqs.length}`);
+
+		for (const prereqId of prereqs) {
 			if (this.graphBuilder.hasNode(prereqId)) {
 				collected.add(prereqId);
 				this.walkPrereqs(prereqId, depth - 1, collected, visited);
@@ -225,7 +345,10 @@ export class DependencyResolver {
 		if (depth <= 0 || visited.has(cardId)) return;
 		visited.add(cardId);
 
-		for (const depId of this.graphBuilder.getDependents(cardId)) {
+		const deps = this.graphBuilder.getDependents(cardId);
+		// console.log(`[DependencyResolver] walkDependents ${cardId} depth=${depth} count=${deps.length}`);
+
+		for (const depId of deps) {
 			if (this.graphBuilder.hasNode(depId)) {
 				collected.add(depId);
 				this.walkDependents(depId, depth - 1, collected, visited);

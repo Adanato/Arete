@@ -406,25 +406,50 @@ export class CardYamlEditorView extends ItemView {
 		ankiBtn.addEventListener('click', () => this.openInAnki(this.currentCardIndex));
 
 		// Stats Modal Button
-		if (nid) {
-			const statsBtn = centerGroup.createDiv({
-				cls: 'arete-toolbar-btn',
-				attr: { title: 'View Card Stats' },
-			});
-			setIcon(statsBtn, 'bar-chart-2');
-			statsBtn.addEventListener('click', () => {
-				const activeFile = this.app.workspace.getActiveFile();
-				if (activeFile && nid) {
-					const cache = this.plugin.statsService.getCache().concepts[activeFile.path];
-					const cardStats = cache?.cardStats?.[nid];
-					if (cardStats) {
-						new CardStatsModal(this.app, cardStats).open();
-					} else {
-						new Notice('No stats available for this card');
-					}
-				}
-			});
+		const statsBtn = centerGroup.createDiv({
+			cls: 'arete-toolbar-btn',
+			attr: { title: nid ? 'View Card Stats' : 'Card not synced (No NID)' },
+		});
+		setIcon(statsBtn, 'bar-chart-2');
+		if (!nid) {
+			statsBtn.style.opacity = '0.4';
+			statsBtn.style.cursor = 'not-allowed';
 		}
+		
+		statsBtn.addEventListener('click', () => {
+			if (!nid) {
+				new Notice('Card not synced to Anki yet (No NID).');
+				return;
+			}
+			console.log('[Arete] Opening stats modal for NID:', nid);
+			const activeFile = this.app.workspace.getActiveFile();
+			if (activeFile && nid) {
+				const cache = this.plugin.statsService.getCache();
+				const conceptStats = cache.concepts[activeFile.path];
+				if (!conceptStats) {
+					new Notice('No stats synced for this file yet.');
+					return;
+				}
+
+				const cardStats = conceptStats.cardStats?.[nid];
+				
+				if (cardStats) {
+					new CardStatsModal(this.app, cardStats).open();
+				} else {
+					new Notice('No stats data available for this specific card.');
+				}
+			}
+		});
+
+		// Graph View Button
+		const graphBtn = centerGroup.createDiv({
+			cls: 'arete-toolbar-btn',
+			attr: { title: 'Open Local Graph' },
+		});
+		setIcon(graphBtn, 'share-2'); 
+		graphBtn.addEventListener('click', () => {
+			this.plugin.activateLocalGraphView();
+		});
 
 		const rightGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
 
