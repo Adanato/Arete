@@ -17,7 +17,6 @@ import { ProblematicCard } from '@application/services/StatsService';
 import type { AnkiCardStats } from '@/domain/stats';
 import { CardStatsModal } from '@/presentation/modals/CardStatsModal';
 
-
 export const YAML_EDITOR_VIEW_TYPE = 'arete-yaml-editor';
 
 interface CardData {
@@ -604,13 +603,15 @@ export class CardYamlEditorView extends ItemView {
 				].includes(key);
 
 				if (typeof value === 'string') {
-					// Check for unsafe characters if not a content field
-					const unsafeChars = /['":#]/.test(value);
+					// Check for special characters that often need quoting or indicate math/LaTeX
+					// matching the Python dumper triggers for consistency.
+					const needsFormatting = /[\\${}^_~'":#[\]\t\n]/.test(value);
 
-					if (value.includes('\n') || isContentField || unsafeChars) {
+					if (needsFormatting || isContentField) {
 						if (!value) return `${key}: ''`;
-						// Use |- to strip the trailing newline, keeping the content clean
-						return `${key}: |-\n  ${value.replace(/\n/g, '\n  ')}`;
+						// Strip trailing newline for |- style
+						const cleanValue = value.replace(/\n$/, '');
+						return `${key}: |-\n  ${cleanValue.replace(/\n/g, '\n  ')}`;
 					}
 				}
 				return `${key}: ${value}`;
@@ -802,14 +803,14 @@ export class CardYamlEditorView extends ItemView {
 
 		await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
 			if (!frontmatter.cards) frontmatter.cards = [];
-			
+
 			// New card with model: Basic
 			const newCard = {
 				model: 'Basic',
 				Front: '',
-				Back: ''
+				Back: '',
 			};
-			
+
 			// Insert at position after current card
 			frontmatter.cards.splice(insertIndex, 0, newCard);
 		});

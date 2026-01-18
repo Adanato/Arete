@@ -1,6 +1,6 @@
 /**
  * Domain types for card statistics.
- * 
+ *
  * Pure data structures with no UI or I/O dependencies.
  */
 
@@ -76,14 +76,14 @@ export interface StatsNode {
 	deckName: string; // If leaf, primary deck. If node, aggregation.
 	isLeaf: boolean;
 	children: StatsNode[];
-	
+
 	// Aggregated Metrics
 	count: number;
 	lapses: number;
 	difficulty: number | null; // Avg
 	stability: number | null; // Avg
 	retrievability: number | null; // Avg
-	
+
 	// Problematic
 	problematicCount: number;
 	score: number; // For sorting

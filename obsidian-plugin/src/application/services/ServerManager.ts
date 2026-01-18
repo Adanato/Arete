@@ -17,8 +17,8 @@ export class ServerManager {
 
 	private startPromise: Promise<void> | null = null;
 
-	async start(forceRestart = false) {
-		if (this.settings.execution_mode !== 'server') return;
+	start(forceRestart = false): Promise<void> {
+		if (this.settings.execution_mode !== 'server') return Promise.resolve();
 
 		if (this.startPromise && !forceRestart) {
 			return this.startPromise;

@@ -1,6 +1,6 @@
 /**
  * Card Stats Modal - Displays detailed FSRS metrics for a single card.
- * 
+ *
  * This modal is shared between DashboardView and CardYamlEditorView.
  */
 
@@ -19,13 +19,13 @@ export class CardStatsModal extends Modal {
 		const { contentEl, modalEl } = this;
 		contentEl.empty();
 		contentEl.addClass('arete-stats-modal');
-		
+
 		// Make modal wider
 		modalEl.style.width = '650px';
 		modalEl.style.maxWidth = '90vw';
 
 		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1rem';
-		
+
 		const c = this.card;
 
 		// Main 2-column layout: Stats on left, Curve on right
@@ -52,14 +52,34 @@ export class CardStatsModal extends Modal {
 		// --- Section 1: Memory State ---
 		// Note: difficulty comes from backend already in 1-10 scale
 		this.renderSection(leftPanel, 'Memory State', [
-			{ label: 'Difficulty (1-10)', value: c.difficulty != null ? c.difficulty.toFixed(1) : '-', color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined },
-			{ label: 'Stability', value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-', color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined },
-			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
+			{
+				label: 'Difficulty (1-10)',
+				value: c.difficulty != null ? c.difficulty.toFixed(1) : '-',
+				color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined,
+			},
+			{
+				label: 'Stability',
+				value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-',
+				color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined,
+			},
+			{
+				label: 'Retrievability',
+				value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-',
+				color:
+					c.retrievability != null && c.retrievability < 0.85
+						? 'var(--color-red)'
+						: undefined,
+			},
 		]);
 
 		// --- Forgetting Curve Visualization (in right panel) ---
 		if (c.stability != null && c.stability > 0.1) {
-			this.renderForgettingCurve(rightPanel, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
+			this.renderForgettingCurve(
+				rightPanel,
+				c.stability,
+				c.retrievability ?? 1,
+				c.desiredRetention ?? 0.9,
+			);
 		} else {
 			// No meaningful stability yet - show placeholder
 			const placeholder = rightPanel.createDiv({ cls: 'arete-curve-placeholder' });
@@ -67,7 +87,7 @@ export class CardStatsModal extends Modal {
 			placeholder.style.flexDirection = 'column';
 			placeholder.style.alignItems = 'center';
 			placeholder.style.justifyContent = 'center';
-		placeholder.style.height = '150px';
+			placeholder.style.height = '150px';
 			placeholder.style.color = 'var(--text-muted)';
 			placeholder.style.fontSize = '0.85em';
 			placeholder.createDiv({ text: 'Forgetting Curve' }).style.fontWeight = 'bold';
@@ -76,33 +96,50 @@ export class CardStatsModal extends Modal {
 
 		// --- Section 2: Learning Dynamics (in left panel) ---
 		this.renderSection(leftPanel, 'Learning Dynamics', [
-			{ 
-				label: 'Interval Growth', 
+			{
+				label: 'Interval Growth',
 				value: c.intervalGrowth != null ? `${c.intervalGrowth.toFixed(2)}x` : 'N/A',
-				color: c.intervalGrowth != null && c.intervalGrowth < 1.2 ? 'var(--color-orange)' : undefined 
+				color:
+					c.intervalGrowth != null && c.intervalGrowth < 1.2
+						? 'var(--color-orange)'
+						: undefined,
 			},
-			{ 
-				label: 'Press Fatigue (Hard%)', 
+			{
+				label: 'Press Fatigue (Hard%)',
 				value: c.pressFatigue != null ? `${(c.pressFatigue * 100).toFixed(0)}%` : 'N/A',
-				color: c.pressFatigue != null && c.pressFatigue > 0.3 ? 'var(--color-red)' : undefined
+				color:
+					c.pressFatigue != null && c.pressFatigue > 0.3 ? 'var(--color-red)' : undefined,
 			},
-			{ 
-				label: 'Schedule Adherence', 
-				value: c.scheduleAdherence != null ? `${(c.scheduleAdherence * 100).toFixed(1)}%` : 'N/A' 
+			{
+				label: 'Schedule Adherence',
+				value:
+					c.scheduleAdherence != null
+						? `${(c.scheduleAdherence * 100).toFixed(1)}%`
+						: 'N/A',
 			},
-			{ 
-				label: 'Days Overdue', 
+			{
+				label: 'Days Overdue',
 				value: c.daysOverdue != null ? `${c.daysOverdue}d` : '-',
-				color: c.daysOverdue != null && c.daysOverdue > 7 ? 'var(--color-red)' : undefined
-			}
+				color: c.daysOverdue != null && c.daysOverdue > 7 ? 'var(--color-red)' : undefined,
+			},
 		]);
 
 		// --- Section 3: Review History (in left panel) ---
 		this.renderSection(leftPanel, 'Review History', [
-			{ label: 'Total Lapses', value: c.lapses != null ? c.lapses : '0', color: c.lapses != null && c.lapses > 5 ? 'var(--color-red)' : undefined },
-			{ label: 'Lapse Rate', value: c.lapseRate != null ? `${(c.lapseRate * 100).toFixed(1)}%` : '-' },
+			{
+				label: 'Total Lapses',
+				value: c.lapses != null ? c.lapses : '0',
+				color: c.lapses != null && c.lapses > 5 ? 'var(--color-red)' : undefined,
+			},
+			{
+				label: 'Lapse Rate',
+				value: c.lapseRate != null ? `${(c.lapseRate * 100).toFixed(1)}%` : '-',
+			},
 			{ label: 'Total Reps', value: c.reps != null ? c.reps : '0' },
-			{ label: 'Avg Time', value: c.averageTime ? `${(c.averageTime / 1000).toFixed(1)}s` : '-' }
+			{
+				label: 'Avg Time',
+				value: c.averageTime ? `${(c.averageTime / 1000).toFixed(1)}s` : '-',
+			},
 		]);
 
 		// Answer Distribution (in left panel)
@@ -113,7 +150,7 @@ export class CardStatsModal extends Modal {
 			distHeader.style.textTransform = 'uppercase';
 			distHeader.style.letterSpacing = '1px';
 			distHeader.style.color = 'var(--text-accent)';
-			
+
 			const distTable = leftPanel.createDiv({ cls: 'arete-modal-dist' });
 			distTable.style.display = 'flex';
 			distTable.style.gap = '0.3rem';
@@ -123,10 +160,10 @@ export class CardStatsModal extends Modal {
 				{ label: 'Again', key: 1, color: 'var(--color-red)' },
 				{ label: 'Hard', key: 2, color: 'var(--color-orange)' },
 				{ label: 'Good', key: 3, color: 'var(--color-green)' },
-				{ label: 'Easy', key: 4, color: 'var(--color-blue)' }
+				{ label: 'Easy', key: 4, color: 'var(--color-blue)' },
 			];
 
-			ratings.forEach(r => {
+			ratings.forEach((r) => {
 				const box = distTable.createDiv();
 				box.style.flex = '1';
 				box.style.padding = '6px';
@@ -134,7 +171,9 @@ export class CardStatsModal extends Modal {
 				box.style.borderRadius = '4px';
 				box.style.textAlign = 'center';
 				box.createDiv({ text: r.label }).style.fontSize = '0.7em';
-				box.createDiv({ text: (c.answerDistribution![r.key] || 0).toString() }).style.fontWeight = 'bold';
+				box.createDiv({
+					text: (c.answerDistribution![r.key] || 0).toString(),
+				}).style.fontWeight = 'bold';
 			});
 		}
 
@@ -149,7 +188,10 @@ export class CardStatsModal extends Modal {
 			const title = alert.createDiv({ cls: 'arete-alert-title' });
 			setIcon(title.createSpan(), 'zap');
 			title.createSpan({ text: ' Overlearning Detected' }).style.fontWeight = 'bold';
-			alert.createDiv({ text: 'This card is being reviewed significantly before its FSRS-recommended due date with high retrievability. Consider increasing your desired retention or following the schedule more strictly.', cls: 'arete-alert-body' }).style.fontSize = '0.85em';
+			alert.createDiv({
+				text: 'This card is being reviewed significantly before its FSRS-recommended due date with high retrievability. Consider increasing your desired retention or following the schedule more strictly.',
+				cls: 'arete-alert-body',
+			}).style.fontSize = '0.85em';
 		}
 
 		// Footer
@@ -165,10 +207,14 @@ export class CardStatsModal extends Modal {
 		contentEl.empty();
 	}
 
-	private renderSection(container: HTMLElement, title: string, stats: { label: string, value: string | number, color?: string }[]) {
+	private renderSection(
+		container: HTMLElement,
+		title: string,
+		stats: { label: string; value: string | number; color?: string }[],
+	) {
 		const section = container.createDiv({ cls: 'arete-modal-section' });
 		section.style.marginBottom = '1.2rem';
-		
+
 		const h3 = section.createEl('h3', { text: title });
 		h3.style.margin = '0 0 0.6rem 0';
 		h3.style.fontSize = '0.9em';
@@ -183,12 +229,12 @@ export class CardStatsModal extends Modal {
 		grid.style.gridTemplateColumns = '1fr 1fr';
 		grid.style.gap = '0.8rem 1.5rem';
 
-		stats.forEach(s => {
+		stats.forEach((s) => {
 			const sub = grid.createDiv();
 			const labelEl = sub.createDiv({ text: s.label });
 			labelEl.style.fontSize = '0.75em';
 			labelEl.style.color = 'var(--text-muted)';
-			
+
 			const valEl = sub.createDiv({ text: s.value.toString() });
 			valEl.style.fontSize = '1.1em';
 			valEl.style.fontWeight = '600';
@@ -200,12 +246,17 @@ export class CardStatsModal extends Modal {
 	 * Render a forgetting curve visualization using SVG
 	 * Formula: R(t) = (1 + t/(9*S))^(-1) where S is stability in days
 	 */
-	private renderForgettingCurve(container: HTMLElement, stability: number, currentR: number, targetR: number) {
+	private renderForgettingCurve(
+		container: HTMLElement,
+		stability: number,
+		currentR: number,
+		targetR: number,
+	) {
 		const wrapper = container.createDiv({ cls: 'arete-forgetting-curve' });
 		wrapper.style.height = '100%';
 		wrapper.style.display = 'flex';
 		wrapper.style.flexDirection = 'column';
-		
+
 		const header = wrapper.createEl('h3', { text: 'Forgetting Curve' });
 		header.style.margin = '0 0 0.6rem 0';
 		header.style.fontSize = '0.9em';
@@ -294,23 +345,25 @@ export class CardStatsModal extends Modal {
 
 		// Current retrievability point - calculate elapsed days from R
 		// Inverse of R(t) = (1 + t/(9*S))^(-1) -> t = 9*S * (R^(-1) - 1)
-		const elapsedDays = currentR > 0 && currentR < 1 
-			? 9 * stability * (Math.pow(currentR, -1) - 1)
-			: 0;
+		const elapsedDays =
+			currentR > 0 && currentR < 1 ? 9 * stability * (Math.pow(currentR, -1) - 1) : 0;
 		const currentX = padding.left + Math.min(elapsedDays / maxDays, 1) * graphWidth;
 		const currentY = padding.top + (1 - currentR) * graphHeight;
 		const currentPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 		currentPoint.setAttribute('cx', String(currentX));
 		currentPoint.setAttribute('cy', String(currentY));
 		currentPoint.setAttribute('r', '6');
-		currentPoint.setAttribute('fill', currentR >= targetR ? 'var(--color-green)' : 'var(--color-red)');
+		currentPoint.setAttribute(
+			'fill',
+			currentR >= targetR ? 'var(--color-green)' : 'var(--color-red)',
+		);
 		currentPoint.setAttribute('stroke', 'white');
 		currentPoint.setAttribute('stroke-width', '2');
 		svg.appendChild(currentPoint);
 
 		// X-axis labels
 		const labels = [0, Math.round(maxDays / 2), Math.round(maxDays)];
-		labels.forEach(d => {
+		labels.forEach((d) => {
 			const lx = padding.left + (d / maxDays) * graphWidth;
 			const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 			text.setAttribute('x', String(lx));
@@ -324,7 +377,7 @@ export class CardStatsModal extends Modal {
 
 		// Y-axis labels
 		const yLabels = [100, 50, 0];
-		yLabels.forEach(p => {
+		yLabels.forEach((p) => {
 			const ly = padding.top + (1 - p / 100) * graphHeight;
 			const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 			text.setAttribute('x', String(padding.left - 5));
@@ -347,7 +400,9 @@ export class CardStatsModal extends Modal {
 		legend.style.color = 'var(--text-muted)';
 		legend.style.marginTop = '0.3rem';
 
-		legend.createSpan({ text: `Optimal: ${optimalInterval.toFixed(1)}d` }).style.color = 'var(--color-blue)';
-		legend.createSpan({ text: `Target: ${(targetR * 100).toFixed(0)}%` }).style.color = 'var(--color-green)';
+		legend.createSpan({ text: `Optimal: ${optimalInterval.toFixed(1)}d` }).style.color =
+			'var(--color-blue)';
+		legend.createSpan({ text: `Target: ${(targetR * 100).toFixed(0)}%` }).style.color =
+			'var(--color-green)';
 	}
 }

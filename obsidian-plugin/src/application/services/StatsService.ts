@@ -8,7 +8,7 @@ export type {
 	ProblematicCard,
 	ConceptStats,
 	StatsNode,
-	StatsCache
+	StatsCache,
 } from '@/domain/stats';
 
 import type {
@@ -16,7 +16,7 @@ import type {
 	ProblematicCard,
 	ConceptStats,
 	StatsNode,
-	StatsCache
+	StatsCache,
 } from '@/domain/stats';
 
 export class StatsService {
@@ -76,7 +76,7 @@ export class StatsService {
 						sumStability: 0,
 						countStability: 0,
 						sumRetrievability: 0,
-						countRetrievability: 0
+						countRetrievability: 0,
 					};
 					conceptDeckCounts[file.path] = {};
 
@@ -165,7 +165,7 @@ export class StatsService {
 				}
 				concept.averageDifficulty += stat.difficulty;
 				concept.difficultyCount = (concept.difficultyCount || 0) + 1;
-				
+
 				// Extended agg
 				concept.sumDifficulty = (concept.sumDifficulty || 0) + stat.difficulty;
 				concept.countDifficulty = (concept.countDifficulty || 0) + 1;
@@ -284,7 +284,7 @@ export class StatsService {
 			stability: null,
 			retrievability: null,
 			problematicCount: 0,
-			score: 0
+			score: 0,
 		};
 
 		// 2. Build Tree Structure
@@ -294,16 +294,17 @@ export class StatsService {
 
 		for (const c of concepts) {
 			// Determine deck hierarchy
-			const deckPath = c.primaryDeck && c.primaryDeck !== 'Unknown' ? c.primaryDeck : 'Default';
+			const deckPath =
+				c.primaryDeck && c.primaryDeck !== 'Unknown' ? c.primaryDeck : 'Default';
 			const parts = deckPath.split('::');
-			
+
 			let currentPath = '';
 			let parent = root;
 
 			// Traverse/Create Deck Nodes
 			for (const part of parts) {
 				const fullPath = currentPath ? `${currentPath}::${part}` : part;
-				
+
 				if (!deckMap.has(fullPath)) {
 					const deckNode: StatsNode = {
 						title: part,
@@ -317,7 +318,7 @@ export class StatsService {
 						stability: null,
 						retrievability: null,
 						problematicCount: 0,
-						score: 0
+						score: 0,
 					};
 					parent.children.push(deckNode);
 					deckMap.set(fullPath, deckNode);
@@ -329,9 +330,18 @@ export class StatsService {
 			}
 
 			// Add File Node (Leaf) to the specific deck
-			const diff = (c.countDifficulty && c.countDifficulty > 0) ? (c.sumDifficulty || 0) / c.countDifficulty : null;
-			const stab = (c.countStability && c.countStability > 0) ? (c.sumStability || 0) / c.countStability : null;
-			const ret = (c.countRetrievability && c.countRetrievability > 0) ? (c.sumRetrievability || 0) / c.countRetrievability : null;
+			const diff =
+				c.countDifficulty && c.countDifficulty > 0
+					? (c.sumDifficulty || 0) / c.countDifficulty
+					: null;
+			const stab =
+				c.countStability && c.countStability > 0
+					? (c.sumStability || 0) / c.countStability
+					: null;
+			const ret =
+				c.countRetrievability && c.countRetrievability > 0
+					? (c.sumRetrievability || 0) / c.countRetrievability
+					: null;
 
 			const leaf: StatsNode = {
 				title: c.fileName.replace('.md', ''),
@@ -345,7 +355,7 @@ export class StatsService {
 				stability: stab,
 				retrievability: ret,
 				problematicCount: c.problematicCardsCount,
-				score: c.score
+				score: c.score,
 			};
 			parent.children.push(leaf);
 		}
@@ -362,9 +372,12 @@ export class StatsService {
 	private aggregateNode(node: StatsNode) {
 		if (node.isLeaf) return;
 
-		let sumDiff = 0, countDiff = 0;
-		let sumStab = 0, countStab = 0;
-		let sumRet = 0, countRet = 0;
+		let sumDiff = 0,
+			countDiff = 0;
+		let sumStab = 0,
+			countStab = 0;
+		let sumRet = 0,
+			countRet = 0;
 
 		for (const child of node.children) {
 			this.aggregateNode(child);
@@ -390,16 +403,16 @@ export class StatsService {
 		if (countDiff > 0) node.difficulty = sumDiff / countDiff;
 		if (countStab > 0) node.stability = sumStab / countStab;
 		if (countRet > 0) node.retrievability = sumRet / countRet;
-		
+
 		// Score based on density of issues
 		if (node.count > 0) node.score = node.problematicCount / node.count;
 	}
-	
+
 	private sortTree(node: StatsNode) {
 		if (node.isLeaf) return;
 		// Sort by Score Descending
 		node.children.sort((a, b) => b.score - a.score);
-		
+
 		for (const child of node.children) {
 			this.sortTree(child);
 		}

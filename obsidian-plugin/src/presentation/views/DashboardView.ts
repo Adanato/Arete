@@ -187,9 +187,12 @@ export class DashboardView extends ItemView {
 		// Use cached data.
 		const conceptsMap = this.plugin.statsService.getCache().concepts;
 		const concepts = Object.values(conceptsMap);
-		
+
 		if (concepts.length === 0) {
-			this.renderEmptyState(container, 'No statistics available. Please click Refresh to sync.');
+			this.renderEmptyState(
+				container,
+				'No statistics available. Please click Refresh to sync.',
+			);
 			return;
 		}
 
@@ -198,12 +201,12 @@ export class DashboardView extends ItemView {
 
 		// Render Tree
 		const list = container.createDiv({ cls: 'arete-deck-list' });
-		
+
 		// Render children directly to avoid abstract 'Vault' root node
 		if (root.children.length === 0) {
 			this.renderEmptyState(container, 'No stats available.');
 		} else {
-			root.children.forEach(child => {
+			root.children.forEach((child) => {
 				this.renderDeckNode(list, child, 0);
 			});
 		}
@@ -224,7 +227,7 @@ export class DashboardView extends ItemView {
 		icon.style.marginRight = '8px';
 		// If leaf, key is filePath, else deckName. Expanded set keys match this logic.
 		const expansionKey = node.isLeaf ? node.filePath : node.deckName;
-		
+
 		if (!node.isLeaf) {
 			setIcon(icon, this.expandedDecks.has(expansionKey) ? 'chevron-down' : 'chevron-right');
 		} else {
@@ -319,7 +322,7 @@ export class DashboardView extends ItemView {
 				}
 				this.plugin.saveSettings();
 				// Re-render whole view to refresh tree state
-				this.renderOverview(overviewContainer); 
+				this.renderOverview(overviewContainer);
 			} else {
 				// Leaf click: Toggle file expansion
 				if (this.expandedConcepts.has(node.filePath)) {
@@ -332,20 +335,22 @@ export class DashboardView extends ItemView {
 				this.renderOverview(overviewContainer);
 			}
 		};
-        
-        // Leaf name click action (go to file)
-        if (node.isLeaf) {
-            title.addClass('arete-clickable');
-            title.onclick = (e) => {
-                e.stopPropagation();
-                this.openFile(node.filePath);
-            };
-        }
+
+		// Leaf name click action (go to file)
+		if (node.isLeaf) {
+			title.addClass('arete-clickable');
+			title.onclick = (e) => {
+				e.stopPropagation();
+				this.openFile(node.filePath);
+			};
+		}
 
 		// Children Rendering
 		if (!node.isLeaf && this.expandedDecks.has(expansionKey)) {
 			// Render children nodes
-			Object.values(node.children).forEach(child => this.renderDeckNode(deckContainer, child, depth + 1));
+			Object.values(node.children).forEach((child) =>
+				this.renderDeckNode(deckContainer, child, depth + 1),
+			);
 		} else if (node.isLeaf && this.expandedConcepts.has(node.filePath)) {
 			// This is a file, find ConceptStats to render individual cards
 			const concepts = this.plugin.statsService.getCache().concepts[node.filePath];
@@ -431,9 +436,15 @@ export class DashboardView extends ItemView {
 						qSpan.style.overflow = 'hidden';
 						qSpan.style.textOverflow = 'ellipsis';
 						qSpan.style.cursor = 'pointer';
-						
-						qSpan.addEventListener('mouseenter', () => qSpan.style.textDecoration = 'underline');
-						qSpan.addEventListener('mouseleave', () => qSpan.style.textDecoration = 'none');
+
+						qSpan.addEventListener(
+							'mouseenter',
+							() => (qSpan.style.textDecoration = 'underline'),
+						);
+						qSpan.addEventListener(
+							'mouseleave',
+							() => (qSpan.style.textDecoration = 'none'),
+						);
 
 						qSpan.onclick = (e) => {
 							e.stopPropagation();
@@ -445,15 +456,21 @@ export class DashboardView extends ItemView {
 						sGroup.style.display = 'flex';
 						sGroup.style.alignItems = 'center';
 						sGroup.style.cursor = 'help';
-						
-						sGroup.addEventListener('mouseenter', () => sGroup.style.background = 'var(--background-modifier-hover)');
-						sGroup.addEventListener('mouseleave', () => sGroup.style.background = 'transparent');
+
+						sGroup.addEventListener(
+							'mouseenter',
+							() => (sGroup.style.background = 'var(--background-modifier-hover)'),
+						);
+						sGroup.addEventListener(
+							'mouseleave',
+							() => (sGroup.style.background = 'transparent'),
+						);
 
 						sGroup.onclick = (e) => {
 							e.stopPropagation();
 							new CardStatsModal(this.plugin.app, card).open();
 						};
-						
+
 						// 1. Difficulty
 						const dSpan = sGroup.createSpan();
 						dSpan.style.width = '50px';
@@ -482,7 +499,8 @@ export class DashboardView extends ItemView {
 						growthSpan.style.textAlign = 'right';
 						if (card.intervalGrowth != null) {
 							growthSpan.textContent = `x${card.intervalGrowth.toFixed(1)}`;
-							if (card.intervalGrowth < 1.0) growthSpan.style.color = 'var(--color-red)';
+							if (card.intervalGrowth < 1.0)
+								growthSpan.style.color = 'var(--color-red)';
 							else growthSpan.style.color = 'var(--color-green)';
 						} else {
 							growthSpan.textContent = '-';
@@ -505,7 +523,7 @@ export class DashboardView extends ItemView {
 						lSpan.style.textAlign = 'right';
 						lSpan.textContent = card.lapses.toString();
 						if (card.lapses > 5) lSpan.style.color = 'var(--color-red)';
-						
+
 						// 6. Flags
 						const fSpan = sGroup.createSpan();
 						fSpan.style.width = '20px';
@@ -517,7 +535,6 @@ export class DashboardView extends ItemView {
 							fSpan.style.color = 'var(--color-blue)';
 							fSpan.title = 'Overlearning Detected';
 						}
-
 					} catch (e) {
 						console.error('Error rendering card row', e);
 					}
