@@ -797,13 +797,25 @@ export class CardYamlEditorView extends ItemView {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) return;
 
+		// Insert at current position + 1
+		const insertIndex = this.currentCardIndex + 1;
+
 		await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
 			if (!frontmatter.cards) frontmatter.cards = [];
-			frontmatter.cards.push({ front: '', back: '' });
+			
+			// New card with model: Basic and multiline fields using |- syntax
+			const newCard = {
+				model: 'Basic',
+				front: '',
+				back: ''
+			};
+			
+			// Insert at position after current card
+			frontmatter.cards.splice(insertIndex, 0, newCard);
 		});
 
 		await this.loadCards();
-		this.currentCardIndex = this.cards.length - 1;
+		this.currentCardIndex = insertIndex;
 		this.renderIndex();
 		this.refreshActiveView();
 	}

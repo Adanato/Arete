@@ -143,7 +143,7 @@ class CardGutterMarker extends GutterMarker {
 						this.stats.difficulty > 0
 					) {
 						// difficulty is already 1-10 scale from backend
-						diffText = `${this.stats.difficulty.toFixed(0)}`;
+						diffText = `${this.stats.difficulty.toFixed(1)}`;
 						if (this.stats.difficulty > 9) diffColor = 'var(--color-red)';
 						else if (this.stats.difficulty > 5) diffColor = 'var(--color-orange)';
 						else diffColor = 'var(--color-green)';
