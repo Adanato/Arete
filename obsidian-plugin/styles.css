@@ -786,3 +786,380 @@
 	transform: scale(1.05);
 	background: var(--interactive-accent-hover);
 }
+
+/* ─────────────────────────────────────────────────────────────
+   DEPENDENCY EDITOR VIEW STYLES
+   ───────────────────────────────────────────────────────────── */
+
+.arete-dependency-editor {
+	padding: 12px;
+	overflow-y: auto;
+}
+
+.arete-dep-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16px;
+}
+
+.arete-dep-header h4 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.arete-dep-refresh-btn {
+	cursor: pointer;
+	color: var(--text-muted);
+	padding: 4px;
+	border-radius: 4px;
+}
+
+.arete-dep-refresh-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arete-dep-content {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.arete-dep-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	padding: 20px;
+}
+
+.arete-dep-card-info {
+	background: var(--background-secondary);
+	padding: 8px 12px;
+	border-radius: 6px;
+	margin-bottom: 8px;
+}
+
+.arete-dep-card-title {
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.arete-dep-section {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.arete-dep-section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+}
+
+.arete-dep-add-btn {
+	cursor: pointer;
+	color: var(--interactive-accent);
+	padding: 2px;
+}
+
+.arete-dep-add-btn:hover {
+	color: var(--interactive-accent-hover);
+}
+
+.arete-dep-list {
+	padding: 8px;
+}
+
+.arete-dep-empty-list {
+	color: var(--text-muted);
+	font-style: italic;
+	font-size: 12px;
+	padding: 4px 8px;
+}
+
+.arete-dep-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.arete-dep-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.arete-dep-item-label {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.arete-dep-item-id {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+.arete-dep-missing {
+	color: var(--color-orange);
+}
+
+.arete-dep-remove-btn {
+	cursor: pointer;
+	color: var(--text-muted);
+	padding: 2px;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.arete-dep-item:hover .arete-dep-remove-btn {
+	opacity: 1;
+}
+
+.arete-dep-remove-btn:hover {
+	color: var(--color-red);
+}
+
+.arete-dep-diagnostics {
+	background: var(--background-secondary);
+	border-radius: 6px;
+	padding: 8px 12px;
+}
+
+.arete-dep-diag-header {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+	text-transform: uppercase;
+}
+
+.arete-dep-diag-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	padding: 4px 0;
+}
+
+.arete-dep-diag-item.mod-warning {
+	color: var(--color-orange);
+}
+
+.arete-dep-diag-item.mod-cycle {
+	color: var(--color-red);
+}
+
+/* Card Search Modal */
+.arete-card-suggestion {
+	padding: 4px 0;
+}
+
+.arete-card-suggestion-title {
+	font-weight: 500;
+}
+
+.arete-card-suggestion-meta {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.arete-card-suggestion-id {
+	font-family: var(--font-monospace);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   LOCAL GRAPH VIEW STYLES
+   ───────────────────────────────────────────────────────────── */
+
+.arete-local-graph {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+.arete-graph-toolbar {
+	display: flex;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.arete-graph-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: all 0.15s ease;
+}
+
+.arete-graph-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arete-graph-btn.is-active {
+	color: var(--interactive-accent);
+}
+
+.arete-graph-depth {
+	padding: 4px 8px;
+	border-radius: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	font-size: 12px;
+	color: var(--text-normal);
+}
+
+.arete-graph-container {
+	flex: 1;
+	overflow: auto;
+	padding: 16px;
+}
+
+.arete-graph-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	padding: 40px;
+}
+
+.arete-graph-layout {
+	display: flex;
+	gap: 24px;
+	justify-content: center;
+	align-items: flex-start;
+	min-height: 200px;
+}
+
+.arete-graph-column {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 120px;
+	max-width: 180px;
+}
+
+.arete-graph-column-title {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	text-align: center;
+	margin-bottom: 8px;
+}
+
+.arete-graph-center {
+	align-items: center;
+}
+
+.arete-graph-empty-nodes {
+	color: var(--text-muted);
+	font-style: italic;
+	font-size: 12px;
+	text-align: center;
+	padding: 20px 10px;
+}
+
+.arete-graph-node {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 10px 12px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.arete-graph-node:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.arete-graph-node-prereq {
+	border-left: 3px solid var(--color-blue);
+}
+
+.arete-graph-node-dependent {
+	border-right: 3px solid var(--color-green);
+}
+
+.arete-graph-node-related {
+	border-style: dashed;
+}
+
+.arete-graph-node-center {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	position: relative;
+}
+
+.arete-graph-node-center.has-cycle {
+	border-color: var(--color-red);
+}
+
+.arete-graph-cycle-icon {
+	position: absolute;
+	top: -8px;
+	right: -8px;
+	background: var(--color-red);
+	color: white;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.arete-graph-node-title {
+	font-size: 13px;
+	font-weight: 500;
+	margin-bottom: 4px;
+}
+
+.arete-graph-node-id {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	opacity: 0.7;
+}
+
+.arete-graph-node-file {
+	font-size: 10px;
+	opacity: 0.6;
+	margin-top: 4px;
+}
+
+.arete-graph-related {
+	margin-top: 24px;
+	padding-top: 16px;
+	border-top: 1px dashed var(--background-modifier-border);
+}
+
+.arete-graph-related-nodes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	justify-content: center;
+}
