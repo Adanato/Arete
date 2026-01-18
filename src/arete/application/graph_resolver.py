@@ -118,6 +118,8 @@ def get_local_graph(
         if current_depth > depth or len(prereqs) >= max_nodes:
             return
         for prereq_id in graph.get_prerequisites(cid):
+            if len(prereqs) >= max_nodes:
+                break
             if prereq_id not in prereqs and prereq_id in graph.nodes:
                 prereqs.add(prereq_id)
                 walk_prereqs(prereq_id, current_depth + 1)
@@ -127,6 +129,8 @@ def get_local_graph(
         if current_depth > depth or len(dependents) >= max_nodes:
             return
         for dep_id in graph.get_dependents(cid):
+            if len(dependents) >= max_nodes:
+                break
             if dep_id not in dependents and dep_id in graph.nodes:
                 dependents.add(dep_id)
                 walk_dependents(dep_id, current_depth + 1)

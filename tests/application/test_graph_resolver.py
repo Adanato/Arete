@@ -47,6 +47,18 @@ class TestDependencyGraph:
 
         assert graph.get_related("a1") == ["a2"]
 
+    def test_add_requires_new_id(self):
+        """Test add_requires with an ID that wasn't previously added via add_node."""
+        graph = DependencyGraph()
+        graph.add_requires("parent", "child")
+        assert "child" in graph.get_prerequisites("parent")
+
+    def test_add_related_new_id(self):
+        """Test add_related with an ID that wasn't previously added via add_node."""
+        graph = DependencyGraph()
+        graph.add_related("a", "b")
+        assert "b" in graph.get_related("a")
+
 
 class TestBuildGraph:
     """Tests for building graph from vault files."""
@@ -107,6 +119,23 @@ cards:
 
         assert len(graph.nodes) == 0
 
+    def test_build_graph_invalid_frontmatter(self, tmp_path: Path, caplog):
+        """Test handling of invalid frontmatter or missing cards field."""
+        # Case 1: YAML error
+        (tmp_path / "error.md").write_text("---\ninvalid: [unclosed\n---\n")
+        # Case 2: cards is not a list
+        (tmp_path / "not_list.md").write_text("---\ncards: not-a-list\n---\n")
+        # Case 3: card is not a dict
+        (tmp_path / "card_not_dict.md").write_text("---\ncards:\n  - not_a_dict\n---\n")
+        # Case 4: card fields is not a dict (tests line 53)
+        (tmp_path / "fields_not_dict.md").write_text("---\ncards:\n  - id: c1\n    fields: string\n---\n")
+
+        with caplog.at_level("WARNING"):
+            graph = build_graph(tmp_path)
+        
+        assert "c1" in graph.nodes
+        assert graph.nodes["c1"].title == "c1"  # Fallback to card_id
+
 
 class TestLocalGraph:
     """Tests for local graph queries."""
@@ -150,6 +179,40 @@ class TestLocalGraph:
         result = get_local_graph(graph, "nonexistent")
         assert result is None
 
+    def test_get_local_graph_with_dependents_and_related(self):
+        """Test local graph including dependents and existing/non-existing related cards."""
+        graph = DependencyGraph()
+        graph.add_node(CardNode("a", "A", "/a.md", 1))
+        graph.add_node(CardNode("b", "B", "/b.md", 1))
+        graph.add_node(CardNode("c", "C", "/c.md", 1))
+        graph.add_requires("b", "a")  # b depends on a (a is prereq of b)
+        graph.add_requires("a", "c")  # a depends on c (c is prereq of a)
+        graph.add_related("a", "b")
+        graph.add_related("a", "nonexistent")
+
+        result = get_local_graph(graph, "a", depth=1)
+
+        assert result.center.id == "a"
+        assert len(result.dependents) == 1
+        assert result.dependents[0].id == "b"
+        assert len(result.prerequisites) == 1
+        assert result.prerequisites[0].id == "c"
+        assert len(result.related) == 1
+        assert result.related[0].id == "b"
+
+    def test_get_local_graph_limits(self):
+        """Test max_nodes limit in local graph traversal."""
+        graph = DependencyGraph()
+        graph.add_node(CardNode("center", "Center", "/c.md", 1))
+        for i in range(10):
+            node_id = f"node_{i}"
+            graph.add_node(CardNode(node_id, node_id, "/file.md", 1))
+            graph.add_requires("center", node_id)
+        
+        # Test max_nodes = 5
+        result = get_local_graph(graph, "center", depth=1, max_nodes=5)
+        assert len(result.prerequisites) == 5
+
 
 class TestCycleDetection:
     """Tests for cycle detection."""
@@ -174,6 +237,28 @@ class TestCycleDetection:
 
         cycles = detect_cycles(graph)
         assert len(cycles) > 0
+        assert "a" in cycles[0]
+        assert "b" in cycles[0]
+
+    def test_detect_complex_cycle_for_card(self):
+        """Test cycle detection relative to a card with missing nodes in path."""
+        graph = DependencyGraph()
+        graph.add_node(CardNode("a", "A", "/a.md", 1))
+        graph.add_node(CardNode("b", "B", "/b.md", 1))
+        graph.add_node(CardNode("c", "C", "/c.md", 1))
+        graph.add_requires("a", "b")
+        graph.add_requires("b", "c")
+        graph.add_requires("c", "a")
+        graph.add_requires("a", "nonexistent")
+
+        # cycles for 'a'
+        from arete.application.graph_resolver import detect_cycles_for_card
+        cycles = detect_cycles_for_card(graph, "a")
+        assert len(cycles) == 1
+        assert sorted(cycles[0]) == ["a", "b", "c"]
+        
+        # Cycle for card not in graph
+        assert detect_cycles_for_card(graph, "missing") == []
 
 
 class TestTopologicalSort:
@@ -207,6 +292,20 @@ class TestTopologicalSort:
 
         assert "c" not in result
         assert result.index("b") < result.index("a")
+
+    def test_topological_sort_with_cycle(self, caplog):
+        """Test fallback when cycle exists."""
+        graph = DependencyGraph()
+        graph.add_node(CardNode("a", "A", "/a.md", 1))
+        graph.add_node(CardNode("b", "B", "/b.md", 1))
+        graph.add_requires("a", "b")
+        graph.add_requires("b", "a")
+
+        with caplog.at_level("WARNING"):
+            result = topological_sort(graph, ["a", "b"])
+        
+        assert "Cycle detected" in caplog.text
+        assert set(result) == {"a", "b"}
 
 
 class TestQueueBuilder:
@@ -292,3 +391,87 @@ cards:
 
         assert "weak" in result.prereq_queue
         assert "strong" in result.skipped_strong
+
+    def test_missing_prereqs(self, tmp_path: Path):
+        """Test handling of prerequisites not found in vault."""
+        md_content = """---
+arete: true
+cards:
+  - id: main
+    deps:
+      requires: [missing_1, missing_2]
+---
+"""
+        (tmp_path / "test.md").write_text(md_content)
+        result = build_dependency_queue(tmp_path, ["main"])
+        assert "missing_1" in result.missing_prereqs
+        assert "missing_2" in result.missing_prereqs
+
+    def test_max_nodes_capping_with_stats(self, tmp_path: Path):
+        """Test that we cap the queue and sort by stability."""
+        md_content = """---
+arete: true
+cards:
+  - id: main
+    deps:
+      requires: [p1, p2, p3]
+  - id: p1
+  - id: p2
+  - id: p3
+---
+"""
+        (tmp_path / "test.md").write_text(md_content)
+        card_stats = {
+            "p1": {"stability": 10.0},
+            "p2": {"stability": 5.0},
+            "p3": {"stability": 20.0},
+        }
+        # Cap at 2 nodes
+        result = build_dependency_queue(
+            tmp_path, ["main"], max_nodes=2, card_stats=card_stats
+        )
+        assert len(result.prereq_queue) == 2
+        # p2 (5.0) and p1 (10.0) should be included as they are "weaker"
+        assert "p2" in result.prereq_queue
+        assert "p1" in result.prereq_queue
+        assert "p3" not in result.prereq_queue
+
+    def test_is_weak_prereq_various_criteria(self):
+        """Test all branches of _is_weak_prereq."""
+        from arete.application.queue_builder import _is_weak_prereq
+        
+        # No criteria -> always weak
+        assert _is_weak_prereq("any", None, None) is True
+        
+        # No stats -> assume weak
+        criteria = WeakPrereqCriteria(min_stability=50.0)
+        assert _is_weak_prereq("any", criteria, None) is True
+        assert _is_weak_prereq("missing", criteria, {"other": {}}) is True
+        
+        # Lapses
+        criteria = WeakPrereqCriteria(max_lapses=2)
+        assert _is_weak_prereq("c", criteria, {"c": {"lapses": 3}}) is True
+        assert _is_weak_prereq("c", criteria, {"c": {"lapses": 1}}) is False
+        
+        # Reviews (reps)
+        criteria = WeakPrereqCriteria(min_reviews=5)
+        assert _is_weak_prereq("c", criteria, {"c": {"reps": 3}}) is True
+        assert _is_weak_prereq("c", criteria, {"c": {"reps": 10}}) is False
+        
+        # Interval
+        criteria = WeakPrereqCriteria(max_interval=30)
+        assert _is_weak_prereq("c", criteria, {"c": {"interval": 10}}) is True
+        assert _is_weak_prereq("c", criteria, {"c": {"interval": 50}}) is False
+
+    def test_collect_prereqs_cycles(self):
+        """Test recursion protection in _collect_prereqs."""
+        from arete.application.queue_builder import _collect_prereqs
+        from arete.domain.graph import DependencyGraph, CardNode
+        
+        graph = DependencyGraph()
+        graph.add_node(CardNode("a", "A", "/a.md", 1))
+        graph.add_requires("a", "a") # Self cycle
+        
+        visited = set()
+        result = _collect_prereqs(graph, "a", depth=5, visited=visited)
+        assert "a" in result
