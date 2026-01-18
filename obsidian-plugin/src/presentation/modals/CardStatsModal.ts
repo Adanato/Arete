@@ -32,6 +32,11 @@ export class CardStatsModal extends Modal {
 			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
 		]);
 
+		// --- Forgetting Curve Visualization ---
+		if (c.stability != null && c.stability > 0) {
+			this.renderForgettingCurve(contentEl, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
+		}
+
 
 		// --- Section 2: Learning Dynamics (Plausible Metrics) ---
 		this.renderSection(contentEl, 'Learning Dynamics', [
@@ -150,5 +155,152 @@ export class CardStatsModal extends Modal {
 			valEl.style.fontWeight = '600';
 			if (s.color) valEl.style.color = s.color;
 		});
+	}
+
+	/**
+	 * Render a forgetting curve visualization using SVG
+	 * Formula: R(t) = (1 + t/(9*S))^(-1) where S is stability in days
+	 */
+	private renderForgettingCurve(container: HTMLElement, stability: number, currentR: number, targetR: number) {
+		const wrapper = container.createDiv({ cls: 'arete-forgetting-curve' });
+		wrapper.style.marginBottom = '1.2rem';
+		
+		const header = wrapper.createEl('h3', { text: 'Forgetting Curve' });
+		header.style.margin = '0 0 0.6rem 0';
+		header.style.fontSize = '0.9em';
+		header.style.textTransform = 'uppercase';
+		header.style.letterSpacing = '1px';
+		header.style.color = 'var(--text-accent)';
+		header.style.borderBottom = '1px solid var(--background-modifier-border)';
+		header.style.paddingBottom = '4px';
+
+		// SVG dimensions
+		const width = 280;
+		const height = 120;
+		const padding = { top: 10, right: 20, bottom: 25, left: 35 };
+		const graphWidth = width - padding.left - padding.right;
+		const graphHeight = height - padding.top - padding.bottom;
+
+		// Time scale: show 3x stability or minimum 7 days
+		const maxDays = Math.max(stability * 3, 7);
+
+		// FSRS retrievability formula
+		const getR = (t: number, s: number) => Math.pow(1 + t / (9 * s), -1);
+
+		// Generate curve points
+		const points: string[] = [];
+		for (let i = 0; i <= 50; i++) {
+			const t = (i / 50) * maxDays;
+			const r = getR(t, stability);
+			const x = padding.left + (t / maxDays) * graphWidth;
+			const y = padding.top + (1 - r) * graphHeight;
+			points.push(`${x},${y}`);
+		}
+
+		// Find where R drops to target retention
+		const optimalInterval = 9 * stability * (Math.pow(targetR, -1) - 1);
+		const optimalX = padding.left + (optimalInterval / maxDays) * graphWidth;
+
+		// Create SVG
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.setAttribute('width', String(width));
+		svg.setAttribute('height', String(height));
+		svg.style.display = 'block';
+		svg.style.margin = '0 auto';
+
+		// Background
+		const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+		bg.setAttribute('x', String(padding.left));
+		bg.setAttribute('y', String(padding.top));
+		bg.setAttribute('width', String(graphWidth));
+		bg.setAttribute('height', String(graphHeight));
+		bg.setAttribute('fill', 'var(--background-secondary)');
+		bg.setAttribute('rx', '4');
+		svg.appendChild(bg);
+
+		// Target retention line
+		const targetY = padding.top + (1 - targetR) * graphHeight;
+		const targetLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+		targetLine.setAttribute('x1', String(padding.left));
+		targetLine.setAttribute('y1', String(targetY));
+		targetLine.setAttribute('x2', String(padding.left + graphWidth));
+		targetLine.setAttribute('y2', String(targetY));
+		targetLine.setAttribute('stroke', 'var(--color-green)');
+		targetLine.setAttribute('stroke-dasharray', '4,4');
+		targetLine.setAttribute('stroke-width', '1');
+		svg.appendChild(targetLine);
+
+		// Optimal interval vertical line
+		if (optimalX <= padding.left + graphWidth) {
+			const optLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+			optLine.setAttribute('x1', String(optimalX));
+			optLine.setAttribute('y1', String(padding.top));
+			optLine.setAttribute('x2', String(optimalX));
+			optLine.setAttribute('y2', String(padding.top + graphHeight));
+			optLine.setAttribute('stroke', 'var(--color-blue)');
+			optLine.setAttribute('stroke-dasharray', '2,2');
+			optLine.setAttribute('stroke-width', '1');
+			svg.appendChild(optLine);
+		}
+
+		// Forgetting curve
+		const curve = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+		curve.setAttribute('points', points.join(' '));
+		curve.setAttribute('fill', 'none');
+		curve.setAttribute('stroke', 'var(--color-orange)');
+		curve.setAttribute('stroke-width', '2');
+		svg.appendChild(curve);
+
+		// Current retrievability point
+		const currentX = padding.left;
+		const currentY = padding.top + (1 - currentR) * graphHeight;
+		const currentPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+		currentPoint.setAttribute('cx', String(currentX));
+		currentPoint.setAttribute('cy', String(currentY));
+		currentPoint.setAttribute('r', '5');
+		currentPoint.setAttribute('fill', currentR >= targetR ? 'var(--color-green)' : 'var(--color-red)');
+		svg.appendChild(currentPoint);
+
+		// X-axis labels
+		const labels = [0, Math.round(maxDays / 2), Math.round(maxDays)];
+		labels.forEach(d => {
+			const lx = padding.left + (d / maxDays) * graphWidth;
+			const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			text.setAttribute('x', String(lx));
+			text.setAttribute('y', String(height - 5));
+			text.setAttribute('text-anchor', 'middle');
+			text.setAttribute('font-size', '9');
+			text.setAttribute('fill', 'var(--text-muted)');
+			text.textContent = `${d}d`;
+			svg.appendChild(text);
+		});
+
+		// Y-axis labels
+		const yLabels = [100, 50, 0];
+		yLabels.forEach(p => {
+			const ly = padding.top + (1 - p / 100) * graphHeight;
+			const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			text.setAttribute('x', String(padding.left - 5));
+			text.setAttribute('y', String(ly + 3));
+			text.setAttribute('text-anchor', 'end');
+			text.setAttribute('font-size', '9');
+			text.setAttribute('fill', 'var(--text-muted)');
+			text.textContent = `${p}%`;
+			svg.appendChild(text);
+		});
+
+		wrapper.appendChild(svg);
+
+		// Legend
+		const legend = wrapper.createDiv();
+		legend.style.display = 'flex';
+		legend.style.justifyContent = 'center';
+		legend.style.gap = '1rem';
+		legend.style.fontSize = '0.7em';
+		legend.style.color = 'var(--text-muted)';
+		legend.style.marginTop = '0.3rem';
+
+		legend.createSpan({ text: `Optimal: ${optimalInterval.toFixed(1)}d` }).style.color = 'var(--color-blue)';
+		legend.createSpan({ text: `Target: ${(targetR * 100).toFixed(0)}%` }).style.color = 'var(--color-green)';
 	}
 }
