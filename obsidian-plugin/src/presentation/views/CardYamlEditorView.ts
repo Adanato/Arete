@@ -13,7 +13,10 @@ import { EditorState, Annotation } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { yaml } from '@codemirror/lang-yaml';
 import type AretePlugin from '@/main';
-import { ProblematicCard, AnkiCardStats } from '@application/services/StatsService';
+import { ProblematicCard } from '@application/services/StatsService';
+import type { AnkiCardStats } from '@/domain/stats';
+import { CardStatsModal } from '@/presentation/modals/CardStatsModal';
+
 
 export const YAML_EDITOR_VIEW_TYPE = 'arete-yaml-editor';
 
@@ -401,6 +404,27 @@ export class CardYamlEditorView extends ItemView {
 		});
 		setIcon(ankiBtn, 'external-link');
 		ankiBtn.addEventListener('click', () => this.openInAnki(this.currentCardIndex));
+
+		// Stats Modal Button
+		if (nid) {
+			const statsBtn = centerGroup.createDiv({
+				cls: 'arete-toolbar-btn',
+				attr: { title: 'View Card Stats' },
+			});
+			setIcon(statsBtn, 'bar-chart-2');
+			statsBtn.addEventListener('click', () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile && nid) {
+					const cache = this.plugin.statsService.getCache().concepts[activeFile.path];
+					const cardStats = cache?.cardStats?.[nid];
+					if (cardStats) {
+						new CardStatsModal(this.app, cardStats).open();
+					} else {
+						new Notice('No stats available for this card');
+					}
+				}
+			});
+		}
 
 		const rightGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
 
