@@ -1,101 +1,100 @@
-import { GraphService } from '@/application/services/GraphService';
-import { AretePluginSettings, DEFAULT_SETTINGS } from '@/domain/settings';
-import { ConceptStats } from '@/application/services/StatsService';
-import { App, TFile } from 'obsidian';
+import '../../test-setup';
+import { App, TFile, Notice } from 'obsidian';
+import { GraphService } from '@application/services/GraphService';
 
 describe('GraphService', () => {
-	let app: App;
-	let settings: AretePluginSettings;
 	let service: GraphService;
-	let mockFile: TFile;
-	let processFrontMatterMock: jest.Mock;
+	let app: App;
+	let settings: any;
 
 	beforeEach(() => {
-		processFrontMatterMock = jest.fn((file, cb) => {
-			const frontmatter: any = { tags: [] };
-			cb(frontmatter);
-			return Promise.resolve();
-		});
-
-		app = {
-			fileManager: {
-				processFrontMatter: processFrontMatterMock,
-			},
-			vault: {
-				getMarkdownFiles: jest.fn().mockReturnValue([]),
-			},
-		} as unknown as App;
-
-		settings = { ...DEFAULT_SETTINGS, graph_coloring_enabled: true };
+		jest.clearAllMocks();
+		app = new App();
+		settings = {
+			graph_coloring_enabled: true,
+			graph_tag_prefix: 'arete/retention',
+		};
 		service = new GraphService(app, settings);
-		mockFile = { path: 'test.md' } as TFile;
 	});
 
-	describe('calculateRetentionState', () => {
-		it('should return high for good stats', () => {
-			const stats = { score: 0.05 } as ConceptStats; // 5% problematic
-			expect(service.calculateRetentionState(stats)).toBe('high');
-		});
-
-		it('should return med for warning stats', () => {
-			const stats = { score: 0.15 } as ConceptStats; // 15% problematic
-			expect(service.calculateRetentionState(stats)).toBe('med');
-		});
-
-		it('should return low for critical stats', () => {
-			const stats = { score: 0.25 } as ConceptStats; // 25% problematic
-			expect(service.calculateRetentionState(stats)).toBe('low');
-		});
+	test('calculateRetentionState returns correct levels', () => {
+		expect(service.calculateRetentionState({ score: 0.05 } as any)).toBe('high');
+		expect(service.calculateRetentionState({ score: 0.15 } as any)).toBe('med');
+		expect(service.calculateRetentionState({ score: 0.25 } as any)).toBe('low');
 	});
 
-	describe('updateGraphTags', () => {
-		it('should add tag if enabled', async () => {
-			const stats = { score: 0.25 } as ConceptStats; // Low
-			await service.updateGraphTags(mockFile, stats);
+	test('updateGraphTags adds tag to frontmatter', async () => {
+		const file = { path: 'test.md' } as TFile;
+		const stats = { score: 0.25 } as any; // low
 
-			expect(processFrontMatterMock).toHaveBeenCalled();
-			const cb = processFrontMatterMock.mock.calls[0][1];
-			const fm: { tags: string[] } = { tags: [] };
+		(app.fileManager.processFrontMatter as jest.Mock).mockImplementation((f, cb) => {
+			const fm = { tags: ['existing'] };
 			cb(fm);
 			expect(fm.tags).toContain('arete/retention/low');
+			expect(fm.tags).not.toContain('arete/retention/high');
+			expect(fm.tags).toContain('existing');
 		});
 
-		it('should not add tag if disabled', async () => {
-			service.settings.graph_coloring_enabled = false;
-			const stats = { score: 0.25 } as ConceptStats;
-			await service.updateGraphTags(mockFile, stats);
-
-			expect(processFrontMatterMock).not.toHaveBeenCalled();
-		});
-
-		it('should replace existing retention tags', async () => {
-			const stats = { score: 0.05 } as ConceptStats; // High
-
-			// Mock existing frontmatter with 'low' tag
-			processFrontMatterMock.mockImplementation((file, cb) => {
-				const fm = { tags: ['arete/retention/low', 'other/tag'] };
-				cb(fm);
-				// Verify inside callback result
-				expect(fm.tags).not.toContain('arete/retention/low');
-				expect(fm.tags).toContain('arete/retention/high');
-				expect(fm.tags).toContain('other/tag');
-				return Promise.resolve();
-			});
-
-			await service.updateGraphTags(mockFile, stats);
-		});
+		await service.updateGraphTags(file, stats);
+		expect(app.fileManager.processFrontMatter).toHaveBeenCalled();
 	});
 
-	describe('clearGraphTags', () => {
-		it('should remove all retention tags', async () => {
-			processFrontMatterMock.mockImplementation((file, cb) => {
-				const fm = { tags: ['arete/retention/low', 'keep-me'] };
-				cb(fm);
-				expect(fm.tags).toEqual(['keep-me']);
-				return Promise.resolve();
-			});
+	test('updateGraphTags handles string tags', async () => {
+		const file = { path: 'test.md' } as TFile;
+		const stats = { score: 0.05 } as any; // high
 
-			await service.clearGraphTags(mockFile);
+		(app.fileManager.processFrontMatter as jest.Mock).mockImplementation((f, cb) => {
+			const fm = { tags: 'single-string' };
+			cb(fm);
+			expect(fm.tags).toEqual(['single-string', 'arete/retention/high']);
 		});
+
+		await service.updateGraphTags(file, stats);
+	});
+
+	test('updateGraphTags returns early if disabled', async () => {
+		settings.graph_coloring_enabled = false;
+		await service.updateGraphTags({} as any, {} as any);
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
+	test('clearGraphTags removes prefix matching tags', async () => {
+		const file = { path: 'test.md' } as TFile;
+
+		(app.fileManager.processFrontMatter as jest.Mock).mockImplementation((f, cb) => {
+			const fm = { tags: ['arete/retention/high', 'other'] };
+			cb(fm);
+			expect(fm.tags).toEqual(['other']);
+		});
+
+		await service.clearGraphTags(file);
+	});
+
+	test('clearGraphTags handles string tags', async () => {
+		const file = { path: 'test.md' } as TFile;
+
+		(app.fileManager.processFrontMatter as jest.Mock).mockImplementation((f, cb) => {
+			const fm = { tags: 'arete/retention/high' };
+			cb(fm);
+			expect(fm.tags).toEqual([]);
+		});
+
+		await service.clearGraphTags(file);
+	});
+
+	test('clearAllTags iterates through vault markdown files', async () => {
+		const files = [{ path: '1.md' }, { path: '2.md' }] as TFile[];
+		(app.vault.getMarkdownFiles as jest.Mock).mockReturnValue(files);
+		service.clearGraphTags = jest.fn().mockResolvedValue(undefined);
+
+		await service.clearAllTags();
+		expect(service.clearGraphTags).toHaveBeenCalledTimes(2);
+		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Cleared tags from 2 files'));
+	});
+
+	test('updateSettings updates internal settings', () => {
+		const newSettings = { ...settings, graph_tag_prefix: 'new/prefix' };
+		service.updateSettings(newSettings);
+		expect(service.settings.graph_tag_prefix).toBe('new/prefix');
 	});
 });

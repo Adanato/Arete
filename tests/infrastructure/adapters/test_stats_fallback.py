@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from arete.domain.models import AnkiCardStats
+from arete.domain.stats.models import CardStatsAggregate, FsrsMemoryState
 from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 from arete.server import app
@@ -105,27 +105,30 @@ async def test_connect_adapter_get_stats():
 def test_server_stats_endpoint():
     client = TestClient(app)
 
-    # We need to mock get_anki_bridge to return a mock adapter
-    mock_bridge = AsyncMock()
-    mock_bridge.get_card_stats.return_value = [
-        AnkiCardStats(
-            card_id=1,
-            note_id=1,
-            lapses=0,
-            ease=0,
-            difficulty=0.5,
-            deck_name="D",
-            interval=0,
-            due=0,
-            reps=0,
-            average_time=0,
-            front="F",
-        )
-    ]
+    mock_repo = MagicMock()
+    mock_repo.get_card_stats = AsyncMock(
+        return_value=[
+            CardStatsAggregate(
+                card_id=1,
+                note_id=1,
+                deck_name="D",
+                lapses=0,
+                ease=0,
+                interval=0,
+                due=0,
+                reps=0,
+                fsrs=FsrsMemoryState(stability=1.0, difficulty=0.5, retrievability=0.9),
+                last_review=12345678,
+                front="F",
+            )
+        ]
+    )
+    mock_repo.get_review_history = AsyncMock(return_value=[])
+    mock_repo.get_deck_params = AsyncMock(return_value={})
 
     with patch(
-        "arete.application.factory.get_anki_bridge",
-        new=AsyncMock(return_value=mock_bridge),
+        "arete.application.factory.get_stats_repo",
+        return_value=mock_repo,
     ):
         # We also need to patch resolve_config to avoid loading real config
         with patch("arete.application.config.resolve_config", return_value=MagicMock()):

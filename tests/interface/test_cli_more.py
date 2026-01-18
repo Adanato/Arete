@@ -1,11 +1,11 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 from arete.application.config import AppConfig
-from arete.domain.models import AnkiCardStats
+from arete.domain.stats.models import CardStatsAggregate, FsrsMemoryState
 from arete.interface.cli import app
 
 runner = CliRunner()
@@ -83,23 +83,26 @@ def test_anki_stats_command():
     # anki stats command
     # calls asyncio.run(run())
 
-    with patch("arete.application.factory.AnkiConnectAdapter") as mock_cls:
-        mock_instance = mock_cls.return_value
+    with patch("arete.application.factory.get_stats_repo") as mock_get_repo:
+        mock_instance = MagicMock()
         stats = [
-            AnkiCardStats(
+            CardStatsAggregate(
                 card_id=123,
                 note_id=1,
+                deck_name="Default",
                 lapses=0,
                 ease=2500,
-                difficulty=0.5,
-                deck_name="Default",
                 interval=1,
                 due=123456,
                 reps=5,
+                fsrs=FsrsMemoryState(stability=5.0, difficulty=0.5),
+                last_review=1000000,
             )
         ]
         mock_instance.get_card_stats = AsyncMock(return_value=stats)
-        mock_instance.is_responsive = AsyncMock(return_value=True)  # needed for factory to pick it?
+        mock_instance.get_review_history = AsyncMock(return_value=[])
+        mock_instance.get_deck_params = AsyncMock(return_value={})
+        mock_get_repo.return_value = mock_instance
 
         # We also need factory to actually USE this class.
         # If backend=None, factory checks is_responsive.
@@ -293,23 +296,26 @@ def test_anki_browse():
 
 def test_anki_stats_table():
     # Test table output (no-json)
-    with patch("arete.application.factory.AnkiConnectAdapter") as mock_cls:
-        mock_instance = mock_cls.return_value
+    with patch("arete.application.factory.get_stats_repo") as mock_get_repo:
+        mock_instance = MagicMock()
         stats = [
-            AnkiCardStats(
+            CardStatsAggregate(
                 card_id=123,
                 note_id=1,
+                deck_name="Default",
                 lapses=0,
                 ease=2500,
-                difficulty=0.5,
-                deck_name="Default",
                 interval=1,
                 due=123456,
                 reps=5,
+                fsrs=FsrsMemoryState(stability=5.0, difficulty=0.5),
+                last_review=1000000,
             )
         ]
         mock_instance.get_card_stats = AsyncMock(return_value=stats)
-        mock_instance.is_responsive = AsyncMock(return_value=True)
+        mock_instance.get_review_history = AsyncMock(return_value=[])
+        mock_instance.get_deck_params = AsyncMock(return_value={})
+        mock_get_repo.return_value = mock_instance
 
         result = runner.invoke(
             app,

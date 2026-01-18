@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 // 1. Mock child_process and fs globally
 jest.mock('child_process', () => ({
 	spawn: jest.fn(),
+	exec: jest.fn(),
 }));
 
 jest.mock('fs', () => ({
@@ -219,6 +220,7 @@ jest.mock('obsidian', () => {
 			},
 			metadataCache: {
 				getFileCache: jest.fn(),
+				getFirstLinkpathDest: jest.fn(),
 				on: jest.fn(),
 			},
 			commands: {
@@ -227,6 +229,9 @@ jest.mock('obsidian', () => {
 			},
 			setting: {
 				openTabById: jest.fn(),
+			},
+			fileManager: {
+				processFrontMatter: jest.fn(),
 			},
 		})),
 		Plugin: class {
@@ -312,5 +317,7 @@ export const createMockChildProcess = () => {
 	const child: any = new EventEmitter();
 	child.stdout = new EventEmitter();
 	child.stderr = new EventEmitter();
+	child.unref = jest.fn();
+	child.kill = jest.fn();
 	return child;
 };

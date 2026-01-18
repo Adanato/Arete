@@ -67,4 +67,35 @@ describe('TemplateRenderer', () => {
 		expect(result?.html).toContain('<p>Paragraph</p>');
 		expect(result?.html).not.toContain('&lt;p&gt;');
 	});
+
+	it('should handle missing model data gracefully', async () => {
+		mockRepo.modelStyling.mockRejectedValue(new Error('Failed'));
+		await renderer.preloadModel('NonExistent');
+		const result = await renderer.render('NonExistent', 'Front', {});
+		expect(result).toBeNull();
+	});
+
+	it('should handle missing template types', async () => {
+		mockRepo.modelTemplates.mockResolvedValue({
+			'Card 1': { Front: '{{Front}}', Back: '' } as any,
+		});
+		const result = await renderer.render('Basic', 'Back', { Front: 'text' });
+		expect(result).toBeNull();
+	});
+
+	it('should render FrontSide in Back template', async () => {
+		renderer.setMode('anki');
+		const result = await renderer.render('Basic', 'Back', {
+			Front: 'FrontVal',
+			Back: 'BackVal',
+		});
+		expect(result?.html).toContain('FrontVal'); // FrontSide rendered
+		expect(result?.html).toContain('BackVal');
+	});
+
+	it('should return null if no templates found in model', async () => {
+		mockRepo.modelTemplates.mockResolvedValue({});
+		const result = await renderer.render('Empty', 'Front', {});
+		expect(result).toBeNull();
+	});
 });

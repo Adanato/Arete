@@ -233,9 +233,9 @@ def test_agent_chat_validation_fail():
     assert response.status_code == 400
 
 
-@patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock)
-def test_get_stats_endpoint_fail(mock_get_anki):
-    mock_get_anki.side_effect = Exception("Bridge Fail")
+@patch("arete.application.factory.get_stats_repo")
+def test_get_stats_endpoint_fail(mock_get_repo):
+    mock_get_repo.side_effect = Exception("Repo Fail")
     response = client.post("/anki/stats", json={"nids": [1]})
     assert response.status_code == 500
 

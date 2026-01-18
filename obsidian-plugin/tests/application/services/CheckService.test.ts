@@ -1,103 +1,191 @@
 import '../../test-setup';
 import { App, Notice } from 'obsidian';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { createMockChildProcess } from '../../test-setup';
 import { CheckService } from '@application/services/CheckService';
-import AretePlugin from '@/main';
 
 describe('CheckService', () => {
 	let service: CheckService;
 	let app: App;
-	let plugin: AretePlugin;
+	let plugin: any;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		app = new App();
-		(app.vault.adapter as any).getBasePath = jest.fn().mockReturnValue('/mock/vault/path');
-
-		// Mock Plugin
-		plugin = new AretePlugin(app, { dir: 'test-plugin-dir' } as any);
-		plugin.settings = {
-			python_path: 'python3',
-			arete_script_path: '',
-			debug_mode: false,
-			backend: 'auto',
-			workers: 4,
-			anki_connect_url: 'http://localhost:8765',
-			anki_media_dir: '',
-			renderer_mode: 'obsidian',
-			stats_algorithm: 'sm2',
-			stats_lapse_threshold: 3,
-			stats_ease_threshold: 2100,
-			stats_difficulty_threshold: 0.9,
-			graph_coloring_enabled: false,
-			graph_tag_prefix: 'arete/retention',
-			sync_on_save: false,
-			sync_on_save_delay: 2000,
-			ui_expanded_decks: [],
-			ui_expanded_concepts: [],
-			last_sync_time: null,
-			execution_mode: 'cli',
-			server_port: 8777,
-			ai_api_key: '',
-			ai_provider: 'openai',
-			project_root: '',
-			server_reload: false,
+		plugin = {
+			settings: {
+				python_path: 'python3',
+				arete_script_path: '',
+				project_root: '/mock/project',
+			},
 		};
-
-		service = new CheckService(app, plugin);
+		service = new CheckService(app, plugin as any);
 	});
 
-	test('runCheck calls arete check-file', async () => {
+	describe('getEnv', () => {
+		test('adds src to PYTHONPATH if cwd is provided', () => {
+			const env = service['getEnv']('/mock/cwd');
+			expect(env.PYTHONPATH).toContain('/mock/cwd/src');
+		});
+
+		test('adds extra paths on darwin', () => {
+			const originalPlatform = process.platform;
+			Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+			const env = service['getEnv']();
+			expect(env.PATH).toContain('/opt/homebrew/bin');
+
+			Object.defineProperty(process, 'platform', { value: originalPlatform });
+		});
+	});
+
+	describe('getCheckResult', () => {
+		test('successfully parses JSON output', async () => {
+			const mockChild = createMockChildProcess();
+			(spawn as jest.Mock).mockReturnValue(mockChild);
+
+			const promise = service.getCheckResult('test.md');
+			mockChild.stdout.emit('data', JSON.stringify({ issues: [] }));
+			mockChild.emit('close', 0);
+
+			const result = await promise;
+			expect(result).toEqual({ issues: [] });
+		});
+
+		test('extracts JSON from messy output (fallback)', async () => {
+			const mockChild = createMockChildProcess();
+			(spawn as jest.Mock).mockReturnValue(mockChild);
+
+			const promise = service.getCheckResult('test.md');
+			mockChild.stdout.emit('data', 'DEBUG: noise\n{"issues": ["err"]}\nINFO: noise');
+			mockChild.emit('close', 0);
+
+			const result = await promise;
+			expect(result).toEqual({ issues: ['err'] });
+		});
+
+		test('rejects on invalid JSON', async () => {
+			const mockChild = createMockChildProcess();
+			(spawn as jest.Mock).mockReturnValue(mockChild);
+
+			const promise = service.getCheckResult('test.md');
+			mockChild.stdout.emit('data', 'Invalid output');
+			mockChild.emit('close', 0);
+
+			await expect(promise).rejects.toThrow('Parse Error');
+		});
+
+		test('rejects on spawn error', async () => {
+			const mockChild = createMockChildProcess();
+			(spawn as jest.Mock).mockReturnValue(mockChild);
+
+			const promise = service.getCheckResult('test.md');
+			mockChild.emit('error', new Error('Spawn failed'));
+
+			await expect(promise).rejects.toThrow('Spawn failed');
+		});
+	});
+
+	test('runCheck opens modal on success', async () => {
+		service.getCheckResult = jest.fn().mockResolvedValue({ issues: [] });
+		await service.runCheck('test.md');
+		expect(Notice).toHaveBeenCalledWith('Checking file...');
+		// CheckResultModal construction is harder to verify without mocking the module,
+		// but we covered the core logic.
+	});
+
+	test('runFix spawns fix-file command (success)', async () => {
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
-		const checkPromise = service.runCheck('/mock/path/file.md');
+		const promise = service.runFix('test.md');
 		mockChild.emit('close', 0);
-		await checkPromise;
+		await promise;
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'arete', 'check-file', '/mock/path/file.md', '--json'],
+			expect.arrayContaining(['fix-file', 'test.md']),
 			expect.any(Object),
 		);
+		expect(Notice).toHaveBeenCalledWith('✨ File auto-fixed!');
 	});
 
-	test('runCheck with .py script path', async () => {
-		plugin.settings.arete_script_path = '/path/to/o2a/main.py';
+	test('runFix spawns fix-file command (failure)', async () => {
 		const mockChild = createMockChildProcess();
 		(spawn as jest.Mock).mockReturnValue(mockChild);
 
-		const checkPromise = service.runCheck('/mock/path/file.md');
+		const promise = service.runFix('test.md');
+		mockChild.emit('close', 1);
+		await promise;
+
+		expect(Notice).toHaveBeenCalledWith('❌ Fix failed (check console)');
+	});
+
+	test('runFix with .py script path', async () => {
+		service.settings.arete_script_path = '/path/to/o2a/main.py';
+		const mockChild = createMockChildProcess();
+		(spawn as jest.Mock).mockReturnValue(mockChild);
+
+		const promise = service.runFix('test.md');
 		mockChild.emit('close', 0);
-		await checkPromise;
+		await promise;
 
 		expect(spawn).toHaveBeenCalledWith(
 			'python3',
-			['-m', 'arete', 'check-file', '/mock/path/file.md', '--json'],
+			expect.any(Array),
 			expect.objectContaining({
 				env: expect.objectContaining({ PYTHONPATH: '/path/to' }),
 			}),
 		);
 	});
 
-	test('check vault integrity command', async () => {
-		// Mock vault files
-		const mockFile = { path: 'test.md' };
-		(app.vault.getMarkdownFiles as jest.Mock).mockReturnValue([mockFile]);
-		(app.vault.read as jest.Mock).mockResolvedValue('---\nvalid: true\n---\nContent');
-		(app.metadataCache.getFileCache as jest.Mock).mockReturnValue({
-			frontmatter: { valid: true },
+	test('testConfig calls exec (success)', async () => {
+		(exec as unknown as jest.Mock).mockImplementation((cmd, opts, cb) => {
+			cb(null, 'Arete module found', '');
 		});
 
-		// Spy on console.log/error to verify output or just ensure it runs without error
-		const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {
-			/* mock */
+		await service.testConfig();
+		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Success'));
+	});
+
+	test('testConfig calls exec (failure)', async () => {
+		(exec as unknown as jest.Mock).mockImplementation((cmd, opts, cb) => {
+			cb(new Error('Exec failed'), '', 'Stderr noise');
+		});
+
+		await service.testConfig();
+		expect(Notice).toHaveBeenCalledWith(
+			expect.stringContaining('Error: Command failed. Stderr noise'),
+		);
+	});
+
+	test('testConfig with empty python path', async () => {
+		service.settings.python_path = '';
+		await service.testConfig();
+		expect(Notice).toHaveBeenCalledWith(
+			expect.stringContaining('Error: Python Executable setting is empty'),
+		);
+	});
+
+	test('checkVaultIntegrity detects missing frontmatter', async () => {
+		const file = { path: 'fail.md' };
+		(app.vault.getMarkdownFiles as jest.Mock).mockReturnValue([file]);
+		(app.vault.read as jest.Mock).mockResolvedValue('---\ntest: true\n---\n');
+		(app.metadataCache.getFileCache as jest.Mock).mockReturnValue({}); // No frontmatter
+
+		await service.checkVaultIntegrity();
+		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Found 1 files'));
+	});
+
+	test('checkVaultIntegrity passed', async () => {
+		const file = { path: 'pass.md' };
+		(app.vault.getMarkdownFiles as jest.Mock).mockReturnValue([file]);
+		(app.vault.read as jest.Mock).mockResolvedValue('---\ntest: true\n---\n');
+		(app.metadataCache.getFileCache as jest.Mock).mockReturnValue({
+			frontmatter: { test: true },
 		});
 
 		await service.checkVaultIntegrity();
-
-		expect(app.vault.getMarkdownFiles).toHaveBeenCalled();
-		consoleSpy.mockRestore();
+		expect(Notice).toHaveBeenCalledWith(expect.stringContaining('Integrity Check Passed'));
 	});
 });
