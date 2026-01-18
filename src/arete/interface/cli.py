@@ -703,6 +703,43 @@ def migrate(
         typer.secho(f"\nScanned {scanned} files. Migrated {migrated}.", fg="green")
 
 
+@app.command()
+def format(
+    ctx: typer.Context,
+    path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to vault or file. Defaults to config."),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Preview changes without saving.")
+    ] = False,
+):
+    """
+    [bold blue]Format[/bold blue] YAML frontmatter in your vault.
+    Normalizes serialization to use stripped block scalars (|-).
+    """
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_vault_service
+
+    # Merge global verbosity
+    overrides = {
+        "root_input": path,
+        "dry_run": dry_run,
+        "verbose": ctx.obj.get("verbose_bonus", 1),
+    }
+
+    config = resolve_config(overrides)
+    vault = get_vault_service(config)
+
+    typer.echo(f"✨ Formatting vault: {config.vault_root}")
+    count = vault.format_vault(dry_run=dry_run)
+
+    if dry_run:
+        typer.secho(f"\n[DRY RUN] Would have formatted {count} files.", fg="yellow")
+    else:
+        typer.secho(f"\n✅ Formatted {count} files.", fg="green")
+
+
 @app.command("mcp-server")
 def mcp_server():
     """
@@ -747,7 +784,6 @@ def anki_stats(
     from dataclasses import asdict
 
     from arete.application.config import resolve_config
-    from arete.application.factory import get_anki_bridge
 
     # Parse NIDs
     nids_list = []
@@ -779,17 +815,12 @@ def anki_stats(
             "anki_base": anki_base,
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
-        
-        from arete.infrastructure.adapters.stats import DirectStatsRepository, ConnectStatsRepository
+
+        from arete.application.factory import get_stats_repo
         from arete.application.stats.metrics_calculator import MetricsCalculator
         from arete.application.stats.service import FsrsStatsService
 
-        repo = None
-        if config.backend == "ankiconnect":
-             repo = ConnectStatsRepository(base_url=config.anki_connect_url or "http://localhost:8765")
-        else:
-             repo = DirectStatsRepository(config.anki_base)
-
+        repo = get_stats_repo(config)
         service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
         return await service.get_enriched_stats(nids_list)
 

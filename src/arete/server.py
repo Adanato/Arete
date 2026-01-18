@@ -121,6 +121,43 @@ async def trigger_sync(req: SyncRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+class FormatRequest(BaseModel):
+    vault_root: str | None = None
+    dry_run: bool | None = None
+
+
+class FormatResponse(BaseModel):
+    formatted_count: int
+    success: bool
+
+
+@app.post("/vault/format", response_model=FormatResponse)
+async def format_vault(req: FormatRequest):
+    """
+    Format and normalize YAML in the entire vault.
+    """
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_vault_service
+
+    logger.info(f"Format requested via API: {req}")
+
+    overrides = {
+        "vault_root": req.vault_root,
+        "dry_run": req.dry_run,
+    }
+    overrides = {k: v for k, v in overrides.items() if v is not None}
+
+    try:
+        config = resolve_config(overrides)
+        vault = get_vault_service(config)
+        count = vault.format_vault(dry_run=config.dry_run)
+
+        return FormatResponse(formatted_count=count, success=True)
+    except Exception as e:
+        logger.error(f"Format failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 class CardsRequest(BaseModel):
     cids: list[int]
     backend: str | None = None
@@ -315,7 +352,6 @@ async def get_stats(req: StatsRequest):
     Uses the configured backend (Auto/Direct/Connect).
     """
     from arete.application.config import resolve_config
-    from arete.application.factory import get_anki_bridge
 
     try:
         # Pass overrides from request to config
@@ -328,26 +364,12 @@ async def get_stats(req: StatsRequest):
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
         config = resolve_config(overrides)
-        
-        # Determine strict or flexible repository based on config/backend
-        # For now, we reuse the configured backend (Direct or Connect)
-        from arete.infrastructure.adapters.stats import DirectStatsRepository, ConnectStatsRepository
+
+        from arete.application.factory import get_stats_repo
         from arete.application.stats.metrics_calculator import MetricsCalculator
         from arete.application.stats.service import FsrsStatsService
 
-        repo = None
-        # Naive backend selection - logic should align with factory/config
-        backend_type = config.backend
-        if backend_type == "ankiconnect":
-             # Currently we don't have a configured ConnectStatsRepository with URL from config readily available
-             # without duplicating factory logic. But ConnectStatsRepository expects url/config.
-             # Ideally we construct it from the config object.
-             # However, let's look at how factory makes AnkiBridge
-             # For now, let's assume direct if not explicitly connect, or check config.
-             repo = ConnectStatsRepository(base_url=config.anki_connect_url or "http://localhost:8765")
-        else:
-             repo = DirectStatsRepository(config.anki_base)
-
+        repo = get_stats_repo(config)
         service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
         stats = await service.get_enriched_stats(req.nids)
         return stats

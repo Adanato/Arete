@@ -113,17 +113,48 @@ class VaultService:
                 return (False, 0, "no_deck", None, True)
             else:
                 self.logger.debug(
-                    f"[vault] {md_file.name}: no deck, but accepted for normalization "
-                    "(--force)"
+                    f"[vault] {md_file.name}: no deck, but accepted for normalization (--force)"
                 )
 
         # Save to cache
         if self.cache:
-            self.cache.set_file_meta(
-                md_file, file_hash, meta, mtime=mtime, size=size
-            )
+            self.cache.set_file_meta(md_file, file_hash, meta, mtime=mtime, size=size)
 
         return (True, len(cards), None, meta, True)
+
+    def format_vault(self, dry_run: bool = False) -> int:
+        """
+        Scans and re-serializes all compatible files to normalize YAML.
+        Returns the number of files updated.
+        """
+        count = 0
+        for md_path, meta, _is_fresh in self.scan_for_compatible_files():
+            try:
+                text = md_path.read_text(encoding="utf-8")
+                _meta, body = parse_frontmatter(text)
+
+                # Rebuild using our dumper (which now uses |-)
+                new_text = rebuild_markdown_with_frontmatter(meta, body)
+
+                if new_text != text:
+                    count += 1
+                    if dry_run:
+                        self.logger.info(f"[dry-run] Would format {md_path.name}")
+                    else:
+                        md_path.write_text(new_text, encoding="utf-8")
+                        self.logger.debug(f"[format] {md_path.name}: normalized YAML")
+
+                        # Update cache
+                        if self.cache:
+                            new_hash = hashlib.md5(new_text.encode("utf-8")).hexdigest()
+                            st = md_path.stat()
+                            self.cache.set_file_meta(
+                                md_path, new_hash, meta, mtime=st.st_mtime, size=st.st_size
+                            )
+            except Exception as e:
+                self.logger.error(f"[error] formatting {md_path.name}: {e}")
+
+        return count
 
     def apply_updates(self, updates: list[UpdateItem], dry_run: bool = False):
         """
@@ -172,9 +203,7 @@ class VaultService:
                         # Fix for Hot Sync: Update cache immediately since we changed mtime!
                         if self.cache:
                             try:
-                                new_hash = hashlib.md5(
-                                    new_text.encode("utf-8")
-                                ).hexdigest()
+                                new_hash = hashlib.md5(new_text.encode("utf-8")).hexdigest()
                                 st = md_path.stat()
                                 self.cache.set_file_meta(
                                     md_path, new_hash, meta, mtime=st.st_mtime, size=st.st_size
