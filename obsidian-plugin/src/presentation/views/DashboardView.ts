@@ -306,6 +306,10 @@ export class DashboardView extends ItemView {
 		}
 
 		header.onclick = async () => {
+			// Find the correct container by looking for .arete-dashboard-content
+			const overviewContainer = container.closest('.arete-dashboard-content') as HTMLElement;
+			if (!overviewContainer) return;
+
 			if (!node.isLeaf) {
 				if (this.expandedDecks.has(expansionKey)) {
 					this.expandedDecks.delete(expansionKey);
@@ -314,7 +318,7 @@ export class DashboardView extends ItemView {
 				}
 				this.plugin.saveSettings();
 				// Re-render whole view to refresh tree state
-				this.renderOverview(container.parentElement!); 
+				this.renderOverview(overviewContainer); 
 			} else {
 				// Leaf click: Toggle file expansion
 				if (this.expandedConcepts.has(node.filePath)) {
@@ -323,9 +327,8 @@ export class DashboardView extends ItemView {
 					this.expandedConcepts.add(node.filePath);
 				}
 				this.plugin.saveSettings();
-				// Re-render handled by parent refresh usually, but here we can just rebuild.
-				// Actually re-rendering the whole view is safest.
-				this.renderOverview(container.parentElement!);
+				// Re-render using correct container
+				this.renderOverview(overviewContainer);
 			}
 		};
         

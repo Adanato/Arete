@@ -25,8 +25,10 @@ export class CardStatsModal extends Modal {
 		const c = this.card;
 
 		// --- Section 1: Memory State ---
+		// Note: Backend provides difficulty as 0-1 scale, but we display as 1-10
+		const displayDifficulty = c.difficulty != null ? c.difficulty * 10 : null;
 		this.renderSection(contentEl, 'Memory State', [
-			{ label: 'Difficulty (1-10)', value: c.difficulty != null ? c.difficulty.toFixed(1) : '-', color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined },
+			{ label: 'Difficulty (1-10)', value: displayDifficulty != null ? displayDifficulty.toFixed(1) : '-', color: displayDifficulty != null && displayDifficulty > 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Stability', value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-', color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
 		]);
