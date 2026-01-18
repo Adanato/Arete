@@ -293,37 +293,18 @@ export default class AretePlugin extends Plugin {
 					this.activateYamlEditorView(cardIndex);
 				},
 				(nid, cid) => {
-					// Lookup stats for this card
+					// Lookup enriched stats for this card from StatsService cache
 					const activeFile = this.app.workspace.getActiveFile();
 					if (!activeFile) return null;
-					const stats = this.statsService.getCache().concepts[activeFile.path];
-					if (!stats) return null;
+					const conceptStats = this.statsService.getCache().concepts[activeFile.path];
+					if (!conceptStats || !conceptStats.cardStats) return null;
 
-					// 1. Try Problematic Cards (Priority: CID > NID)
-					let problem = null;
-					if (cid) {
-						problem = stats.problematicCards?.find((c) => c.cardId === cid);
+					// Try to find by CID first, then by NID
+					if (cid && conceptStats.cardStats[cid]) {
+						return conceptStats.cardStats[cid];
 					}
-					if (!problem && nid) {
-						problem = stats.problematicCards?.find((c) => c.noteId === nid);
-					}
-					if (problem) return problem;
-
-					// 2. Try General Stats (Priority: CID > NID)
-					let cardStat = null;
-					if (cid && stats.cardStats?.[cid]) {
-						cardStat = stats.cardStats[cid];
-					} else if (nid && stats.cardStats?.[nid]) {
-						cardStat = stats.cardStats[nid];
-					}
-
-					if (cardStat) {
-						return {
-							...cardStat,
-							issue: '', // No issue
-							front: '', // Not needed for gutter
-							back: '',
-						};
+					if (nid && conceptStats.cardStats[nid]) {
+						return conceptStats.cardStats[nid];
 					}
 					return null;
 				},

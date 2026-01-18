@@ -1,6 +1,6 @@
 import { EditorView, gutter, GutterMarker, Decoration, DecorationSet } from '@codemirror/view';
 import { RangeSetBuilder, StateField, StateEffect } from '@codemirror/state';
-import { ProblematicCard } from '@application/services/StatsService';
+import type { AnkiCardStats } from '@/domain/stats';
 
 interface CardRange {
 	index: number;
@@ -64,7 +64,7 @@ class CardGutterMarker extends GutterMarker {
 	isEnd: boolean;
 	lineIndex: number;
 	totalLines: number;
-	stats: ProblematicCard | null;
+	stats: AnkiCardStats | null;
 	algorithm: 'fsrs' | 'sm2';
 	onClick: () => void;
 
@@ -74,7 +74,7 @@ class CardGutterMarker extends GutterMarker {
 		isEnd: boolean,
 		lineIndex: number,
 		totalLines: number,
-		stats: ProblematicCard | null,
+		stats: AnkiCardStats | null,
 		algorithm: 'fsrs' | 'sm2',
 		onClick: () => void,
 	) {
@@ -142,8 +142,9 @@ class CardGutterMarker extends GutterMarker {
 						this.stats.difficulty !== null &&
 						this.stats.difficulty > 0
 					) {
-						const diff = Math.round(this.stats.difficulty * 100);
-						diffText = `${diff}%`; // Removed "D:" prefix
+						// Backend provides 0-1 scale, display as 1-10
+						const diff = Math.round(this.stats.difficulty * 10);
+						diffText = `${diff.toFixed(0)}`;
 						if (this.stats.difficulty > 0.9) diffColor = 'var(--color-red)';
 						else if (this.stats.difficulty > 0.5) diffColor = 'var(--color-orange)';
 						else diffColor = 'var(--color-green)';
@@ -183,9 +184,8 @@ class CardGutterMarker extends GutterMarker {
 
 				// Tooltip on the container or marker
 				const tooltipLines = [];
-				if (this.stats.issue) tooltipLines.push(this.stats.issue);
 				if (this.stats.difficulty)
-					tooltipLines.push(`Difficulty: ${Math.round(this.stats.difficulty * 100)}%`);
+					tooltipLines.push(`Difficulty: ${(this.stats.difficulty * 10).toFixed(1)}/10`);
 				if (this.stats.ease)
 					tooltipLines.push(`Ease: ${Math.round(this.stats.ease / 10)}%`);
 				if (this.stats.lapses) tooltipLines.push(`Lapses: ${this.stats.lapses}`);
@@ -454,7 +454,7 @@ const cardHighlightField = StateField.define<DecorationSet>({
 // Create the gutter extension
 export function createCardGutter(
 	onCardClick: (cardIndex: number) => void,
-	getCardStats: (nid: number | null, cid: number | null) => ProblematicCard | null = () => null,
+	getCardStats: (nid: number | null, cid: number | null) => AnkiCardStats | null = () => null,
 	algorithm: 'fsrs' | 'sm2' = 'fsrs',
 ) {
 	return [
