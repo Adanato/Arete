@@ -202,7 +202,9 @@ export class CardStatsModal extends Modal {
 	 */
 	private renderForgettingCurve(container: HTMLElement, stability: number, currentR: number, targetR: number) {
 		const wrapper = container.createDiv({ cls: 'arete-forgetting-curve' });
-		wrapper.style.marginBottom = '1.2rem';
+		wrapper.style.height = '100%';
+		wrapper.style.display = 'flex';
+		wrapper.style.flexDirection = 'column';
 		
 		const header = wrapper.createEl('h3', { text: 'Forgetting Curve' });
 		header.style.margin = '0 0 0.6rem 0';
@@ -213,10 +215,10 @@ export class CardStatsModal extends Modal {
 		header.style.borderBottom = '1px solid var(--background-modifier-border)';
 		header.style.paddingBottom = '4px';
 
-		// SVG dimensions
-		const width = 280;
-		const height = 120;
-		const padding = { top: 10, right: 20, bottom: 25, left: 35 };
+		// SVG dimensions - larger to fill panel
+		const width = 320;
+		const height = 220;
+		const padding = { top: 15, right: 25, bottom: 35, left: 45 };
 		const graphWidth = width - padding.left - padding.right;
 		const graphHeight = height - padding.top - padding.bottom;
 
