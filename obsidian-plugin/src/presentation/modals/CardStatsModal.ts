@@ -16,9 +16,13 @@ export class CardStatsModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl } = this;
+		const { contentEl, modalEl } = this;
 		contentEl.empty();
 		contentEl.addClass('arete-stats-modal');
+		
+		// Make modal wider
+		modalEl.style.width = '650px';
+		modalEl.style.maxWidth = '90vw';
 
 		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1rem';
 		
@@ -278,14 +282,20 @@ export class CardStatsModal extends Modal {
 		curve.setAttribute('stroke-width', '2');
 		svg.appendChild(curve);
 
-		// Current retrievability point
-		const currentX = padding.left;
+		// Current retrievability point - calculate elapsed days from R
+		// Inverse of R(t) = (1 + t/(9*S))^(-1) -> t = 9*S * (R^(-1) - 1)
+		const elapsedDays = currentR > 0 && currentR < 1 
+			? 9 * stability * (Math.pow(currentR, -1) - 1)
+			: 0;
+		const currentX = padding.left + Math.min(elapsedDays / maxDays, 1) * graphWidth;
 		const currentY = padding.top + (1 - currentR) * graphHeight;
 		const currentPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 		currentPoint.setAttribute('cx', String(currentX));
 		currentPoint.setAttribute('cy', String(currentY));
-		currentPoint.setAttribute('r', '5');
+		currentPoint.setAttribute('r', '6');
 		currentPoint.setAttribute('fill', currentR >= targetR ? 'var(--color-green)' : 'var(--color-red)');
+		currentPoint.setAttribute('stroke', 'white');
+		currentPoint.setAttribute('stroke-width', '2');
 		svg.appendChild(currentPoint);
 
 		// X-axis labels
