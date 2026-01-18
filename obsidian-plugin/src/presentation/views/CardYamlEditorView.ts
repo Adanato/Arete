@@ -495,8 +495,20 @@ export class CardYamlEditorView extends ItemView {
 				text: String(value),
 			}) as HTMLTextAreaElement;
 
+			// Auto-resize function
+			const autoResize = () => {
+				if (input) {
+					input.style.height = 'auto';
+					input.style.height = `${input.scrollHeight}px`;
+				}
+			};
+
+			// Resize on initial render
+			setTimeout(autoResize, 0);
+
 			input?.addEventListener('input', () => {
 				card[key] = input.value;
+				autoResize();
 				this.debouncedSyncToMain();
 			});
 		});
