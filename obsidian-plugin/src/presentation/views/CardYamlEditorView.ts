@@ -803,11 +803,11 @@ export class CardYamlEditorView extends ItemView {
 		await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
 			if (!frontmatter.cards) frontmatter.cards = [];
 			
-			// New card with model: Basic - use NONE placeholder
+			// New card with model: Basic
 			const newCard = {
 				model: 'Basic',
-				front: 'NONE',
-				back: 'NONE'
+				front: '',
+				back: ''
 			};
 			
 			// Insert at position after current card
