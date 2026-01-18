@@ -41,6 +41,7 @@ class AppConfig(BaseSettings):
     # Execution Settings
     backend: Literal["auto", "direct", "ankiconnect"] = "auto"
     anki_connect_url: str = "http://127.0.0.1:8765"
+    default_deck: str = "Default"
 
     # Flags
     # Renamed from run_apy for clarity

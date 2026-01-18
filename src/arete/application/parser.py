@@ -17,11 +17,13 @@ class MarkdownParser:
         vault_root: Path,
         anki_media_dir: Path,
         ignore_cache: bool = False,
-        logger: logging.Logger | None = None,
+        default_deck: str = "Default",
+        logger=None,
     ):
         self.vault_root = vault_root
         self.anki_media_dir = anki_media_dir
         self.ignore_cache = ignore_cache
+        self.default_deck = default_deck
         self.logger = logger or logging.getLogger(__name__)
 
     def parse_file(
@@ -74,9 +76,12 @@ class MarkdownParser:
 
                 # Field validation logic
                 if mlow == "basic":
+                    # Check for "Front"/"front" and "Back"/"back"
+                    f_val = card.get("Front") or card.get("front") or ""
+                    b_val = card.get("Back") or card.get("back") or ""
                     fields = {
-                        "Front": sanitize(card.get("Front", "")),
-                        "Back": sanitize(card.get("Back", "")),
+                        "Front": sanitize(f_val),
+                        "Back": sanitize(b_val),
                     }
                     if not fields["Front"] or not fields["Back"]:
                         self.logger.debug(
@@ -85,10 +90,18 @@ class MarkdownParser:
                         skipped_indices.append(idx)
                         continue
                 elif mlow == "cloze":
+                    # Check for "Text"/"text" and "Back Extra"/"back extra"/"Extra"/"extra"
+                    t_val = card.get("Text") or card.get("text") or ""
+                    e_val = (
+                        card.get("Back Extra")
+                        or card.get("back extra")
+                        or card.get("Extra")
+                        or card.get("extra")
+                        or ""
+                    )
                     fields = {
-                        "Text": sanitize(card.get("Text", "")),
-                        "Back Extra": sanitize(card.get("Back Extra", ""))
-                        or sanitize(card.get("Extra", "")),
+                        "Text": sanitize(t_val),
+                        "Back Extra": sanitize(e_val),
                     }
                     if not fields["Text"]:
                         self.logger.debug(f"[skip] {md_path} card#{idx}: Cloze requires Text")
@@ -140,9 +153,10 @@ class MarkdownParser:
                     else sanitize(card.get("deck"))
                 )
                 if not deck_this:
-                    self.logger.debug(f"[skip] {md_path} card#{idx}: no deck set")
-                    skipped_indices.append(idx)
-                    continue
+                    deck_this = self.default_deck
+                    self.logger.debug(
+                        f"[info] {md_path} card#{idx}: no deck set, using default: {deck_this}"
+                    )
 
                 # NEW: Track as valid inventory for Prune Mode
                 # We must record the deck even if NID is missing (to protect the deck from deletion)

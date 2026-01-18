@@ -46,7 +46,11 @@ async def execute_sync(config: AppConfig) -> RunStats:
     assert config.anki_media_dir is not None
 
     parser = MarkdownParser(
-        config.vault_root, config.anki_media_dir, ignore_cache=config.force, logger=logger
+        config.vault_root,
+        config.anki_media_dir,
+        ignore_cache=config.force,
+        default_deck=config.default_deck,
+        logger=logger,
     )
 
     # Anki Adapter Selection

@@ -205,11 +205,12 @@ def test_parse_deep_cache_hit(parser_fixture):
 
 def test_parse_no_deck_set(parser_fixture):
     parser, vault = parser_fixture
-    # No deck in global or card
+    # No deck in global or card -> should use parser.default_deck ("Default")
     meta = {"cards": [{"model": "Basic", "Front": "F", "Back": "B"}]}
     notes, skipped, _ = parser.parse_file(vault / "test.md", meta, MagicMock())
-    assert len(notes) == 0
-    assert len(skipped) == 1
+    assert len(notes) == 1
+    assert len(skipped) == 0
+    assert notes[0].deck == "Default"
 
 
 def test_parse_cache_save_fail(parser_fixture):

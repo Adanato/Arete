@@ -188,7 +188,7 @@ async def run_pipeline(
         # Note: apply_updates is currently synchronous, but we can wrap it if needed.
         # It's a quick disk operation usually.
         logger.info("[pipeline] Persisting NIDs/CIDs to frontmatter...")
-        vault_service.apply_updates(updates)
+        vault_service.apply_updates(updates, dry_run=config.dry_run)
 
     # -------- Stage 5: Prune Orphans (Destructive) --------
     if config.prune:

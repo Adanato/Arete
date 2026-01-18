@@ -108,15 +108,24 @@ class VaultService:
         # basic check
         has_any_card_deck = any(isinstance(c, dict) and c.get("deck") for c in cards)
         if not deck and not has_any_card_deck:
-            return (False, 0, "no_deck", None, True)
+            # If force-syncing, we accept it for normalization even if it won't sync to Anki
+            if not self.ignore_cache:
+                return (False, 0, "no_deck", None, True)
+            else:
+                self.logger.debug(
+                    f"[vault] {md_file.name}: no deck, but accepted for normalization "
+                    "(--force)"
+                )
 
         # Save to cache
         if self.cache:
-            self.cache.set_file_meta(md_file, file_hash, meta, mtime=mtime, size=size)
+            self.cache.set_file_meta(
+                md_file, file_hash, meta, mtime=mtime, size=size
+            )
 
         return (True, len(cards), None, meta, True)
 
-    def apply_updates(self, updates: list[UpdateItem]):
+    def apply_updates(self, updates: list[UpdateItem], dry_run: bool = False):
         """
         Writes back new NIDs/CIDs to the markdown files.
         """
@@ -143,17 +152,29 @@ class VaultService:
                         if u.new_cid and sanitize(card_data.get("cid", "")) != u.new_cid:
                             card_data["cid"] = u.new_cid
                             changed = True
+                # FORCE FIX: If we are ignoring cache (force sync), always mark as changed
+                # to trigger a rewrite with normalized YAML (|- block style).
+                if self.ignore_cache:
+                    changed = True
+
                 if changed:
                     meta["cards"] = cards
                     new_text = rebuild_markdown_with_frontmatter(meta, body)
                     if new_text != text:
-                        md_path.write_text(new_text, encoding="utf-8")
-                        self.logger.debug(f"[write] {md_path}: persisted nid/cid into frontmatter")
+                        if dry_run:
+                            self.logger.info(f"[dry-run] Would write normalized YAML to {md_path}")
+                        else:
+                            md_path.write_text(new_text, encoding="utf-8")
+                            self.logger.debug(
+                                f"[write] {md_path}: persisted nid/cid into frontmatter"
+                            )
 
                         # Fix for Hot Sync: Update cache immediately since we changed mtime!
                         if self.cache:
                             try:
-                                new_hash = hashlib.md5(new_text.encode("utf-8")).hexdigest()
+                                new_hash = hashlib.md5(
+                                    new_text.encode("utf-8")
+                                ).hexdigest()
                                 st = md_path.stat()
                                 self.cache.set_file_meta(
                                     md_path, new_hash, meta, mtime=st.st_mtime, size=st.st_size
