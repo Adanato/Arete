@@ -48,8 +48,8 @@ export class DependencyResolver {
 	 */
 	async parseFile(file: TFile): Promise<void> {
 		try {
-			const content = await this.app.vault.read(file);
-			const frontmatter = this.extractFrontmatter(content);
+			const cache = this.app.metadataCache.getFileCache(file);
+			const frontmatter = cache?.frontmatter;
 
 			if (!frontmatter || !frontmatter.cards) return;
 
@@ -198,27 +198,6 @@ export class DependencyResolver {
 	}
 
 	// --- Private helpers ---
-
-	private extractFrontmatter(content: string): Record<string, unknown> | null {
-		const match = content.match(/^---\n([\s\S]*?)\n---/);
-		if (!match) return null;
-
-		try {
-			// Simple YAML parsing (for complex cases, use a library)
-			// This is a basic implementation; the real plugin uses the arete server
-			// For now, we'll use Obsidian's built-in frontmatter parsing
-			const file = this.app.workspace.getActiveFile();
-			if (file) {
-				const cache = this.app.metadataCache.getFileCache(file);
-				if (cache?.frontmatter) {
-					return cache.frontmatter;
-				}
-			}
-		} catch {
-			// Fallback: return null on parse error
-		}
-		return null;
-	}
 
 	private walkPrereqs(
 		cardId: string,

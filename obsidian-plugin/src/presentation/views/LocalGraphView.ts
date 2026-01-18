@@ -31,7 +31,7 @@ export class LocalGraphView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: AretePlugin) {
 		super(leaf);
 		this.plugin = plugin;
-		this.resolver = new DependencyResolver(this.app, plugin.settings);
+		this.resolver = plugin.dependencyResolver;
 	}
 
 	getViewType(): string {

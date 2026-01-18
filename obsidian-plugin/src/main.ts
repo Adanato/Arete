@@ -26,6 +26,9 @@ import { LinkCheckerService } from '@application/services/LinkCheckerService';
 import { LeechService } from '@application/services/LeechService';
 import { ServerManager } from '@application/services/ServerManager';
 import { AreteClient } from '@infrastructure/arete/AreteClient';
+import { DependencyEditorView, DEPENDENCY_EDITOR_VIEW_TYPE } from '@presentation/views/DependencyEditorView';
+import { LocalGraphView, LOCAL_GRAPH_VIEW_TYPE } from '@presentation/views/LocalGraphView';
+import { DependencyResolver } from '@application/services/DependencyResolver';
 import {
 	createCardGutter,
 	highlightCardEffect,
@@ -47,6 +50,7 @@ export default class AretePlugin extends Plugin {
 	leechService: LeechService;
 	serverManager: ServerManager;
 	agentService: AgentService;
+	dependencyResolver: DependencyResolver;
 	areteClient: AreteClient;
 	templateRenderer: TemplateRenderer;
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +79,7 @@ export default class AretePlugin extends Plugin {
 			this.leechService = new LeechService(this.app, this.areteClient);
 			this.serverManager = new ServerManager(this.app, this.settings, this.manifest);
 			this.agentService = new AgentService(this.settings);
+			this.dependencyResolver = new DependencyResolver(this.app, this.settings);
 
 			// Start Server (background) if enabled
 			this.serverManager.start(true);
@@ -124,6 +129,8 @@ export default class AretePlugin extends Plugin {
 			this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
 			this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
 			this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
+			this.registerView(DEPENDENCY_EDITOR_VIEW_TYPE, (leaf) => new DependencyEditorView(leaf, this));
+			this.registerView(LOCAL_GRAPH_VIEW_TYPE, (leaf) => new LocalGraphView(leaf, this));
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
 			new Notice('Arete Plugin failed to initialize! Check console.');
@@ -150,6 +157,14 @@ export default class AretePlugin extends Plugin {
 
 		this.addRibbonIcon('bot', 'Arete AI Assistant', (evt: MouseEvent) => {
 			this.activateChatView();
+		});
+
+		this.addRibbonIcon('git-branch', 'Arete Dependencies', (evt: MouseEvent) => {
+			this.activateDependencyEditorView();
+		});
+
+		this.addRibbonIcon('network', 'Arete Local Graph', (evt: MouseEvent) => {
+			this.activateLocalGraphView();
 		});
 
 		// 3. Commands
@@ -236,6 +251,22 @@ export default class AretePlugin extends Plugin {
 			name: 'Graph: Clear Retention Tags',
 			callback: async () => {
 				await this.graphService.clearAllTags();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-open-dependencies',
+			name: 'Open Dependency Editor',
+			callback: () => {
+				this.activateDependencyEditorView();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-open-local-graph',
+			name: 'Open Local Graph',
+			callback: () => {
+				this.activateLocalGraphView();
 			},
 		});
 
@@ -424,6 +455,46 @@ export default class AretePlugin extends Plugin {
 			if (view?.focusCard) {
 				view.focusCard(cardIndex);
 			}
+		}
+	}
+
+	async activateDependencyEditorView() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(DEPENDENCY_EDITOR_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) {
+				await rightLeaf.setViewState({
+					type: DEPENDENCY_EDITOR_VIEW_TYPE,
+					active: true,
+				});
+			}
+			leaf = workspace.getLeavesOfType(DEPENDENCY_EDITOR_VIEW_TYPE)[0];
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
+	async activateLocalGraphView() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(LOCAL_GRAPH_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) {
+				await rightLeaf.setViewState({
+					type: LOCAL_GRAPH_VIEW_TYPE,
+					active: true,
+				});
+			}
+			leaf = workspace.getLeavesOfType(LOCAL_GRAPH_VIEW_TYPE)[0];
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
 		}
 	}
 
