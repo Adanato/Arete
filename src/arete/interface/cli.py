@@ -601,7 +601,7 @@ def migrate(
     """
     import re
 
-    from arete.application.id_service import assign_arete_ids
+    from arete.application.id_service import assign_arete_ids, ensure_card_ids
     from arete.application.utils.fs import iter_markdown_files
     from arete.application.utils.text import (
         apply_fixes,
@@ -662,6 +662,12 @@ def migrate(
 
                 if config.verbose >= 2:
                     typer.echo(f"  [Check] {p}: Normalizing YAML...")
+
+                # 4. Assign IDs to cards missing them
+                new_ids = ensure_card_ids(meta)
+                if new_ids > 0:
+                    if config.verbose >= 1:
+                        typer.secho(f"  [ID] Assigned {new_ids} new Arete IDs in {p}", fg="cyan")
 
                 # AUTO-HEALING: Strip redundant blocks from body (--- blocks after frontmatter)
                 # Re-match body in case apply_fixes changed things or there are trailing dashes
