@@ -20,24 +20,51 @@ export class CardStatsModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('arete-stats-modal');
 
-		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1.5rem';
+		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1rem';
 		
 		const c = this.card;
 
+		// Main 2-column layout: Stats on left, Curve on right
+		const mainLayout = contentEl.createDiv({ cls: 'arete-stats-layout' });
+		mainLayout.style.display = 'flex';
+		mainLayout.style.gap = '1.5rem';
+		mainLayout.style.alignItems = 'flex-start';
+
+		// Left column: Stats
+		const leftCol = mainLayout.createDiv({ cls: 'arete-stats-left' });
+		leftCol.style.flex = '1';
+		leftCol.style.minWidth = '250px';
+
+		// Right column: Forgetting Curve
+		const rightCol = mainLayout.createDiv({ cls: 'arete-stats-right' });
+		rightCol.style.minWidth = '280px';
+
 		// --- Section 1: Memory State ---
 		// Note: difficulty comes from backend already in 1-10 scale
-		this.renderSection(contentEl, 'Memory State', [
+		this.renderSection(leftCol, 'Memory State', [
 			{ label: 'Difficulty (1-10)', value: c.difficulty != null ? c.difficulty.toFixed(1) : '-', color: c.difficulty != null && c.difficulty > 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Stability', value: c.stability != null ? `${c.stability.toFixed(1)} days` : '-', color: c.stability != null && c.stability < 7 ? 'var(--color-orange)' : undefined },
 			{ label: 'Retrievability', value: c.retrievability != null ? `${(c.retrievability * 100).toFixed(1)}%` : '-', color: c.retrievability != null && c.retrievability < 0.85 ? 'var(--color-red)' : undefined }
 		]);
 
-		// --- Forgetting Curve Visualization ---
-		if (c.stability != null && c.stability > 0) {
-			this.renderForgettingCurve(contentEl, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
+		// --- Forgetting Curve Visualization (on right) ---
+		if (c.stability != null && c.stability > 0.1) {
+			this.renderForgettingCurve(rightCol, c.stability, c.retrievability ?? 1, c.desiredRetention ?? 0.9);
+		} else {
+			// No meaningful stability yet - show placeholder
+			const placeholder = rightCol.createDiv({ cls: 'arete-curve-placeholder' });
+			placeholder.style.display = 'flex';
+			placeholder.style.flexDirection = 'column';
+			placeholder.style.alignItems = 'center';
+			placeholder.style.justifyContent = 'center';
+			placeholder.style.height = '150px';
+			placeholder.style.background = 'var(--background-secondary)';
+			placeholder.style.borderRadius = '8px';
+			placeholder.style.color = 'var(--text-muted)';
+			placeholder.style.fontSize = '0.85em';
+			placeholder.createDiv({ text: 'Forgetting Curve' }).style.fontWeight = 'bold';
+			placeholder.createDiv({ text: 'Not enough review history' }).style.marginTop = '0.5rem';
 		}
-
-
 		// --- Section 2: Learning Dynamics (Plausible Metrics) ---
 		this.renderSection(contentEl, 'Learning Dynamics', [
 			{ 
