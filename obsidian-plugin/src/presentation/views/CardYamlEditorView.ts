@@ -806,8 +806,8 @@ export class CardYamlEditorView extends ItemView {
 			// New card with model: Basic
 			const newCard = {
 				model: 'Basic',
-				front: '',
-				back: ''
+				Front: '',
+				Back: ''
 			};
 			
 			// Insert at position after current card
