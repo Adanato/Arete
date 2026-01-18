@@ -260,8 +260,6 @@ export class DependencyResolver {
 			}
 		}
 
-		// ... (rest of method)
-
 		// Convert to CardNode arrays
 		const prerequisites: CardNode[] = [];
 		for (const id of prereqIds) {
@@ -281,6 +279,33 @@ export class DependencyResolver {
 			if (node) related.push(node);
 		}
 
+		// Collect all edges within the subgraph
+		const subgraphNodes = new Set([cardId, ...prereqIds, ...dependentIds, ...relatedIds]);
+		const links: any[] = []; 
+
+		for (const sourceId of subgraphNodes) {
+			// Check requires (outbound edges from sourceId)
+			// requires map in GraphBuilder is Source -> Targets
+			const targets = this.graphBuilder.getPrerequisites(sourceId); // nomenclature is confusing, let's assume getPrerequisites returns "things sourceId depends on"
+            // Wait, I need to be sure about getPrerequisites. 
+            // In DependencyResolver line 90: getPrerequisites(cardId) returns this.requires.get(cardId). 
+			// In addRequires(from, to), we push to from's list. So yes, it returns outgoing edges.
+			
+			for (const targetId of targets) {
+				if (subgraphNodes.has(targetId)) {
+					links.push({ type: 'requires', fromId: sourceId, toId: targetId });
+				}
+			}
+
+            // Check related
+			const rels = this.graphBuilder.getRelated(sourceId);
+			for (const targetId of rels) {
+				if (subgraphNodes.has(targetId)) {
+					links.push({ type: 'related', fromId: sourceId, toId: targetId });
+				}
+			}
+		}
+
 		// Detect cycles (simplified)
 		const cycles = this.detectCyclesForCard(cardId);
 
@@ -289,8 +314,8 @@ export class DependencyResolver {
 			prerequisites,
 			dependents,
 			related,
+			links,
 			cycles,
-	// ... end of getLocalGraph
 		};
 	}
 

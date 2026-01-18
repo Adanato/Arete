@@ -49,6 +49,7 @@ export interface LocalGraphResult {
 	prerequisites: CardNode[];
 	dependents: CardNode[];
 	related: CardNode[];
+	links: DependencyEdge[]; // All edges in the subgraph
 	cycles: string[][]; // Groups of co-requisite card IDs
 }
 

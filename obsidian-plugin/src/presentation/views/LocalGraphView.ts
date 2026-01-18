@@ -232,39 +232,35 @@ export class LocalGraphView extends ItemView {
 			}
 		};
 
-		// 1. Add Center
+		// 1. Add All Nodes
 		addNode(graph.center, 'center');
+		
+		graph.prerequisites.forEach((n) => addNode(n, 'prereq'));
+		graph.dependents.forEach((n) => addNode(n, 'dependent'));
 
-		// 2. Add Prerequisites
-		graph.prerequisites.forEach((n) => {
-			addNode(n, 'prereq');
-			links.push({
-				source: n.id,
-				target: graph.center.id,
-				type: 'requires',
-			});
-		});
-
-		// 3. Add Dependents
-		graph.dependents.forEach((n) => {
-			addNode(n, 'dependent');
-			links.push({
-				source: graph.center.id,
-				target: n.id,
-				type: 'requires',
-			});
-		});
-
-		// 4. Add Related
 		if (this.showRelated) {
-			graph.related.forEach((n) => {
-				addNode(n, 'related');
-				links.push({
-					source: graph.center.id,
-					target: n.id,
-					type: 'related',
-				});
+			graph.related.forEach((n) => addNode(n, 'related'));
+		}
+
+		// 2. Add Links from Graph Data
+		// The resolver now provides valid edges for the subgraph
+		if (graph.links) {
+			graph.links.forEach((edge) => {
+				// Only add link if both nodes are in the graph (e.g. might be hidden related)
+				if (nodes.has(edge.fromId) && nodes.has(edge.toId)) {
+					// Filter related links if hidden
+					if (!this.showRelated && edge.type === 'related') return;
+
+					links.push({
+						source: edge.fromId,
+						target: edge.toId,
+						type: edge.type,
+					});
+				}
 			});
+		} else {
+			// Fallback for types safety if links missing (shouldn't happen with new resolver)
+			console.warn('[Arete Graph] No links provided by resolver, graph may look disconnected.');
 		}
 
 		return {
