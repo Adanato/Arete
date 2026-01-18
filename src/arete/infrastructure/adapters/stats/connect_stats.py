@@ -55,10 +55,7 @@ class ConnectStatsRepository(StatsRepository):
                     fsrs_results = await self._invoke("getFSRSStats", cards=card_ids)
                     if fsrs_results and isinstance(fsrs_results, list):
                         for item in fsrs_results:
-                            if all(
-                                k in item
-                                for k in ["cardId", "difficulty", "stability"]
-                            ):
+                            if all(k in item for k in ["cardId", "difficulty", "stability"]):
                                 fsrs_map[item["cardId"]] = FsrsMemoryState(
                                     stability=item.get("stability", 0),
                                     difficulty=item.get("difficulty", 0) / 10.0,
@@ -166,19 +163,20 @@ class ConnectStatsRepository(StatsRepository):
     async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
         """
         Fetch FSRS parameters for the given decks via AnkiConnect.
-        
+
         Falls back to defaults if the custom action isn't available.
         """
         params: dict[str, dict] = {}
-        
+
         for deck_name in deck_names:
             try:
                 # Try to get deck config via AnkiConnect
                 deck_config = await self._invoke("getDeckConfig", deck=deck_name)
                 if deck_config:
                     fsrs = deck_config.get("fsrs", {})
+                    default_retention = fsrs.get("desiredRetention", 0.9)
                     params[deck_name] = {
-                        "desired_retention": deck_config.get("desiredRetention", fsrs.get("desiredRetention", 0.9)),
+                        "desired_retention": deck_config.get("desiredRetention", default_retention),
                         "weights": fsrs.get("w", []),
                         "sm2_retention": deck_config.get("sm2Retention", 0.9),
                     }
@@ -197,6 +195,5 @@ class ConnectStatsRepository(StatsRepository):
                     "weights": [],
                     "sm2_retention": 0.9,
                 }
-        
-        return params
 
+        return params

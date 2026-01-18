@@ -46,7 +46,7 @@ class EnrichedStats:
     # Deck level
     desired_retention: float | None = None
     weights: list[float] = field(default_factory=list)
-    
+
     # Metadata
     fsrs_history_missing: bool = False
 
@@ -67,16 +67,16 @@ class MetricsCalculator:
         volatility = self._compute_volatility(card.reviews)
         days_overdue = self._compute_days_overdue(card)
         adherence = self._compute_schedule_adherence(card)
-        
+
         d_params = deck_params or {}
-        
+
         # Detect missing history:
-        # If we have reviews but NONE of them have FSRS stability data, 
+        # If we have reviews but NONE of them have FSRS stability data,
         # then the backend history is likely missing the 'data' column.
         reviews = card.reviews or []
         has_history_data = any(r.stability is not None for r in reviews)
         fsrs_history_missing = len(reviews) > 0 and not has_history_data
-        
+
         # Use aggregate average time if available
         avg_time = card.average_time_ms
 
@@ -144,15 +144,15 @@ class MetricsCalculator:
 
         # Use last 10 reviews
         recent = reviews[-10:]
-        
+
         # Prefer stability values if available (User's preferred definition)
         stabilities = [r.stability for r in recent if r.stability is not None]
-        
+
         if len(stabilities) >= 2:
             mean = sum(stabilities) / len(stabilities)
             variance = sum((s - mean) ** 2 for s in stabilities) / len(stabilities)
             return variance
-            
+
         # Fallback to interval variance (normalized) if stability history is missing
         # We normalize by dividing by mean interval to make it scale-independent
         intervals = [r.interval for r in recent]
@@ -163,27 +163,27 @@ class MetricsCalculator:
         if mean == 0:
             return 0.0
         variance = sum((i - mean) ** 2 for i in intervals) / len(intervals)
-        
-        # Return coefficient of variation squared or similar metric? 
-        # For now raw variance of intervals might be huge. 
+
+        # Return coefficient of variation squared or similar metric?
+        # For now raw variance of intervals might be huge.
         # Let's return std dev / mean (Coefficient of Variation) * 10 or something
-        # user wants "S Var" which matches stability scale. 
+        # user wants "S Var" which matches stability scale.
         # Without stability, this metric is weak.
-        # But user agreed to "fix volatility". 
+        # But user agreed to "fix volatility".
         # Let's leave it as is for now or use interval growth variance?
         return variance
 
     def _compute_schedule_adherence(self, card: CardStatsAggregate) -> float | None:
         """
         Ratio of Actual Interval / Predicted Interval (Stability).
-        
+
         1.0 means perfect adherence to FSRS 90% retention scheduling.
         < 1.0 means early review. > 1.0 means late review.
         """
         if not card.fsrs or card.fsrs.stability <= 0 or card.interval == 0:
             return None
-            
-        # Actual interval is the one the card IS CURRENTLY AT, 
+
+        # Actual interval is the one the card IS CURRENTLY AT,
         # but for true 'adherence' we might want the interval of the LAST review.
         # However, Anki's card.ivl is the interval assigned AFTER the last review.
         # So it represents the 'predicted' gap.
@@ -204,39 +204,39 @@ class MetricsCalculator:
     def _compute_interval_growth(self, reviews: list[ReviewEntry]) -> float | None:
         """
         Compute interval growth multiplier from the most recent review.
-        
+
         Values > 1.0 indicate successful spacing. < 1.0 indicates failing/resetting.
         This effectively replaces Stability Gain for users without FSRS log history.
         """
         if not reviews:
             return None
-            
+
         latest = reviews[-1]
-        
+
         # If it's a new card (last_interval=0), growth is undefined/infinite
         if latest.last_interval <= 0:
             return None
-            
+
         return latest.interval / latest.last_interval
 
     def _compute_press_fatigue(self, reviews: list[ReviewEntry]) -> float | None:
         """
         Compute 'Press Fatigue' which is the ratio of Hard/(Hard+Good) presses.
-        
+
         High fatigue means the user is struggling to get 'Good' even if they aren't failing.
         Uses the last 20 reviews for a rolling window of recent fatigue.
         """
         recent = reviews[-20:]
         if not recent:
             return None
-        
+
         hard_count = sum(1 for r in recent if r.rating == 2)
         good_count = sum(1 for r in recent if r.rating == 3)
         total_valid = hard_count + good_count
-        
+
         if total_valid == 0:
             return None
-            
+
         return hard_count / total_valid
 
     def _compute_ret_at_review(self, reviews: list[ReviewEntry]) -> float | None:
@@ -255,17 +255,17 @@ class MetricsCalculator:
         """
         if not card.fsrs or card.fsrs.stability < 90:
             return False
-            
+
         now_epoch = int(time.time())
         if not card.last_review:
             return False
-            
+
         days_elapsed = (now_epoch - card.last_review) / 86400.0
         # retrievability formula
         retrievability = 0.9 ** (days_elapsed / card.fsrs.stability)
-        
+
         # If we are reviewing with very high retrievability and long stability
         if retrievability > 0.98 and days_elapsed < (card.fsrs.stability * 0.1):
             return True
-            
+
         return False

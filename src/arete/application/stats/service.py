@@ -27,7 +27,7 @@ class FsrsStatsService:
             reviews_by_cid.setdefault(r.card_id, []).append(r)
 
         # 3. Fetch deck parameters for context
-        deck_names = list(set(s.deck_name for s in stats))
+        deck_names = list({s.deck_name for s in stats})
         deck_params = await self.repo.get_deck_params(deck_names)
 
         # 4. Enrich each card
@@ -35,7 +35,7 @@ class FsrsStatsService:
         for s in stats:
             # Attach reviews
             s.reviews = reviews_by_cid.get(s.card_id, [])
-            
+
             # Enrich
             d_params = deck_params.get(s.deck_name)
             enriched = self.calculator.enrich(s, d_params)

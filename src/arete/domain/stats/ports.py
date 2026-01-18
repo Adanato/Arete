@@ -57,4 +57,3 @@ class StatsRepository(ABC):
             Dictionary mapping deck names to their FSRS parameters.
         """
         pass
-

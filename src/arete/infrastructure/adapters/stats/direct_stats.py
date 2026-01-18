@@ -56,9 +56,7 @@ class DirectStatsRepository(StatsRepository):
                                 if hasattr(ms, "difficulty")
                                 else None
                             )
-                            stability = (
-                                ms.stability if hasattr(ms, "stability") else None
-                            )
+                            stability = ms.stability if hasattr(ms, "stability") else None
 
                             if stability is not None and difficulty is not None:
                                 fsrs_state = FsrsMemoryState(
@@ -123,19 +121,18 @@ class DirectStatsRepository(StatsRepository):
 
             # Query revlog for all cids
             # revlog columns: id, cid, usn, ease, ivl, lastIvl, factor, time, type...
-            columns = [c[1] for c in repo.col.db.execute("PRAGMA table_info(revlog)")] if repo.col.db else []
+            columns = []
+            if repo.col.db:
+                columns = [c[1] for c in repo.col.db.execute("PRAGMA table_info(revlog)")]
             has_data = "data" in columns
-            
+
             # Select essential columns + lastIvl + time
             col_subset = "id, cid, ease, ivl, lastIvl, time, type"
             if has_data:
                 col_subset += ", data"
 
             cid_str = ",".join(str(c) for c in cids)
-            query = (
-                f"SELECT {col_subset} FROM revlog "
-                f"WHERE cid IN ({cid_str}) ORDER BY id ASC"
-            )
+            query = f"SELECT {col_subset} FROM revlog WHERE cid IN ({cid_str}) ORDER BY id ASC"
 
             try:
                 import json
@@ -146,7 +143,7 @@ class DirectStatsRepository(StatsRepository):
                     # Indices:
                     # 0: id, 1: cid, 2: ease, 3: ivl, 4: lastIvl, 5: time, 6: type
                     # 7: data (if exists) via 'col_subset' length logic?
-                    
+
                     data_idx = 7
                     s_at_review = None
                     d_at_review = None
@@ -204,11 +201,12 @@ class DirectStatsRepository(StatsRepository):
                     # Look for FSRS settings in the config
                     # Modern Anki: config['fsrs']
                     fsrs = config.get("fsrs", {})
-                    
+
+                    default_retention = fsrs.get("desiredRetention", 0.9)
                     params[deck_name] = {
-                        "desired_retention": config.get("desiredRetention", fsrs.get("desiredRetention", 0.9)),
+                        "desired_retention": config.get("desiredRetention", default_retention),
                         "weights": fsrs.get("w", []),
-                        "sm2_retention": config.get("sm2Retention", 0.9), # Fallback for non-FSRS
+                        "sm2_retention": config.get("sm2Retention", 0.9),  # Fallback for non-FSRS
                     }
                 except Exception as e:
                     logger.warning(f"Failed to fetch params for deck {deck_name}: {e}")
@@ -222,7 +220,7 @@ class DirectStatsRepository(StatsRepository):
         try:
             if repo.col is None or repo.col.db is None:
                 return {}
-            
+
             dist: dict[int, int] = {}
             query = f"SELECT ease, COUNT(*) FROM revlog WHERE cid = {cid} GROUP BY ease"
             for rating, count in repo.col.db.execute(query):
@@ -238,9 +236,7 @@ class DirectStatsRepository(StatsRepository):
         try:
             if repo.col is None or repo.col.db is None:
                 return None
-            result = repo.col.db.scalar(
-                f"SELECT MAX(id) FROM revlog WHERE cid = {cid}"
-            )
+            result = repo.col.db.scalar(f"SELECT MAX(id) FROM revlog WHERE cid = {cid}")
             if result:
                 return result // 1000  # Convert ms to seconds
         except Exception:
@@ -255,9 +251,7 @@ class DirectStatsRepository(StatsRepository):
             if repo.col is None or repo.col.db is None:
                 return 0
             # time limit is usually capped at 60s (60000ms) in revlog logic but here we just avg
-            result = repo.col.db.scalar(
-                f"SELECT AVG(time) FROM revlog WHERE cid = {cid}"
-            )
+            result = repo.col.db.scalar(f"SELECT AVG(time) FROM revlog WHERE cid = {cid}")
             return int(result) if result else 0
         except Exception:
             pass
