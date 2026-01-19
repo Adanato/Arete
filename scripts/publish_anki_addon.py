@@ -44,7 +44,8 @@ def publish_to_ankiweb(addon_id: str, zip_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Publish Anki Add-on to AnkiWeb")
-    default_id = "2055492159"  # Default or placeholder
+    # Default ID from env or hardcoded fallback (Arete ID)
+    default_id = os.getenv("ANKI_ADDON_ID", "2055492159")
     parser.add_argument("--id", default=default_id, help="AnkiWeb Add-on ID")
     parser.add_argument(
         "--file",
@@ -55,6 +56,7 @@ def main():
 
     args = parser.parse_args()
 
+    print(f"Configured Add-on ID: {args.id}")
     publish_to_ankiweb(args.id, args.file)
 
 

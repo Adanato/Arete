@@ -76,37 +76,26 @@ Always update `version` in `pyproject.toml` and `manifest.json` simultaneously t
 
 ## Part 5: AnkiWeb (Add-on Store)
 
-> [!NOTE]
-> **Official Recommendation**: The Anki team officially recommends manual uploads via the AnkiWeb dashboard. However, for continuous delivery, the community uses automation scripts.
+We have automated the publishing process using GitHub Actions.
 
-AnkiWeb does not have an official public API for uploading add-ons. To automate this, we recommend using a web-automation script in GitHub Actions.
+### 1. Configuration
+To enable the `publish-ankiweb` job, you must configure the following **Repository Secrets** in GitHub:
 
-### 1. Automation with `anki-addon-uploader`
+[**🔗 Go to GitHub Secrets Settings**](https://github.com/Adanato/Arete/settings/secrets/actions)
 
-You can use the `anki-addon-uploader` tool to programmatically push updates to AnkiWeb. Since it is not on PyPI, you should install it directly from the official source or use a similar community script.
+Add these secrets:
+-   `ANKIWEB_USER`: Your AnkiWeb login email.
+-   `ANKIWEB_PASS`: Your AnkiWeb password.
+-   `ANKI_ADDON_ID`: The ID of your add-on (Default: `2055492159`).
 
-**Installation:**
-```bash
-pip install https://github.com/ankitects/anki-addon-uploader/archive/refs/heads/main.zip
-```
+### 2. How it works
+The `release.yml` workflow includes a job that runs after the build:
+1.  Installs `anki-addon-uploader`.
+2.  Downloads the built `.zip` artifact.
+3.  Uploads it to AnkiWeb using the credentials provided in secrets.
 
-**GitHub Secrets Required:**
-- `ANKIWEB_USER`: Your AnkiWeb login email.
-- `ANKIWEB_PASS`: Your AnkiWeb password.
-
-**GitHub Action Step Example:**
-```yaml
-- name: Upload to AnkiWeb
-  run: |
-    pip install anki-addon-uploader
-    export ANKIWEB_USER="${{ secrets.ANKIWEB_USER }}"
-    export ANKIWEB_PASS="${{ secrets.ANKIWEB_PASS }}"
-    # replace 123456789 with your real AnkiWeb ID
-    anki-addon-uploader 123456789 release_artifacts/arete_ankiconnect.zip
-```
-
-### 2. Finding your AnkiWeb ID
-After your first manual upload to [AnkiWeb](https://ankiweb.net/shared/addons/), the URL of your add-on page will contain the ID (e.g., `https://ankiweb.net/shared/info/123456789`). This ID must be used for all subsequent updates.
+### 3. Finding your AnkiWeb ID
+If you need to change the ID (e.g., for a fork), you can find it in the URL of your add-on page (e.g., `https://ankiweb.net/shared/info/2055492159`).
 
 ---
 
