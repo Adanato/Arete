@@ -40,7 +40,7 @@ jobs:
     - name: Build Obsidian Plugin
       run: |
         cd obsidian-plugin
-        npm ci
+        npm ci --legacy-peer-deps
         npm run build
 
     - name: Build Anki Plugin
