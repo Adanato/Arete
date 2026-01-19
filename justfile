@@ -109,6 +109,7 @@ coverage:
 @qa:
     @echo "--- 🐍 Backend QA ---"
     just fix
+    just check-types
     just test
     @echo "--- 🟦 Frontend QA ---"
     {{NPM}} run format

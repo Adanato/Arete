@@ -8,7 +8,8 @@ from __future__ import annotations
 import logging
 
 import instructor
-from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema, BasicChatInputSchema
+from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema
+from atomic_agents import BasicChatInputSchema as BasicChatInputSchema
 from atomic_agents.context import ChatHistory, SystemPromptGenerator
 from openai import OpenAI
 from pydantic import Field
