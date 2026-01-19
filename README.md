@@ -3,6 +3,7 @@
 **Pro-grade synchronization from Obsidian to Anki.**
 
 [![CI](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml)
+[![Coverage](docs/coverage.svg)](htmlcov/index.html)
 [![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
 [![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
 
@@ -31,6 +32,8 @@
 git clone https://github.com/Adanato/obsidian_2_anki
 cd obsidian_2_anki
 uv sync
+# To enable Agentic features (v3 preview):
+# uv sync --extra agent
 ```
 
 ### 2. Install Plugin

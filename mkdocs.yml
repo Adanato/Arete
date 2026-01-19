@@ -1,5 +1,5 @@
-site_name: ObsiAnki (o2a)
-site_description: "Pro-grade synchronization from Obsidian to Anki."
+site_name: Arete
+site_description: "Pro-grade synchronization from Obsidian to Anki with topological study queues and FSRS analytics."
 site_author: "Adam Nguyen"
 site_url: "https://adanato.github.io/obsidian_2_anki/"
 
@@ -33,15 +33,21 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Home: index.md
+  - Home: INDEX.md
   - User Guide:
-    - CLI Usage: cli_guide.md
-    - Obsidian Plugin: plugin_guide.md
-    - Troubleshooting: troubleshooting.md
-  - Development:
+    - CLI Usage: CLI.md
+    - Obsidian Plugin: PLUGIN.md
+    - Anki Plugin: ANKI_PLUGIN.md
+    - Troubleshooting: TROUBLESHOOTING.md
+  - Developer Reference:
     - Contributing: CONTRIBUTING.md
     - Architecture: ARCHITECTURE.md
-    - Publishing: publishing.md
+    - Publishing: PUBLISHING.md
+    - Plans:
+      - v2.0.0 Plan: plans/v2_0_0.md
+      - v3.0.0 Plan (Agentic): plans/v3_0_0.md
+  - Internal Walkthroughs:
+    - Dependency Graph: walkthroughs/dependency-graph.md
 
 markdown_extensions:
   - admonition

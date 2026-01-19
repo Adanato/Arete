@@ -7,6 +7,8 @@
 
 import { ItemView, WorkspaceLeaf, setIcon, Notice, TFile, Component } from 'obsidian';
 import * as d3 from 'd3';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ForceGraph3D = require('3d-force-graph');
 import type AretePlugin from '@/main';
 import { DependencyResolver } from '@/application/services/DependencyResolver';
 import { LocalGraphResult } from '@/domain/graph/types';
@@ -41,6 +43,9 @@ export class LocalGraphView extends ItemView {
 	private tooltipComponent: Component = new Component();
 	private renderCardNodes = false;
 	private currentFilePath: string | null = null;
+	private viewMode: '2d' | '3d' = '2d';
+	private clusteringEnabled = false;
+	private graph3D: any = null; // 3d-force-graph instance
 
 	constructor(leaf: WorkspaceLeaf, plugin: AretePlugin) {
 		super(leaf);
@@ -169,6 +174,46 @@ export class LocalGraphView extends ItemView {
 		});
 		depthSelect.addEventListener('change', () => {
 			this.depth = parseInt(depthSelect.value);
+			this.refresh();
+		});
+
+		// Separator
+		toolbar.createSpan({ text: '|' }).style.color = 'var(--text-muted)';
+
+		// 2D/3D Toggle
+		const dimensionToggle = toolbar.createDiv({
+			cls: 'clickable-icon',
+		});
+		setIcon(dimensionToggle, this.viewMode === '3d' ? 'box' : 'square');
+		dimensionToggle.setAttribute('title', 'Toggle 2D/3D View');
+		if (this.viewMode === '3d') dimensionToggle.style.color = 'var(--interactive-accent)';
+		dimensionToggle.addEventListener('click', () => {
+			this.viewMode = this.viewMode === '2d' ? '3d' : '2d';
+			setIcon(dimensionToggle, this.viewMode === '3d' ? 'box' : 'square');
+			if (this.viewMode === '3d') {
+				dimensionToggle.style.color = 'var(--interactive-accent)';
+			} else {
+				dimensionToggle.style.color = '';
+			}
+			this.refresh();
+		});
+
+		// Clustering Toggle
+		const clusterToggle = toolbar.createDiv({
+			cls: 'clickable-icon' + (this.clusteringEnabled ? ' is-active' : ''),
+		});
+		setIcon(clusterToggle, 'group');
+		clusterToggle.setAttribute('title', 'Toggle Clustering by File');
+		if (this.clusteringEnabled) clusterToggle.style.color = 'var(--interactive-accent)';
+		clusterToggle.addEventListener('click', () => {
+			this.clusteringEnabled = !this.clusteringEnabled;
+			if (this.clusteringEnabled) {
+				clusterToggle.style.color = 'var(--interactive-accent)';
+				clusterToggle.addClass('is-active');
+			} else {
+				clusterToggle.style.color = '';
+				clusterToggle.removeClass('is-active');
+			}
 			this.refresh();
 		});
 	}
@@ -311,9 +356,12 @@ export class LocalGraphView extends ItemView {
 			return;
 		}
 
-		// 3. Render D3
-		// new Notice(`Graph: Rendering ${nodes.length} nodes...`);
-		this.renderD3Graph(canvas, nodes, links);
+		// 3. Render based on view mode
+		if (this.viewMode === '3d') {
+			this.render3DGraph(canvas, nodes, links);
+		} else {
+			this.renderD3Graph(canvas, nodes, links);
+		}
 	}
 
 	renderEmpty(container: HTMLElement, msg: string) {
@@ -434,6 +482,11 @@ export class LocalGraphView extends ItemView {
 			.force('charge', d3.forceManyBody().strength(this.renderCardNodes ? -2000 : -600))
 			.force('center', d3.forceCenter(width / 2, height / 2))
 			.force('collide', d3.forceCollide().radius(this.renderCardNodes ? 120 : 40));
+
+		// Apply clustering force in 2D mode if enabled
+		if (this.clusteringEnabled) {
+			this.applyClusteringForce(this.simulation, nodes);
+		}
 
 		// Arrows
 		svg.append('defs')
@@ -686,5 +739,185 @@ export class LocalGraphView extends ItemView {
 		this.centeredCardId = cardId;
 		// Ensure active file is correct or refresh uses current context
 		await this.refresh();
+	}
+
+	/**
+	 * Compute cluster centroids based on filePath for grouping nodes.
+	 */
+	private getClusterCentroids(
+		nodes: GraphNode[],
+	): Map<string, { x: number; y: number; z: number }> {
+		const clusters = new Map<string, GraphNode[]>();
+		nodes.forEach((n) => {
+			const key = n.filePath || 'unknown';
+			if (!clusters.has(key)) clusters.set(key, []);
+			clusters.get(key)!.push(n);
+		});
+
+		const centroids = new Map<string, { x: number; y: number; z: number }>();
+		let i = 0;
+		const clusterCount = clusters.size;
+		clusters.forEach((_, key) => {
+			// Distribute clusters in a circle for 2D, sphere for 3D
+			const angle = (i / clusterCount) * 2 * Math.PI;
+			const radius = 300;
+			centroids.set(key, {
+				x: Math.cos(angle) * radius,
+				y: Math.sin(angle) * radius,
+				z: (i % 2 === 0 ? 1 : -1) * 100, // Alternate z for 3D depth
+			});
+			i++;
+		});
+		return centroids;
+	}
+
+	/**
+	 * Custom clustering force that pulls nodes toward their cluster centroid.
+	 */
+	private applyClusteringForce(
+		simulation: d3.Simulation<GraphNode, GraphLink>,
+		nodes: GraphNode[],
+		strength = 0.3,
+	) {
+		const centroids = this.getClusterCentroids(nodes);
+
+		simulation.force(
+			'cluster',
+			d3
+				.forceX<GraphNode>()
+				.x((d) => centroids.get(d.filePath)?.x || 0)
+				.strength(strength),
+		);
+		simulation.force(
+			'clusterY',
+			d3
+				.forceY<GraphNode>()
+				.y((d) => centroids.get(d.filePath)?.y || 0)
+				.strength(strength),
+		);
+	}
+
+	/**
+	 * Render the graph in 3D using 3d-force-graph.
+	 */
+	render3DGraph(container: HTMLElement, nodes: GraphNode[], links: GraphLink[]) {
+		container.empty();
+
+		// Destroy previous 3D graph if exists
+		if (this.graph3D) {
+			this.graph3D._destructor?.();
+			this.graph3D = null;
+		}
+
+		const width = container.clientWidth;
+		const height = container.clientHeight;
+
+		if (width === 0 || height === 0) {
+			console.warn('[Arete Graph 3D] Container has 0 dimensions. Waiting for resize.');
+			setTimeout(() => this.refresh(), 100);
+			return;
+		}
+
+		// Transform links for 3d-force-graph (needs source/target as id strings)
+		const graphData = {
+			nodes: nodes.map((n) => ({
+				id: n.id,
+				title: n.title,
+				group: n.group,
+				filePath: n.filePath,
+				lineNumber: n.lineNumber,
+			})),
+			links: links.map((l) => ({
+				source: typeof l.source === 'string' ? l.source : (l.source as GraphNode).id,
+				target: typeof l.target === 'string' ? l.target : (l.target as GraphNode).id,
+				type: l.type,
+			})),
+		};
+
+		// Create 3D graph
+		this.graph3D = ForceGraph3D()(container)
+			.width(width)
+			.height(height)
+			.graphData(graphData)
+			.nodeLabel((node: any) => `${node.title}\n(${node.id})`)
+			.nodeColor((node: any) => {
+				if (node.group === 'center') return '#7c3aed'; // purple
+				if (node.group === 'prereq') return '#10b981'; // green
+				if (node.group === 'dependent') return '#f59e0b'; // amber
+				return '#6b7280'; // gray for related
+			})
+			.nodeVal((node: any) => (node.group === 'center' ? 3 : 1))
+			.linkColor((link: any) => (link.type === 'requires' ? '#6b7280' : '#d1d5db'))
+			.linkWidth((link: any) => (link.type === 'requires' ? 2 : 1))
+			.linkDirectionalArrowLength((link: any) => (link.type === 'requires' ? 4 : 0))
+			.linkDirectionalArrowRelPos(1)
+			.onNodeClick((node: any) => {
+				console.log('[Arete Graph 3D] Clicked:', node.id);
+				this.centeredCardId = node.id;
+				this.currentFilePath = node.filePath;
+				this.refresh();
+			});
+
+		// Apply clustering force in 3D mode if enabled
+		if (this.clusteringEnabled) {
+			const centroids = this.getClusterCentroids(nodes);
+			this.graph3D
+				.d3Force(
+					'clusterX',
+					d3
+						.forceX<any>()
+						.x((d: any) => centroids.get(d.filePath)?.x || 0)
+						.strength(0.3),
+				)
+				.d3Force(
+					'clusterY',
+					d3
+						.forceY<any>()
+						.y((d: any) => centroids.get(d.filePath)?.y || 0)
+						.strength(0.3),
+				);
+			// Note: 3d-force-graph uses d3-force-3d which handles Z via its own simulation
+		}
+
+		// Setup hover tooltip (reuse single container)
+		if (!this.tooltipContainer) {
+			this.tooltipContainer = this.container.createDiv({ cls: 'arete-graph-tooltip' });
+			this.tooltipContainer.style.position = 'absolute';
+			this.tooltipContainer.style.display = 'none';
+			this.tooltipContainer.style.zIndex = '1000';
+			this.tooltipContainer.style.pointerEvents = 'none';
+		}
+
+		this.graph3D.onNodeHover((node: any) => {
+			if (node && this.tooltipContainer) {
+				this.tooltipContainer.style.display = 'block';
+				this.tooltipContainer.empty();
+				const cardDiv = this.tooltipContainer.createDiv({ cls: 'arete-card-preview' });
+				cardDiv.style.width = '250px';
+				cardDiv.style.maxHeight = '200px';
+				cardDiv.style.overflow = 'auto';
+				cardDiv.style.background = 'var(--background-primary)';
+				cardDiv.style.border = '1px solid var(--background-modifier-border)';
+				cardDiv.style.borderRadius = '8px';
+				cardDiv.style.padding = '8px';
+				cardDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+
+				// Simple preview (full CardRenderer could be added)
+				cardDiv.createEl('div', {
+					text: node.title,
+					cls: 'arete-card-title',
+				}).style.fontWeight = 'bold';
+				cardDiv.createEl('div', {
+					text: `ID: ${node.id}`,
+					cls: 'arete-card-id',
+				}).style.fontSize = '0.8em';
+				cardDiv.createEl('div', {
+					text: `File: ${node.filePath}`,
+					cls: 'arete-card-file',
+				}).style.fontSize = '0.75em';
+			} else if (this.tooltipContainer) {
+				this.tooltipContainer.style.display = 'none';
+			}
+		});
 	}
 }

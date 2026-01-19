@@ -84,6 +84,7 @@ test-integration:
 @build-anki:
     mkdir -p {{RELEASE}}
     cd arete_ankiconnect && zip -r ../{{RELEASE}}/arete_ankiconnect.zip . -x "__pycache__/*"
+    cp {{RELEASE}}/arete_ankiconnect.zip {{RELEASE}}/arete_ankiconnect.ankiaddon
 
 # Full release build (all artifacts)
 @release: build-python build-obsidian build-anki
@@ -91,6 +92,10 @@ test-integration:
     @cp dist/* {{RELEASE}}/
     @cp {{PLUGIN}}/main.js {{PLUGIN}}/manifest.json {{PLUGIN}}/styles.css {{RELEASE}}/
     @echo "✨ Release ready in {{RELEASE}}/"
+
+# Automate AnkiWeb publishing (requires ANKIWEB_USER/PASS env vars)
+@publish-anki id="2055492159":
+    {{PY}} scripts/publish_anki_addon.py --id {{id}}
 
 # --- QA & CI ---
 

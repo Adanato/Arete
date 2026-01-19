@@ -27,10 +27,12 @@ def get_anki_addon_dir():
 def deploy():
     addon_dir = get_anki_addon_dir()
     # The folder name in addons21. Let's call it "arete_sync" or match current folder name
-    target_name = "arete_sync"
+    target_name = "arete_ankiconnect"
     target_path = os.path.join(addon_dir, target_name)
 
-    source_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "anki-plugin"))
+    source_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "arete_ankiconnect")
+    )
 
     if not os.path.exists(source_path):
         print(f"Source plugin not found at: {source_path}")

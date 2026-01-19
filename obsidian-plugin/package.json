@@ -38,7 +38,10 @@
 		"@codemirror/lang-yaml": "^6.1.1",
 		"@codemirror/state": "^6.5.4",
 		"@codemirror/view": "^6.39.11",
+		"@types/three": "^0.182.0",
+		"3d-force-graph": "^1.79.0",
 		"d3": "^7.9.0",
-		"mustache": "^4.2.0"
+		"mustache": "^4.2.0",
+		"three": "^0.182.0"
 	}
 }

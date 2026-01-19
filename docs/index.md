@@ -2,6 +2,11 @@
 
 **Arete** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
 
+[![CI](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml)
+[![Coverage](coverage.svg)](htmlcov/index.html)
+[![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
+[![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
+
 It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
 > [!NOTE] 
@@ -21,10 +26,10 @@ It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of 
 
 ## Documentation
 
-- **[CLI Guide](cli_guide.md)**: Command-line usage, configuration, and syntax.
-- **[Obsidian Plugin](plugin_guide.md)**: How to use the companion Obsidian plugin.
+- **[CLI Guide](CLI.md)**: Command-line usage, configuration, and syntax.
+- **[Obsidian Plugin](PLUGIN.md)**: How to use the companion Obsidian plugin.
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the project internals.
-- **[Troubleshooting](troubleshooting.md)**: Solutions for common networking and sync issues.
+- **[Troubleshooting](TROUBLESHOOTING.md)**: Solutions for common networking and sync issues.
 - **[Contributing](CONTRIBUTING.md)**: Guide for developers wanting to help out.
 
 ## Installation

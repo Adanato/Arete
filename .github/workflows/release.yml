@@ -43,6 +43,12 @@ jobs:
         npm ci
         npm run build
 
+    - name: Build Anki Plugin
+      run: |
+        mkdir -p release_artifacts
+        cd arete_ankiconnect && zip -r ../release_artifacts/arete_ankiconnect.zip . -x "__pycache__/*"
+        cp ../release_artifacts/arete_ankiconnect.zip ../release_artifacts/arete_ankiconnect.ankiaddon
+
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -56,3 +62,5 @@ jobs:
           obsidian-plugin/main.js
           obsidian-plugin/manifest.json
           obsidian-plugin/styles.css
+          release_artifacts/arete_ankiconnect.zip
+          release_artifacts/arete_ankiconnect.ankiaddon

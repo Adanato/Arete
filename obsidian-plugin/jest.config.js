@@ -24,6 +24,7 @@ module.exports = {
 		'^@presentation/(.*)$': '<rootDir>/src/presentation/$1',
 		'^obsidian$': '<rootDir>/tests/obsidian-mock.ts',
 		'^d3$': '<rootDir>/tests/mocks/d3.mock.ts',
+		'^3d-force-graph$': '<rootDir>/tests/mocks/3d-force-graph.mock.ts',
 	},
 	setupFilesAfterEnv: ['<rootDir>/tests/test-setup.ts'],
 };

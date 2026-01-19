@@ -8,29 +8,28 @@ env/
 venv/
 .venv/
 pip-log.txt
-pip-delete-this-directory.txt
 .tox/
 .coverage
 .coverage.*
 .cache
-nosetests.xml
 coverage.xml
-*.cover
 *.log
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.import_linter_cache/
 
 # Distribution / Packaging
 dist/
 build/
 *.egg-info/
+release_artifacts/
 
 # Node.js / Obsidian Plugin
 node_modules/
 obsidian-plugin/node_modules/
-# Identify build artifacts vs source
-# o2a/obsidian-plugin/main.js is generated from main.ts by esbuild
 obsidian-plugin/main.js
+obsidian-plugin/coverage/
 
 # IDE
 .idea/
@@ -41,12 +40,13 @@ obsidian-plugin/main.js
 # MacOS
 .DS_Store
 
-# O2A Application Data (if any localized)
-# (User specific config is usually ignored if it contains secrets, but config.toml might be template)
+# Environment / Secrets
+.env
+.env.*
+
+# O2A Application Data
 docker/anki_data/
-*.log
-obsidian-plugin/main.js
-obsidian-plugin/coverage/
+test_init.media/
 
 # Documentation Build
 site/
@@ -55,3 +55,15 @@ site/
 _bmad/
 _bmad-output/
 .claude/
+
+# Temporary Files
+*.diff
+*.patch
+*.txt
+!README.md
+!LICENSE
+!TODO.md
+!pyproject.toml
+!uv.lock
+!mkdocs.yml
+!justfile

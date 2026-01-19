@@ -30,12 +30,16 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "watchdog>=4.0.0",
     "anki==24.4.1",
+    "python-ulid>=3.0.0",
+]
+
+[project.optional-dependencies]
+agent = [
     "mcp>=1.0.0",
     "atomic-agents>=2.6.0",
     "instructor>=1.0.0",
     "openai>=1.0.0",
     "google-generativeai>=0.8.0",
-    "python-ulid>=3.0.0",
 ]
 
 [project.urls]
@@ -61,6 +65,7 @@ dev = [
     "import-linter>=2.1.0",
     "pyright>=1.1.408",
     "build>=1.4.0",
+    "coverage-badge>=1.1.2",
 ]
 
 [tool.importlinter]
