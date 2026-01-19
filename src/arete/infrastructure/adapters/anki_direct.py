@@ -555,7 +555,7 @@ class AnkiDirectAdapter(AnkiBridge):
             # Reset the deck config
             deck = repo.col.decks.get(did)
             if not deck:
-                 return False
+                return False
 
             # We use a single search term
             query = " OR ".join([f"cid:{cid}" for cid in cids])

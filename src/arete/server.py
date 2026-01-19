@@ -465,7 +465,7 @@ async def build_queue(req: QueueBuildRequest):
             "anki_base": req.anki_base,
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
-        
+
         if not config.vault_root:
             raise HTTPException(status_code=400, detail="Vault root not configured.")
 

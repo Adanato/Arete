@@ -371,7 +371,7 @@ class AnkiConnectAdapter(AnkiBridge):
         query = "is:due"
         if deck_name:
             query = f'deck:"{deck_name}" {query}'
-        
+
         try:
             # findNotes returns list[int]
             return await self._invoke("findNotes", query=query)
@@ -386,7 +386,7 @@ class AnkiConnectAdapter(AnkiBridge):
 
         arete_ids = []
         try:
-            # Chunk request if too large? 
+            # Chunk request if too large?
             # AnkiConnect default max is usually generous but let's be safe if list is huge.
             # For now assume it fits.
             infos = await self._invoke("notesInfo", notes=nids)
@@ -398,7 +398,7 @@ class AnkiConnectAdapter(AnkiBridge):
                         break
         except Exception as e:
             self.logger.error(f"Failed to map nids {nids} to arete ids: {e}")
-        
+
         return arete_ids
 
     async def get_notes_in_deck(self, deck_name: str) -> dict[str, int]:
