@@ -98,9 +98,6 @@ coverage:
     @cp {{PLUGIN}}/main.js {{PLUGIN}}/manifest.json {{PLUGIN}}/styles.css {{RELEASE}}/
     @echo "✨ Release ready in {{RELEASE}}/"
 
-# Automate AnkiWeb publishing (requires ANKIWEB_USER/PASS env vars)
-@publish-anki id="2055492159":
-    {{PY}} scripts/publish_anki_addon.py --id {{id}}
 
 # --- QA & CI ---
 

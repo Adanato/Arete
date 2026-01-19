@@ -71,31 +71,4 @@ jobs:
         name: anki-addon
         path: release_artifacts/arete_ankiconnect.zip
 
-  publish-ankiweb:
-    name: Publish to AnkiWeb
-    needs: build-and-publish
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install anki-addon-uploader
-
-      - name: Download Anki Add-on
-        uses: actions/download-artifact@v4
-        with:
-          name: anki-addon
-          path: release_artifacts
-
-      - name: Publish to AnkiWeb
-        env:
-          ANKIWEB_USER: ${{ secrets.ANKIWEB_USER }}
-          ANKIWEB_PASS: ${{ secrets.ANKIWEB_PASS }}
-          ANKI_ADDON_ID: ${{ secrets.ANKI_ADDON_ID }}
-        run: python scripts/publish_anki_addon.py
 
