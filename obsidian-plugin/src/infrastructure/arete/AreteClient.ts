@@ -1,12 +1,13 @@
 import { requestUrl } from 'obsidian';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { AretePluginSettings } from '@/domain/settings';
 
 export class AreteClient {
-	private settings: any;
+	private settings: AretePluginSettings;
 	private url: string;
 
-	constructor(settings: any) {
+	constructor(settings: AretePluginSettings) {
 		this.settings = settings;
 		this.url = `http://127.0.0.1:${settings.server_port || 8777}`;
 	}

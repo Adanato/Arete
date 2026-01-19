@@ -216,21 +216,6 @@ export class DependencyResolver {
 		}
 	}
 
-	/**
-	 * Invalidate and re-parse a specific file.
-	 */
-	async invalidateFile(file: TFile): Promise<void> {
-		// Remove old nodes from this file
-		const allNodes = this.graphBuilder.getAllNodes();
-		for (const node of allNodes) {
-			if (node.filePath === file.path) {
-				// We can't remove nodes, so we rebuild the graph
-				// For now, just re-parse the file (it will overwrite)
-			}
-		}
-
-		await this.parseFile(file);
-	}
 
 	/**
 	 * Get local subgraph centered on a card.
@@ -319,25 +304,6 @@ export class DependencyResolver {
 		};
 	}
 
-	/**
-	 * Get all cards in the graph.
-	 */
-	getAllCards(): CardNode[] {
-		return this.graphBuilder.getAllNodes();
-	}
-
-	/**
-	 * Search cards by title (fuzzy match).
-	 */
-	searchCards(query: string): CardNode[] {
-		const lowerQuery = query.toLowerCase();
-		return this.graphBuilder.getAllNodes().filter((node) => {
-			return (
-				node.title.toLowerCase().includes(lowerQuery) ||
-				node.id.toLowerCase().includes(lowerQuery)
-			);
-		});
-	}
 
 	// --- Private helpers ---
 
