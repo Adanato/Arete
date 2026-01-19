@@ -4,11 +4,12 @@ Automate pushing Arete Anki Add-on to AnkiWeb.
 Requires: anki-addon-uploader (pip install anki-addon-uploader)
 """
 
-import os
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
+
 
 def publish_to_ankiweb(addon_id: str, zip_path: Path):
     """
@@ -26,12 +27,8 @@ def publish_to_ankiweb(addon_id: str, zip_path: Path):
         sys.exit(1)
 
     print(f"🚀 Uploading {zip_path.name} to AnkiWeb (ID: {addon_id})...")
-    
-    cmd = [
-        "anki-addon-uploader",
-        addon_id,
-        str(zip_path)
-    ]
+
+    cmd = ["anki-addon-uploader", addon_id, str(zip_path)]
 
     try:
         # Pass credentials via env to the tool
@@ -40,19 +37,26 @@ def publish_to_ankiweb(addon_id: str, zip_path: Path):
         print("✅ Successfully uploaded to AnkiWeb!")
         print(result.stdout)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to upload to AnkiWeb:")
+        print("❌ Failed to upload to AnkiWeb:")
         print(e.stderr)
         sys.exit(1)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Publish Anki Add-on to AnkiWeb")
-    default_id = "2055492159" # Default or placeholder
+    default_id = "2055492159"  # Default or placeholder
     parser.add_argument("--id", default=default_id, help="AnkiWeb Add-on ID")
-    parser.add_argument("--file", type=Path, default=Path("release_artifacts/arete_ankiconnect.zip"), help="Path to .zip or .ankiaddon file")
-    
+    parser.add_argument(
+        "--file",
+        type=Path,
+        default=Path("release_artifacts/arete_ankiconnect.zip"),
+        help="Path to .zip or .ankiaddon file",
+    )
+
     args = parser.parse_args()
-    
+
     publish_to_ankiweb(args.id, args.file)
+
 
 if __name__ == "__main__":
     main()
