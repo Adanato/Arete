@@ -1,112 +1,147 @@
 # Arete Project Automation
+set shell := ["bash", "-cu"]
 
-# Default: list tasks
+# --- Project Constants ---
+PY         := "uv run python"
+PYTEST     := "uv run pytest"
+RUFF       := "uv run ruff"
+NPM        := "npm --prefix obsidian-plugin"
+SRC        := "src"
+TESTS      := "tests"
+PLUGIN     := "obsidian-plugin"
+RELEASE    := "release_artifacts"
+
+# Default: List all available tasks
 default:
     @just --list
 
-# --- Install & Setup ---
+# --- Setup ---
 
 # Install dependencies for both Python (uv) and Obsidian (npm)
-install:
+@install:
     uv sync
-    cd obsidian-plugin && npm install
+    {{NPM}} install
     uv run pre-commit install
+
+# --- Development ---
+
+# Start backend dev server with hot-reload
+@dev-backend:
+    uv run uvicorn arete.interface.main:app --reload
+
+# Start plugin dev watcher
+@dev-plugin:
+    {{NPM}} run dev
 
 # --- Backend (Python) ---
 
 # Run backend tests
-test:
-    uv run pytest tests/application tests/interface tests/infrastructure tests/domain
+test *args:
+    {{PYTEST}} {{TESTS}}/application {{TESTS}}/interface {{TESTS}}/infrastructure {{TESTS}}/domain {{args}}
 
 # Run backend integration tests (requires Anki)
 test-integration:
-    uv run pytest tests/integration
+    {{PYTEST}} {{TESTS}}/integration
 
 # Lint backend code with Ruff
-lint:
-    uv run ruff check src tests
+@lint:
+    {{RUFF}} check {{SRC}} {{TESTS}}
 
 # Format backend code with Ruff
-format:
-    uv run ruff format src tests
+@format:
+    {{RUFF}} format {{SRC}} {{TESTS}}
 
 # Fix all auto-fixable backend issues
-fix:
-    uv run ruff check --fix src tests
-    uv run ruff format src tests
+@fix:
+    {{RUFF}} check --fix {{SRC}} {{TESTS}}
+    {{RUFF}} format {{SRC}} {{TESTS}}
 
 # Static type checking
-check-types:
-    uv run pyright src
+@check-types:
+    uv run pyright {{SRC}}
 
 # --- Frontend (Obsidian Plugin) ---
 
 # Build Obsidian plugin
-build-obsidian:
-    cd obsidian-plugin && npm run build
+@build-obsidian:
+    {{NPM}} run build
 
 # Lint Obsidian plugin
-lint-obsidian:
-    cd obsidian-plugin && npm run lint
+@lint-obsidian:
+    {{NPM}} run lint
 
 # Test Obsidian plugin
-test-obsidian:
-    cd obsidian-plugin && npm test
+@test-obsidian:
+    {{NPM}} run test
 
 # --- Release & Artifacts ---
 
 # Build Python package (sdist + wheel)
-build-python:
-    uv run python -m build
+@build-python:
+    {{PY}} -m build
 
-# Zip Anki plugin
-build-anki:
-    mkdir -p release_artifacts
-    cd arete_ankiconnect && zip -r ../release_artifacts/arete_ankiconnect.zip . -x "__pycache__/*"
+# Zip Anki plugin for distribution
+@build-anki:
+    mkdir -p {{RELEASE}}
+    cd arete_ankiconnect && zip -r ../{{RELEASE}}/arete_ankiconnect.zip . -x "__pycache__/*"
 
 # Full release build (all artifacts)
-release: build-python build-obsidian build-anki
-    @echo "📦 Release artifacts ready in release_artifacts/"
-    cp dist/* release_artifacts/
-    cp obsidian-plugin/main.js obsidian-plugin/manifest.json obsidian-plugin/styles.css release_artifacts/
+@release: build-python build-obsidian build-anki
+    @echo "📦 Packaging release artifacts..."
+    @cp dist/* {{RELEASE}}/
+    @cp {{PLUGIN}}/main.js {{PLUGIN}}/manifest.json {{PLUGIN}}/styles.css {{RELEASE}}/
+    @echo "✨ Release ready in {{RELEASE}}/"
 
 # --- QA & CI ---
 
-# Run full project QA (Tests + Linting for both Backend & Frontend)
-qa:
+# Verify V2 migration logic against mock vault
+@test-migration:
+    {{PY}} -m arete migrate {{TESTS}}/mock_vault -v
+
+# Run full project QA (Tests + Linting + Formatting)
+@qa:
     @echo "--- 🐍 Backend QA ---"
+    just fix
     just test
-    just lint
     @echo "--- 🟦 Frontend QA ---"
+    {{NPM}} run format
     just test-obsidian
     just lint-obsidian
     just build-obsidian
-    @echo "✅ QA Complete!"
+    @echo "✅ All QA checks passed!"
 
-# --- Docker & Integration ---
+# --- System ---
+
+# Clean up build artifacts and caches
+@clean:
+    @echo "🧹 Cleaning project..."
+    rm -rf dist/ {{RELEASE}}/
+    find . -type d -name "__pycache__" -exec rm -rf {} +
+    rm -rf .pytest_cache/ .ruff_cache/ .mypy_cache/
+    @echo "✨ Cleaned."
+
+# --- Infrastructure ---
 
 # Download and configure AnkiConnect for Docker
-setup-anki-data:
-    uv run python scripts/install_ankiconnect.py
+@setup-anki-data:
+    {{PY}} scripts/install_ankiconnect.py
 
 # Start Dockerized Anki
-docker-up:
-    @just setup-anki-data
+@docker-up: setup-anki-data
     docker compose -f docker/docker-compose.yml up -d
 
 # Stop Dockerized Anki
-docker-down:
+@docker-down:
     docker compose -f docker/docker-compose.yml down
 
 # Wait for Anki to be ready
-wait-for-anki:
-    uv run python scripts/wait_for_anki.py
+@wait-for-anki:
+    {{PY}} scripts/wait_for_anki.py
 
 # Start Dockerized Anki (optimized for Mac/OrbStack)
-mac-docker-up:
-    @echo "Starting OrbStack..."
+@mac-docker-up:
+    @echo "🚀 Starting OrbStack..."
     @orb start
-    @echo "Waiting for Docker daemon..."
+    @echo "⌛ Waiting for Docker daemon..."
     @while ! docker info > /dev/null 2>&1; do sleep 1; done
-    @just setup-anki-data
-    docker compose -f docker/docker-compose.yml up -d
+    @just docker-up

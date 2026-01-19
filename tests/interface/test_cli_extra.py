@@ -50,7 +50,7 @@ def test_fix_file_replaces_tabs(tmp_path):
 
 def test_migrate_dry_run(tmp_path):
     f = tmp_path / "test.md"
-    f.write_text("anki_template_version: 1\n# Test", encoding="utf-8")
+    f.write_text("---\nanki_template_version: 1\n---\n# Test", encoding="utf-8")
     result = runner.invoke(app, ["migrate", str(tmp_path), "--dry-run"])
     assert result.exit_code == 0
     assert "DRY RUN" in result.stdout
@@ -59,7 +59,7 @@ def test_migrate_dry_run(tmp_path):
 
 def test_migrate_apply(tmp_path):
     f = tmp_path / "test.md"
-    f.write_text("anki_template_version: 1\ncards: []\n# Test", encoding="utf-8")
+    f.write_text("---\nanki_template_version: 1\ncards: []\n---\n# Test", encoding="utf-8")
     result = runner.invoke(app, ["migrate", str(tmp_path)])
     assert result.exit_code == 0
     assert "Migrated" in result.stdout

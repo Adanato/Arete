@@ -10,7 +10,6 @@ from arete.application.utils.fs import iter_markdown_files
 from arete.application.utils.text import (
     parse_frontmatter,
     rebuild_markdown_with_frontmatter,
-    scrub_internal_keys,
 )
 
 logger = logging.getLogger(__name__)

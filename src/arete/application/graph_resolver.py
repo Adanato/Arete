@@ -8,7 +8,6 @@ builds the full dependency graph, and provides traversal utilities.
 import logging
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
-from typing import Any
 
 from arete.application.utils.fs import iter_markdown_files
 from arete.application.utils.text import parse_frontmatter
@@ -22,8 +21,16 @@ def build_graph(vault_root: Path) -> DependencyGraph:
     Build a complete dependency graph from all markdown files in the vault.
 
     Scans for files with cards that have `id` and `deps` fields.
+
+    Dependency references support two formats:
+    - arete_XXX: Direct card ID lookup
+    - basename: All cards in the file with that basename (e.g., "algebra" -> algebra.md)
     """
     graph = DependencyGraph()
+
+    # First pass: collect all cards and build file index
+    file_index: dict[str, list[str]] = {}  # basename -> list of card IDs
+    pending_deps: list[tuple[str, list[str], list[str]]] = []  # (card_id, requires, related)
 
     for md_path in iter_markdown_files(vault_root):
         try:
@@ -36,6 +43,11 @@ def build_graph(vault_root: Path) -> DependencyGraph:
             cards = meta.get("cards", [])
             if not isinstance(cards, list):
                 continue
+
+            # Get file basename for index
+            basename = md_path.stem  # "algebra.md" -> "algebra"
+            if basename not in file_index:
+                file_index[basename] = []
 
             for card in cards:
                 if not isinstance(card, dict):
@@ -63,27 +75,74 @@ def build_graph(vault_root: Path) -> DependencyGraph:
                 )
                 graph.add_node(node)
 
-                # Parse deps
+                # Add to file index
+                file_index[basename].append(card_id)
+
+                # Collect deps for second pass
                 deps = card.get("deps", {})
                 if isinstance(deps, dict):
                     requires = deps.get("requires", [])
                     related = deps.get("related", [])
-
-                    if isinstance(requires, list):
-                        for prereq_id in requires:
-                            if isinstance(prereq_id, str):
-                                graph.add_requires(card_id, prereq_id)
-
-                    if isinstance(related, list):
-                        for rel_id in related:
-                            if isinstance(rel_id, str):
-                                graph.add_related(card_id, rel_id)
+                    if requires or related:
+                        pending_deps.append(
+                            (
+                                card_id,
+                                requires if isinstance(requires, list) else [],
+                                related if isinstance(related, list) else [],
+                            )
+                        )
 
         except Exception as e:
             logger.warning(f"Failed to parse {md_path}: {e}")
             continue
 
+    # Second pass: resolve references and add edges
+    for card_id, requires, related in pending_deps:
+        for ref in requires:
+            if isinstance(ref, str):
+                resolved = _resolve_reference(ref, card_id, file_index, graph)
+                for target_id in resolved:
+                    graph.add_requires(card_id, target_id)
+
+        for ref in related:
+            if isinstance(ref, str):
+                resolved = _resolve_reference(ref, card_id, file_index, graph)
+                for target_id in resolved:
+                    graph.add_related(card_id, target_id)
+
     return graph
+
+
+def _resolve_reference(
+    ref: str,
+    card_id: str,
+    file_index: dict[str, list[str]],
+    graph: DependencyGraph,
+) -> list[str]:
+    """
+    Resolve a dependency reference to card ID(s).
+
+    - arete_XXX: Direct card ID (returns single-element list if exists)
+    - basename: All cards in that file (returns list of all card IDs)
+
+    Tracks unresolved references in the graph.
+    """
+    if ref.startswith("arete_"):
+        # Direct card ID lookup
+        if ref in graph.nodes:
+            return [ref]
+        else:
+            logger.warning(f"Dependency reference '{ref}' not found in graph")
+            graph.add_unresolved(card_id, ref)
+            return []
+    else:
+        # Note basename -> all cards in that file
+        if ref in file_index:
+            return file_index[ref]
+        else:
+            logger.warning(f"Dependency reference '{ref}' - no file with basename '{ref}' found")
+            graph.add_unresolved(card_id, ref)
+            return []
 
 
 def get_local_graph(
@@ -237,7 +296,7 @@ def topological_sort(
         Sorted list of card IDs (prerequisites before dependents)
     """
     # Filter to only requested cards that exist
-    valid_ids = set(cid for cid in card_ids if cid in graph.nodes)
+    valid_ids = {cid for cid in card_ids if cid in graph.nodes}
 
     # Build subgraph for TopologicalSorter
     sorter = TopologicalSorter[str]()

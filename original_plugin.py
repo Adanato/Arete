@@ -19,7 +19,6 @@ import json
 import os
 import os.path
 import platform
-import re
 import time
 import unicodedata
 import webbrowser
@@ -29,7 +28,6 @@ import anki
 import anki.exporting
 import anki.storage
 from anki.cards import Card
-from anki.consts import MODEL_CLOZE
 from anki.errors import NotFoundError
 from anki.exporting import AnkiPackageExporter
 from anki.importing import AnkiPackageImporter
@@ -37,7 +35,6 @@ from anki.notes import Note
 from aqt import gui_hooks, mw
 from aqt.browser import Browser
 from aqt.qt import QAction, QCheckBox, QKeySequence, QMenu, QMessageBox, Qt, QTimer
-from aqt.reviewer import Reviewer
 from aqt.utils import showWarning, tooltip
 
 from . import util, web

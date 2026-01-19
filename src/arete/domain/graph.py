@@ -37,6 +37,7 @@ class DependencyGraph:
     nodes: dict[str, CardNode] = field(default_factory=dict)
     requires: dict[str, list[str]] = field(default_factory=dict)  # id → [prereq ids]
     related: dict[str, list[str]] = field(default_factory=dict)  # id → [related ids]
+    unresolved_refs: dict[str, list[str]] = field(default_factory=dict)  # id → [unresolved refs]
 
     def add_node(self, node: CardNode) -> None:
         """Add a card node to the graph."""
@@ -45,6 +46,15 @@ class DependencyGraph:
             self.requires[node.id] = []
         if node.id not in self.related:
             self.related[node.id] = []
+        if node.id not in self.unresolved_refs:
+            self.unresolved_refs[node.id] = []
+
+    def add_unresolved(self, from_id: str, ref: str) -> None:
+        """Track an unresolved reference."""
+        if from_id not in self.unresolved_refs:
+            self.unresolved_refs[from_id] = []
+        if ref not in self.unresolved_refs[from_id]:
+            self.unresolved_refs[from_id].append(ref)
 
     def add_requires(self, from_id: str, to_id: str) -> None:
         """Add a 'requires' edge: from_id requires to_id."""
@@ -66,9 +76,7 @@ class DependencyGraph:
 
     def get_dependents(self, card_id: str) -> list[str]:
         """Get all cards that require this card (reverse lookup)."""
-        return [
-            cid for cid, prereqs in self.requires.items() if card_id in prereqs
-        ]
+        return [cid for cid, prereqs in self.requires.items() if card_id in prereqs]
 
     def get_related(self, card_id: str) -> list[str]:
         """Get all related cards."""

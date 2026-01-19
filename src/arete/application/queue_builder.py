@@ -77,16 +77,23 @@ def build_dependency_queue(
 
     # Collect all prerequisites up to depth
     all_prereqs: set[str] = set()
+
+    # Collect unresolved refs from the graph (tracked during build_graph)
     missing_prereqs: list[str] = []
+    for due_id in due_card_ids:
+        for ref in graph.unresolved_refs.get(due_id, []):
+            if ref not in missing_prereqs:
+                missing_prereqs.append(ref)
 
     for due_id in due_card_ids:
         prereqs = _collect_prereqs(graph, due_id, depth, set())
         for prereq_id in prereqs:
             if prereq_id in graph.nodes:
                 all_prereqs.add(prereq_id)
-            else:
-                if prereq_id not in missing_prereqs:
-                    missing_prereqs.append(prereq_id)
+                # Also collect any unresolved refs from prereqs
+                for ref in graph.unresolved_refs.get(prereq_id, []):
+                    if ref not in missing_prereqs:
+                        missing_prereqs.append(ref)
 
     # Remove the due cards themselves from prereqs
     all_prereqs -= set(due_card_ids)
@@ -105,9 +112,7 @@ def build_dependency_queue(
     if len(weak_prereqs) > max_nodes:
         if card_stats:
             # Sort by weakness (lower stability = weaker)
-            weak_prereqs.sort(
-                key=lambda x: card_stats.get(x, {}).get("stability", float("inf"))
-            )
+            weak_prereqs.sort(key=lambda x: card_stats.get(x, {}).get("stability", float("inf")))
         weak_prereqs = weak_prereqs[:max_nodes]
 
     # Topologically sort both queues

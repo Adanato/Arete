@@ -599,7 +599,6 @@ def migrate(
     1. Upgrades 'anki_template_version: 1' to 'arete: true'.
     2. Normalizes YAML serialization to use consistent block scalars (|-).
     """
-    import re
 
     from arete.application.id_service import assign_arete_ids, ensure_card_ids
     from arete.application.utils.fs import iter_markdown_files
@@ -609,10 +608,6 @@ def migrate(
         parse_frontmatter,
         rebuild_markdown_with_frontmatter,
     )
-
-    # Upgrade patterns
-    p1 = re.compile(r"^[\"\']?anki_template_version[\"\']?:\s*1\s*$", re.MULTILINE)
-    p2 = re.compile(r"^[\"\']?anki_template_version[\"\']?:\s*['\"]1['\"]\s*$", re.MULTILINE)
 
     scanned = 0
     migrated = 0
@@ -634,11 +629,6 @@ def migrate(
             content = apply_fixes(content)
             content = fix_mathjax_escapes(content)
 
-            # 2. Upgrade Legacy Flags
-            if "anki_template_version" in content:
-                content = p1.sub("arete: true", content)
-                content = p2.sub("arete: true", content)
-
             # 3. Normalize YAML (Round-trip)
             meta, body = parse_frontmatter(content)
 
@@ -648,6 +638,13 @@ def migrate(
                     if config.verbose >= 2:
                         typer.secho(f"  [Parse Error] {p}: {meta['__yaml_error__']}", fg="yellow")
                     continue
+
+                # 2. Upgrade Legacy Flags (Metadata-based)
+                if "anki_template_version" in meta:
+                    # We accept int 1 or str "1"
+                    val = meta.pop("anki_template_version")
+                    if str(val).strip() == "1":
+                        meta["arete"] = True
 
                 # Strict filter: Only migrate if it's an arete note
                 # PyYAML handles true/True/TRUE as boolean True
@@ -659,6 +656,37 @@ def migrate(
                 # AUTO-HEALING: Merge split cards
                 if "cards" in meta and isinstance(meta["cards"], list):
                     meta["cards"] = _merge_split_cards(meta["cards"])
+
+                    # V2 SCHEMA ENFORCEMENT
+                    for card in meta["cards"]:
+                        if not isinstance(card, dict):
+                            continue
+
+                        # 1. Initialize deps block
+                        if "deps" not in card:
+                            card["deps"] = {"requires": [], "related": []}
+                        elif isinstance(card.get("deps"), dict):
+                            deps = card["deps"]
+                            if "requires" not in deps:
+                                deps["requires"] = []
+                            if "related" not in deps:
+                                deps["related"] = []
+
+                        # 2. Restructure Anki fields (nid, cid -> anki block)
+                        anki_keys = ["nid", "cid", "note_id", "card_id"]
+                        anki_block = card.get("anki", {})
+                        if not isinstance(anki_block, dict):
+                            anki_block = {}
+
+                        has_anki_data = bool(anki_block)
+
+                        for k in anki_keys:
+                            if k in card:
+                                anki_block[k] = card.pop(k)
+                                has_anki_data = True
+
+                        if has_anki_data:
+                            card["anki"] = anki_block
 
                 if config.verbose >= 2:
                     typer.echo(f"  [Check] {p}: Normalizing YAML...")
@@ -1045,7 +1073,6 @@ def anki_queue(
     import asyncio
 
     from arete.application.config import resolve_config
-    from arete.application.queue_builder import build_dependency_queue
 
     config = resolve_config({"root_input": path})
     vault_root = config.root_input
