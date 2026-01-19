@@ -24,7 +24,7 @@ jobs:
       run: uv python install 3.11
 
     - name: Install dependencies
-      run: uv sync --dev --all-extras
+      run: uv sync --extra agent --dev
 
     - name: Run tests
       run: uv run just coverage
