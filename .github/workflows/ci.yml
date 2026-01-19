@@ -75,7 +75,7 @@ jobs:
     - name: Install Dependencies
       run: |
         cd obsidian-plugin
-        npm ci
+        npm ci --legacy-peer-deps
 
     - name: Lint
       run: |
