@@ -24,12 +24,23 @@ While Arete can sync notes directly to the Anki database (using `AnkiDirectAdapt
 5.  Copy the `arete_ankiconnect` folder from this repository into the add-ons folder.
 6.  Restart Anki.
 
-### For Developers
+### For Developers (Auto-Push)
 
-If you are working on the project locally, you can symlink the plugin directory:
+To have your changes reflect immediately in Anki (upon restart) without copying files manually, use a **Symbolic Link**.
 
+**Mac / Linux:**
+Run this from the project root:
 ```bash
-ln -s /path/to/obsidian_2_anki/arete_ankiconnect ~/Library/Application\ Support/Anki2/addons21/arete_ankiconnect
+# Remove existing folder if present
+rm -rf "$HOME/Library/Application Support/Anki2/addons21/arete_ankiconnect"
+
+# Create Symlink
+ln -s "$(pwd)/arete_ankiconnect" "$HOME/Library/Application Support/Anki2/addons21/arete_ankiconnect"
+```
+
+**Windows (PowerShell):**
+```powershell
+New-Item -ItemType SymboliCLink -Path "$env:APPDATA\Anki2\addons21\arete_ankiconnect" -Target "$(Get-Location)\arete_ankiconnect"
 ```
 
 ## Configuration
