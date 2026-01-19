@@ -43,6 +43,11 @@ test *args:
 test-integration:
     {{PYTEST}} {{TESTS}}/integration
 
+# Run tests with coverage
+coverage:
+    {{PYTEST}} --cov=src/arete --cov-report=xml --cov-report=term-missing {{TESTS}}/application {{TESTS}}/interface {{TESTS}}/infrastructure {{TESTS}}/domain
+
+
 # Lint backend code with Ruff
 @lint:
     {{RUFF}} check {{SRC}} {{TESTS}} scripts/
