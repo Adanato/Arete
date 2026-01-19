@@ -4,6 +4,9 @@ The **Arete Anki Add-on** (`arete_ankiconnect`) is a specialized bridge that all
 
 ## Why is this needed?
 
+> [!WARNING]
+> This add-on **replaces** the standard AnkiConnect. **Do NOT** install both at the same time, or they will conflict on port 8765.
+
 While Arete can sync notes directly to the Anki database (using `AnkiDirectAdapter`), many of the real-time features require Anki to be open. The add-on provides a REST API that enables:
 
 - **Live Hover Previews**: See your card content in Obsidian without switching apps.
@@ -14,11 +17,11 @@ While Arete can sync notes directly to the Anki database (using `AnkiDirectAdapt
 
 ### Manual Installation
 
-1.  Download the `arete_ankiconnect.zip` from the [latest release](https://github.com/Adanato/Arete/releases).
+1.  Download the repository or the release artifact.
 2.  Open Anki.
 3.  Go to `Tools` -> `Add-ons`.
 4.  Click `View Files`. This opens your Anki add-ons folder.
-5.  Extract the contents of the zip into a folder named `arete_ankiconnect`.
+5.  Copy the `arete_ankiconnect` folder from this repository into the add-ons folder.
 6.  Restart Anki.
 
 ### For Developers
