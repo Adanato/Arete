@@ -68,6 +68,12 @@ class TrivialAnkiBridge(AnkiBridge):
     async def get_card_ids_for_arete_ids(self, arete_ids: list[str]) -> list[int]:
         return await super().get_card_ids_for_arete_ids(arete_ids)
 
+    async def get_due_cards(self, deck_name: str | None = None) -> list[int]:
+        return await super().get_due_cards(deck_name)
+
+    async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
+        return await super().map_nids_to_arete_ids(nids)
+
     async def close(self):
         await super().close()
 

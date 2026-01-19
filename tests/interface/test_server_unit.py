@@ -257,3 +257,14 @@ def test_shutdown_endpoint(mock_kill):
 
     time.sleep(0.6)
     mock_kill.assert_called_once()
+
+
+def test_build_queue_missing_vault_root():
+    # We need to simulate the case where AppConfig.vault_root is None
+    from arete.application.config import AppConfig
+
+    with patch("arete.application.config.resolve_config") as mock_resolve:
+        mock_resolve.return_value = AppConfig(vault_root=None)
+        response = client.post("/queue/build", json={})
+        assert response.status_code == 400
+        assert "Vault root not configured" in response.json()["detail"]

@@ -465,6 +465,10 @@ async def build_queue(req: QueueBuildRequest):
             "anki_base": req.anki_base,
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        
+        if not config.vault_root:
+            raise HTTPException(status_code=400, detail="Vault root not configured.")
+
         anki = await get_anki_bridge(config)
 
         # Get due cards from Anki
@@ -480,9 +484,6 @@ async def build_queue(req: QueueBuildRequest):
             }
 
         # Build queue with prerequisites
-        if not config.vault_root:
-            raise HTTPException(status_code=400, detail="Vault root not configured.")
-        
         vault_root = Path(config.vault_root)
         result = build_simple_queue(vault_root, arete_ids, req.depth, req.max_cards)
 
@@ -509,6 +510,9 @@ async def build_queue(req: QueueBuildRequest):
             "total_with_prereqs": len(all_cards),
             "queue": queue_items,
         }
+    except HTTPException:
+        # Re-raise HTTPExceptions (like the 400 validation error)
+        raise
     except Exception as e:
         logger.error(f"Queue build failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -557,6 +561,8 @@ async def create_queue_deck(req: QueueCreateDeckRequest):
         else:
             return {"ok": False, "message": "Failed to create deck (check logs)."}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Create deck failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
