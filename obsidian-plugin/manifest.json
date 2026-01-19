@@ -1,7 +1,7 @@
 {
 	"id": "arete",
 	"name": "Arete",
-	"version": "2.0.0",
+	"version": "2.1.0-dev",
 	"minAppVersion": "0.15.0",
 	"description": "Professional one-way sync from Obsidian to Anki. Supports media, MathJax, and automatic card management.",
 	"author": "Adam Nguyen",
