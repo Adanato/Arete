@@ -14,7 +14,7 @@ While Arete can sync notes directly to the Anki database (using `AnkiDirectAdapt
 
 ### Manual Installation
 
-1.  Download the `arete_ankiconnect.zip` from the [latest release](https://github.com/Adanato/obsidian_2_anki/releases).
+1.  Download the `arete_ankiconnect.zip` from the [latest release](https://github.com/Adanato/Arete/releases).
 2.  Open Anki.
 3.  Go to `Tools` -> `Add-ons`.
 4.  Click `View Files`. This opens your Anki add-ons folder.

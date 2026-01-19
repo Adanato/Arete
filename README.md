@@ -2,10 +2,10 @@
 
 **Pro-grade synchronization from Obsidian to Anki.**
 
-[![CI](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml)
+[![CI](https://github.com/Adanato/Arete/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/Arete/actions/workflows/ci.yml)
 [![Coverage](docs/coverage.svg)](htmlcov/index.html)
 [![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
-[![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/Adanato/Arete)](https://github.com/Adanato/Arete/blob/main/LICENSE)
 
 `arete` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**. It allows you to maintain complex study materials in your vault while keeping Anki perfectly in sync.
 
@@ -29,7 +29,7 @@
 `arete` requires [uv](https://github.com/astral-sh/uv) for high-performance dependency management.
 
 ```bash
-git clone https://github.com/Adanato/obsidian_2_anki
+git clone https://github.com/Adanato/Arete
 cd obsidian_2_anki
 uv sync
 # To enable Agentic features (v3 preview):
@@ -37,7 +37,7 @@ uv sync
 ```
 
 ### 2. Install Plugin
-Download the latest release from the [Releases](https://github.com/Adanato/obsidian_2_anki/releases) page and place the files in your plugin folder:
+Download the latest release from the [Releases](https://github.com/Adanato/Arete/releases) page and place the files in your plugin folder:
 `.obsidian/plugins/arete/`
 
 ### 3. Initialize & Sync

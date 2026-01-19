@@ -2,10 +2,10 @@
 
 **Arete** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
 
-[![CI](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/obsidian_2_anki/actions/workflows/ci.yml)
+[![CI](https://github.com/Adanato/Arete/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/Arete/actions/workflows/ci.yml)
 [![Coverage](coverage.svg)](htmlcov/index.html)
 [![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
-[![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/Adanato/Arete)](https://github.com/Adanato/Arete/blob/main/LICENSE)
 
 It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
@@ -35,7 +35,7 @@ It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of 
 ## Installation
 
 ```bash
-git clone https://github.com/Adanato/obsidian_2_anki
+git clone https://github.com/Adanato/Arete
 cd obsidian_2_anki
 uv sync
 ```

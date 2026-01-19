@@ -43,7 +43,7 @@ agent = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Adanato/obsidian_2_anki"
+Repository = "https://github.com/Adanato/Arete"
 
 [build-system]
 requires = ["hatchling"]

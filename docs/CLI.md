@@ -7,7 +7,7 @@ This guide covers the advanced usage, configuration, and syntax for the `arete` 
 `arete` uses [uv](https://github.com/astral-sh/uv) for lightning-fast dependency management and isolated environments.
 
 ```bash
-git clone https://github.com/Adanato/obsidian_2_anki
+git clone https://github.com/Adanato/Arete
 cd obsidian_2_anki
 uv sync
 ```
