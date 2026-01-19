@@ -1,46 +1,47 @@
-# ObsiAnki Plugin Guide
+# Arete Plugin Guide
 
-The `ObsiAnki` Obsidian Plugin provides a convenient interface for the underlying `arete` CLI, allowing you to sync, lint, and fix your notes directly from Obsidian.
+The **Arete** Obsidian Plugin provides a rich graphical interface for synchronization, health analysis, and study queue generation.
 
 ## Installation
 
-### Method 1: Community Plugins (Coming Soon)
-1.  Open Obsidian Settings -> Community Plugins.
-2.  Turn off "Safe Mode".
-3.  Search for **ObsiAnki**.
-4.  Install and Enable.
+1.  Download the latest `main.js`, `manifest.json`, and `styles.css` from [GitHub Releases](https://github.com/Adanato/obsidian_2_anki/releases).
+2.  Create a folder: `<Vault>/.obsidian/plugins/arete`.
+3.  Place the 3 files into that folder and enable the plugin in Obsidian settings.
 
-### Method 2: Manual Install
-1.  Go to the [GitHub Releases](https://github.com/Adanato/obsidian_2_anki/releases) page.
-2.  Download the latest `main.js`, `manifest.json`, and `styles.css`.
-3.  Create a folder: `<Vault>/.obsidian/plugins/obsidian-2-anki`.
-4.  Place the 3 files into that folder.
-5.  Reload Obsidian (Cmd+R).
+## Core Features
 
-### Method 3: BRAT
-If you use the BRAT plugin, you can install directly from the GitHub repository URL.
+### 🔄 Intelligent Sync
+- **Automatic Sync**: Enabling "Sync on Save" in settings pushes changes to Anki as you type.
+- **Manual Sync**: Click the Sync icon in the ribbon or use `Mod+Shift+A`.
+- **Prune Mode**: Removes cards from Anki that no longer exist in your vault.
 
-## Configuration
-Go to **Settings -> O2A Sync**:
+### 🧬 Card Health & Gutter
+The **Card Gutter** (enabled by default) adds visual indicators next to your notes:
+- **Index Number**: Shows the card's position in the current file.
+- **Retention Status**: Colored badges for "High", "Med", or "Low" retention based on Anki FSRS/SM-2 data.
+- **Lapse Counter**: Identifies "Leech" cards that need attention.
 
-- **Python Path**: Path to your python executable (e.g., `/usr/bin/python3` or `uv`).
-- **O2A Script Path**: (Optional) If you installed via pip, leave this blank. The plugin will auto-detect `python -m arete`.
-- **Debug Mode**: Enable verbose logging to the developer console.
+### 📐 Queue Builder (v2.0)
+Generate custom Anki Filtered Decks that respect your knowledge graph:
+1.  Open the **Queue Builder** from the command palette.
+2.  Select the concepts/notes you want to study.
+3.  Click **Build Queue** to see the topologically sorted list.
+4.  Click **Create Anki Deck** to generate a study-ready deck in Anki.
 
-## Features & Usage
+### 🔗 Dependency Management
+Manage prerequisites directly in your notes:
+- **Hover Preview**: Hover over any note ID or heading to see a preview of the card content.
+- **Graph Integration**: Right-click nodes in the local graph to add/remove dependencies.
 
-### 🔄 Sync
-- **Ribbon Icon**: Click the "Sync" icon in the left ribbon.
-- **Command Palette**: `O2A: Sync to Anki`
-- **Hotkey**: `Mod+Shift+A` (Default)
+## Settings Configuration
 
-### 🧹 Lint & Fix
-- **Command**: `O2A: Check Current File`
-    - Scans the active file for syntax errors.
-    - Displays results in a modal. If the error is fixable (e.g., tabs, missing 'cards' list), a **"Auto-Fix"** button will appear inside the modal.
-- **Integrity Check**: `O2A: Check Vault Integrity`
-    - Scans the entire vault for files with invalid YAML frontmatter that Obsidian fails to parse (properties with invalid nesting or tabs).
+- **Execution Mode**: 
+    - `CLI`: Spawns a process for each action (Classic).
+    - `Server`: Connects to a persistent background server (**Recommended** for near-instant UI).
+- **Python Path**: Path to your `python3` or `arete` executable.
+- **Project Root**: Path to your `obsidian_2_anki` folder (required for `uv` support).
+- **Parallel Workers**: Adjust based on your CPU for faster syncs.
 
 ## Troubleshooting
-- **"Command failed"**: Check the Developer Console (Cmd+Option+I) for detailed error logs from the plugin itself.
-- **Sync Logs**: Detailed logs for the `arete` process are saved in `arete_plugin.log` within the plugin folder. Use these if the sync starts but fails midway.
+- **Logs**: Check the developer console (Cmd+Option+I) or the local `run_*.log` files for sync errors.
+- **Environment**: Use the "Test" button in settings to verify your Python environment is ready.

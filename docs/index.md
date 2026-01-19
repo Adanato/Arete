@@ -1,22 +1,23 @@
-# Welcome to ObsiAnki
+# Welcome to Arete
 
-**ObsiAnki (formerly arete)** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
+**Arete** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
 
 It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
 
 > [!NOTE] 
-> **Current Status**: This project is in active development. While robust, we recommend backing up your Anki collection before large-scale syncs.
+> **Arete v2.0**: This version introduces advanced features like Topological Study Queues and FSRS-based difficulty analysis.
 
 ---
 
 ## Key Features
 
-- ⚡ **Fast**: SQL-based caching ensures only changed files are re-processed.
+- ⚡ **Near-Instant Sync**: SQL-based caching ensures only changed files are re-processed.
+- 📐 **Topological Sort**: Automatically creates Anki decks that respect prerequisite relationships.
+- 🧬 **FSRS Support**: Analyzes difficulty and retention using modern scheduling data.
 - 🧹 **Prune Mode**: Automatically deletes Anki cards that no longer exist in your vault.
 - 🩹 **Self-Healing**: Detects and fixes lost IDs or duplicate cards without manual intervention.
 - 📸 **Media Sync**: Seamlessly syncs images and attachments.
-- 📐 **MathJax/LaTeX**: Built-in protection for mathematical content.
-- 💻 **Cross-Platform**: First-class support for Windows (WSL), macOS, and Linux.
+- 💻 **Cross-Platform**: First-class support for macOS, Linux, and Windows (WSL).
 
 ## Documentation
 
@@ -44,4 +45,9 @@ uv sync
 2.  **Sync** your notes:
     ```bash
     uv run arete sync
+    ```
+
+3.  **Migrate** (if coming from v1):
+    ```bash
+    uv run arete migrate
     ```

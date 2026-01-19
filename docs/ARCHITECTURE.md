@@ -1,40 +1,40 @@
 # Project Architecture
 
-`arete` follows a modular **Clean Architecture** approach. The code is organized into layers, separating the core domain logic from external services and infrastructure.
+`arete` follows a modular **Domain-Driven Design (DDD)** approach. The code is organized into layers, separating core domain logic from application services and infrastructure adapters.
 
 ## Directory Structure
 
 ```text
-src/arete/           # Core Python Logic
-├── core/           # Application Logic
-│   ├── pipeline.py # The main orchestration loop (Producer/Consumer)
-│   ├── config.py   # Configuration loading & argument parsing
-│   └── wizard.py   # Interactive setup wizard
+src/arete/               # Core Python Logic
+├── domain/             # Data Structures & Interfaces
+│   ├── types.py        # Core data classes (AnkiNote, AnkiDeck, AnkiCard)
+│   └── interfaces.py   # Abstract Base Classes (AnkiBridge)
 │
-├── domain/         # Data Structures & Interfaces
-│   ├── types.py    # Core data classes (AnkiNote, AnkiDeck, AnkiModel, UpdateItem)
-│   └── interfaces.py # Abstract Base Classes (AnkiBridge)
+├── application/        # Business Logic & Orchestration
+│   ├── pipeline.py     # Main sync orchestration layer
+│   ├── queue_builder.py # Topological resolution & study queues
+│   ├── parser.py       # Markdown -> Anki transformation logic
+│   └── vault_service.py # Obsidian vault crawler & ID management
 │
-├── services/       # Business Logic Implementations
-│   ├── vault.py    # "Scanner": Crawls Obsidian vault, handles cache
-│   ├── parser.py   # "Transpiler": Markdown -> AnkiNote conversion
-│   ├── anki_connect.py # Adapter for AnkiConnect (HTTP)
-│   └── anki_apy.py     # Adapter for apy (CLI/DB)
+├── infrastructure/     # External Adapters & Data Persistence
+│   ├── adapters/       # AnkiBridge implementations (Direct, Connect, Apy)
+│   └── repository.py   # Low-level DB / FS interactions
 │
-├── infrastructure/ # Low-level tools
-│   └── cache.py    # SQLite ContentCache implementation
+├── interface/          # User Entry Points
+│   ├── cli.py          # Click-based Command Line Interface
+│   └── server.py       # FastAPI-based persistence server
 │
-└── main.py         # Entry Point
+└── main.py             # Global entry point
 
-obsidian-plugin/    # Obsidian GUI
-├── main.ts         # Plugin entry point
-├── src/            # TypeScript source files
-└── styles.css      # Plugin UI styling
+obsidian-plugin/        # Obsidian GUI
+├── src/                # TypeScript source files
+│   ├── application/    # Frontend services (Sync, Stats, Graph)
+│   ├── infrastructure/ # API clients (AreteClient)
+│   └── presentation/   # UI Components & Views (Gutter, QueueBuilder)
+└── styles.css          # Core UI styling
 ```
 
 ## CLI vs Plugin
-
-`arete` is fundamentally a **Python CLI tool**. The Obsidian Plugin acts as a graphical user interface (GUI) wrapper around this CLI.
 
 -   **CLI**: Handles all the heavy lifting—scanning files, hashing content, communicating with AnkiConnect, and writing IDs back to Markdown.
 -   **Plugin**: Provides a settings page in Obsidian and a simple "Sync" ribbon icon. When clicked, it spawns a child process to run `arete sync` and captures the output to display in a modal.
