@@ -76,26 +76,19 @@ Always update `version` in `pyproject.toml` and `manifest.json` simultaneously t
 
 ## Part 5: AnkiWeb (Add-on Store)
 
-We have automated the publishing process using GitHub Actions.
+## Part 5: AnkiWeb (Add-on Store)
 
-### 1. Configuration
-To enable the `publish-ankiweb` job, you must configure the following **Repository Secrets** in GitHub:
+Publishing to AnkiWeb is currently a **manual process**.
 
-[**🔗 Go to GitHub Secrets Settings**](https://github.com/Adanato/Arete/settings/secrets/actions)
+1.  **Download the Artifact**: Go to the GitHub Release you just created (e.g., `v2.0.0`) and download `arete_ankiconnect.zip`.
+2.  **Rename**: Rename the file to `arete_ankiconnect.ankiaddon` if it isn't already (GitHub Actions artifact downloads sometimes strip extensions).
+3.  **Upload**:
+    *   Go to [AnkiWeb Shared Add-ons](https://ankiweb.net/shared/addons/).
+    *   Click **Upload**.
+    *   Select the file.
+    *   Update the description if necessary.
 
-Add these secrets:
--   `ANKIWEB_USER`: Your AnkiWeb login email.
--   `ANKIWEB_PASS`: Your AnkiWeb password.
--   `ANKI_ADDON_ID`: The ID of your add-on (Default: `2055492159`).
-
-### 2. How it works
-The `release.yml` workflow includes a job that runs after the build:
-1.  Installs `anki-addon-uploader`.
-2.  Downloads the built `.zip` artifact.
-3.  Uploads it to AnkiWeb using the credentials provided in secrets.
-
-### 3. Finding your AnkiWeb ID
-If you need to change the ID (e.g., for a fork), you can find it in the URL of your add-on page (e.g., `https://ankiweb.net/shared/info/2055492159`).
+*(Note: Automated publishing is disabled due to the lack of a reliable public uploading tool.)*
 
 ---
 

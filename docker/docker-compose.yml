@@ -10,6 +10,7 @@ services:
       - ANKI_VERSION=24.11
       - QT_QUICK_BACKEND=software
       - ANKI_NOHIGHDPI=1
+      - ANKICONNECT_BIND_ADDRESS=0.0.0.0
     ports:
       - "3000:3000"
       - "8766:8765"

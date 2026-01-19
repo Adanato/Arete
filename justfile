@@ -1,5 +1,5 @@
 # Arete Project Automation
-set shell := ["bash", "-cu"]
+set shell := ["sh", "-cu"]
 
 # --- Project Constants ---
 PY         := "uv run python"

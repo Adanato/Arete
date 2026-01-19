@@ -156,6 +156,16 @@ class AnkiBridge(ABC):
         pass
 
     @abstractmethod
+    async def get_due_cards(self, deck_name: str | None = None) -> list[int]:
+        """Fetch NIDs of due cards, optionally filtered by deck."""
+        pass
+
+    @abstractmethod
+    async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
+        """Convert Anki Note IDs to Arete IDs."""
+        pass
+
+    @abstractmethod
     async def close(self) -> None:
         """
         Release any held resources (e.g. HTTP clients, DB connections).

@@ -140,12 +140,12 @@ class AnkiDirectAdapter(AnkiBridge):
                 return repo.col.decks.all_names()
         return []
 
-    async def get_due_cards(self, deck_filter: str | None = None) -> list[int]:
+    async def get_due_cards(self, deck_name: str | None = None) -> list[int]:
         """
         Get all cards due today from Anki, optionally filtered by deck.
 
         Args:
-            deck_filter: Optional deck name (supports nested, e.g., "Math::Calculus")
+            deck_name: Optional deck name (supports nested, e.g., "Math::Calculus")
 
         Returns:
             List of Anki note IDs (nids) that are due
@@ -156,8 +156,8 @@ class AnkiDirectAdapter(AnkiBridge):
 
             # Build Anki search query
             query = "is:due"
-            if deck_filter:
-                query = f'deck:"{deck_filter}" {query}'
+            if deck_name:
+                query = f'deck:"{deck_name}" {query}'
 
             nids = repo.find_notes(query)
             return nids
@@ -179,7 +179,7 @@ class AnkiDirectAdapter(AnkiBridge):
 
             for nid in nids:
                 try:
-                    note = repo.col.get_note(nid)
+                    note = repo.col.get_note(cast(Any, nid))
                     # Check tags for arete_XXX pattern
                     for tag in note.tags:
                         if tag.startswith("arete_"):
@@ -518,21 +518,7 @@ class AnkiDirectAdapter(AnkiBridge):
 
         return cids_ordered
 
-    async def create_filtered_deck(self, deck_name: str, card_map: dict[str, int]) -> bool:
-        """
-        Create a filtered deck with cards in specific topological order.
-
-        Args:
-            deck_name: Name of the deck
-            card_map: Dict of {arete_id: anki_cid} (Ordered mapping implied by list? No, dict.
-                      Actually interface probably should take list of CIDs)
-        """
-        # Wait, the interface in server.py passes `card_ids` (arete IDs).
-        # We need mapped CIDs.
-        # Let's adjust signature to match expected usage or what server.py can provide.
-        # server.py calls: await anki.create_filtered_deck(deck_name, cids) ???
-        # Let's look at what I need. TOPO ORDER is critical.
-        pass
+    # Removed unused create_filtered_deck stub
 
     async def create_topo_deck(
         self, deck_name: str, cids: list[int], reschedule: bool = True
@@ -554,7 +540,7 @@ class AnkiDirectAdapter(AnkiBridge):
                 # Assuming users use unique names for queues.
                 # Check if dyn
                 deck = repo.col.decks.get(did)
-                if not deck.get("dyn"):
+                if not deck or not deck.get("dyn"):
                     # Delete standard deck? No, too dangerous. Error out.
                     self.logger.error(f"Deck {deck_name} exists and is not a filtered deck.")
                     return False
@@ -568,6 +554,8 @@ class AnkiDirectAdapter(AnkiBridge):
 
             # Reset the deck config
             deck = repo.col.decks.get(did)
+            if not deck:
+                 return False
 
             # We use a single search term
             query = " OR ".join([f"cid:{cid}" for cid in cids])
@@ -626,7 +614,9 @@ class AnkiDirectAdapter(AnkiBridge):
                 # We need to act on the CARD objects.
 
                 for i, cid in enumerate(cids):
-                    card = repo.col.get_card(cid)
+                    # cast cid to CardId if needed, though get_card usually takes int in runtime
+                    # but type checker wants CardId
+                    card = repo.col.get_card(cast(Any, cid))
                     # verify it is in our deck
                     if card.did == did:
                         card.due = i + 1000  # just to be safe and ordered

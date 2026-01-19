@@ -82,6 +82,20 @@ DEFAULT_CONFIG = {
 
 
 def setting(key):
+    # Support environment variable overrides for critical settings in Docker/CI
+    if key == "webBindAddress":
+        env_val = os.getenv("ANKICONNECT_BIND_ADDRESS")
+        if env_val:
+            return env_val
+    if key == "webBindPort":
+        env_val = os.getenv("ANKICONNECT_BIND_PORT")
+        if env_val:
+            return int(env_val)
+    if key == "apiKey":
+        env_val = os.getenv("ANKICONNECT_API_KEY")
+        if env_val:
+            return env_val
+
     try:
         return aqt.mw.addonManager.getConfig(__name__).get(key, DEFAULT_CONFIG[key])
     except:

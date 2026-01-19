@@ -480,6 +480,9 @@ async def build_queue(req: QueueBuildRequest):
             }
 
         # Build queue with prerequisites
+        if not config.vault_root:
+            raise HTTPException(status_code=400, detail="Vault root not configured.")
+        
         vault_root = Path(config.vault_root)
         result = build_simple_queue(vault_root, arete_ids, req.depth, req.max_cards)
 
