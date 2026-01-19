@@ -2,18 +2,14 @@ import { App, Notice } from 'obsidian';
 import { spawn, exec } from 'child_process';
 import * as path from 'path';
 import { AretePluginSettings } from '@domain/settings';
-import { CheckResultModal } from '@presentation/modals/CheckResultModal';
-import AretePlugin from '@/main';
 
 export class CheckService {
 	app: App;
-	plugin: AretePlugin;
 	settings: AretePluginSettings;
 
-	constructor(app: App, plugin: AretePlugin) {
+	constructor(app: App, settings: AretePluginSettings) {
 		this.app = app;
-		this.plugin = plugin;
-		this.settings = plugin.settings;
+		this.settings = settings;
 	}
 
 	private getPythonCommand(): { cmd: string; args: string[] } {
@@ -114,18 +110,6 @@ export class CheckService {
 				reject(err);
 			});
 		});
-	}
-
-	async runCheck(filePath: string) {
-		new Notice('Checking file...');
-		try {
-			const res = await this.getCheckResult(filePath);
-			// NOTE: CheckResultModal needs plugin instance to run fix commands.
-			// Ideally we decouple this further, but for now passing plugin is fine.
-			new CheckResultModal(this.app, this.plugin, res, filePath).open();
-		} catch (e: any) {
-			new Notice(`Error: ${e.message}`);
-		}
 	}
 
 	async runFix(filePath: string): Promise<void> {

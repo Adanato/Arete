@@ -26,7 +26,7 @@ describe('AretePlugin Composition', () => {
 
 	test('onload initializes services', () => {
 		expect(SyncService).toHaveBeenCalledWith(app, expect.anything(), expect.anything());
-		expect(CheckService).toHaveBeenCalledWith(app, plugin);
+		expect(CheckService).toHaveBeenCalledWith(app, expect.anything()); // settings
 		expect(plugin.syncService).toBeInstanceOf(SyncService);
 		expect(plugin.checkService).toBeInstanceOf(CheckService);
 	});
@@ -54,7 +54,7 @@ describe('AretePlugin Composition', () => {
 		// check-file delegation
 		const mockView = { file: { path: 'test.md' } };
 		await commands['arete-check-file'].editorCallback(null, mockView);
-		expect(plugin.checkService.runCheck).toHaveBeenCalledWith('/mock/vault/path/test.md');
+		expect(plugin.checkService.getCheckResult).toHaveBeenCalledWith('/mock/vault/path/test.md');
 
 		// integrity delegation
 		await commands['arete-check-integrity'].callback();

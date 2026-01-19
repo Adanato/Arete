@@ -71,7 +71,7 @@ export default class AretePlugin extends Plugin {
 			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
 				console.log(msg); // Default logger
 			});
-			this.checkService = new CheckService(this.app, this); // CheckService needs plugin for runFix callback
+			this.checkService = new CheckService(this.app, this.settings);
 			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
 			this.graphService = new GraphService(this.app, this.settings);
 
@@ -586,9 +586,17 @@ export default class AretePlugin extends Plugin {
 		await this.saveSettings();
 	}
 
-	// Delegate to CheckService
+	// Delegate to CheckService, then open modal (DDD Compliant)
 	async runCheck(filePath: string) {
-		await this.checkService.runCheck(filePath);
+		new Notice('Checking file...');
+		try {
+			const res = await this.checkService.getCheckResult(filePath);
+			// Import dynamically to avoid circular issues in tests
+			const { CheckResultModal } = await import('@presentation/modals/CheckResultModal');
+			new CheckResultModal(this.app, this, res, filePath).open();
+		} catch (e: any) {
+			new Notice(`Error: ${e.message}`);
+		}
 	}
 
 	async runFix(filePath: string) {

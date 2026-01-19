@@ -19,7 +19,7 @@ describe('CheckService', () => {
 				project_root: '/mock/project',
 			},
 		};
-		service = new CheckService(app, plugin as any);
+		service = new CheckService(app, plugin.settings);
 	});
 
 	describe('getEnv', () => {
@@ -86,13 +86,7 @@ describe('CheckService', () => {
 		});
 	});
 
-	test('runCheck opens modal on success', async () => {
-		service.getCheckResult = jest.fn().mockResolvedValue({ issues: [] });
-		await service.runCheck('test.md');
-		expect(Notice).toHaveBeenCalledWith('Checking file...');
-		// CheckResultModal construction is harder to verify without mocking the module,
-		// but we covered the core logic.
-	});
+	// runCheck() moved to main.ts (DDD refactor)
 
 	test('runFix spawns fix-file command (success)', async () => {
 		const mockChild = createMockChildProcess();
