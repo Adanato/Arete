@@ -1,4 +1,4 @@
-/* AI Assistant Chat Styles */
+/* Arete Plugin - AI Chat Interface Styles */
 
 .arete-chat-container {
 	display: flex;
@@ -138,9 +138,4 @@
 	justify-content: center;
 	cursor: pointer;
 	transition: transform 0.15s ease;
-}
-
-.arete-chat-send-btn:hover {
-	transform: scale(1.05);
-	background: var(--interactive-accent-hover);
 }

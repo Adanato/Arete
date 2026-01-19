@@ -1,11 +1,14 @@
-/* Card YAML Editor Styles */
+/* Arete Plugin - YAML Editor View Styles */
 
+/* Main Container - Split Layout */
 .arete-yaml-editor-container {
 	display: flex !important;
+	flex-direction: row !important;
 	height: 100% !important;
 	overflow: hidden !important;
 }
 
+/* ─── Index Sidebar ─── */
 .arete-yaml-index {
 	width: 48px !important;
 	flex-shrink: 0 !important;
@@ -29,11 +32,11 @@
 }
 
 .arete-yaml-index-list {
-	flex: 1 !important;
-	overflow-y: auto !important;
+	flex: 1;
+	overflow-y: auto;
 	padding: 4px;
-	display: flex !important;
-	flex-direction: column !important;
+	display: flex;
+	flex-direction: column;
 	gap: 2px;
 	outline: none;
 }
@@ -70,6 +73,7 @@
 	font-weight: 500;
 }
 
+/* Status Indicator */
 .arete-yaml-index-item.has-warning {
 	border-color: var(--color-orange);
 }
@@ -87,6 +91,7 @@
 	height: 12px;
 }
 
+/* Drag States */
 .arete-yaml-index-item.is-dragging {
 	opacity: 0.5;
 	transform: scale(0.95);
@@ -94,9 +99,10 @@
 
 .arete-yaml-index-item.drag-over {
 	border-color: var(--interactive-accent) !important;
-	background: var(--background-modifier-hover);
+	background: rgba(var(--interactive-accent-rgb), 0.1);
 }
 
+/* Add Button */
 .arete-yaml-index-add {
 	width: 36px;
 	height: 36px;
@@ -114,7 +120,7 @@
 .arete-yaml-index-add:hover {
 	border-color: var(--interactive-accent);
 	color: var(--interactive-accent);
-	background: var(--background-modifier-hover);
+	background: rgba(var(--interactive-accent-rgb), 0.1);
 }
 
 .arete-yaml-index-add svg {
@@ -122,6 +128,7 @@
 	height: 16px;
 }
 
+/* ─── Editor Panel ─── */
 .arete-yaml-editor-panel {
 	flex: 1 !important;
 	overflow: hidden !important;
@@ -129,19 +136,8 @@
 	flex-direction: column !important;
 }
 
-.arete-yaml-editor-wrapper {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	overflow: auto;
-}
-
 .arete-yaml-editor-panel .cm-editor {
-	flex: 1;
 	height: 100%;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
 	font-size: 13px;
 }
 
@@ -163,32 +159,29 @@
 }
 
 .arete-yaml-editor-panel .cm-activeLine {
-	background: var(--background-modifier-hover);
+	background: rgba(var(--interactive-accent-rgb), 0.05);
 }
 
+/* YAML Syntax Highlighting Enhancement */
 .arete-yaml-editor-panel .cm-content {
 	padding: 8px 0;
 	caret-color: transparent;
-	white-space: pre-wrap;
-	word-break: break-word;
 }
 
-.arete-yaml-editor-panel .cm-line {
-	word-wrap: break-word;
-	white-space: pre-wrap;
-}
-
+/* Custom Cursor */
 .arete-yaml-editor-panel .cm-content .cm-cursor {
 	border-left-color: var(--text-normal) !important;
 	border-left-width: 3px !important;
 }
 
+/* Ensure Index Focus is visible */
 .arete-yaml-index-list:focus {
 	box-shadow: inset 0 0 0 2px var(--interactive-accent);
 }
 
+/* ─── Editor Toolbar ─── */
 .arete-editor-toolbar {
-	display: flex !important;
+	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	padding: 6px 10px;
@@ -231,6 +224,7 @@
 	height: 16px;
 }
 
+/* ─── Preview Container ─── */
 .arete-preview-container {
 	flex: 1;
 	overflow-y: auto;
@@ -286,6 +280,7 @@
 	opacity: 0.7;
 }
 
+/* ─── Field Editor ─── */
 .arete-field-editor {
 	flex: 1;
 	overflow-y: auto;
@@ -308,7 +303,7 @@
 }
 
 .arete-field-input {
-	width: 100% !important;
+	width: 100%;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	padding: 8px;
@@ -316,9 +311,8 @@
 	color: var(--text-normal);
 	font-family: var(--font-text);
 	font-size: 14px;
-	resize: none;
-	min-height: 60px;
-	overflow: hidden;
+	resize: vertical;
+	min-height: 80px;
 }
 
 .arete-field-input:focus {

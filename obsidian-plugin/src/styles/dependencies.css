@@ -1,0 +1,122 @@
+/* Arete Plugin - Dependency Field & Chip Styles */
+
+.arete-dep-input-wrapper {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+.arete-dep-input {
+	width: 100%;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 6px 10px;
+	border-radius: 4px;
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.arete-dep-input:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.arete-dep-chip.is-card {
+	background: rgba(var(--interactive-accent-rgb), 0.1);
+	border-color: rgba(var(--interactive-accent-rgb), 0.3);
+}
+
+.arete-dep-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	margin-right: 4px;
+}
+
+.arete-dep-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
+.arete-dep-text {
+	margin-right: 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: inline-block;
+	max-width: 200px;
+}
+
+.arete-dep-action {
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	color: var(--text-muted);
+	padding: 2px;
+	border-radius: 50%;
+	margin-right: 2px;
+}
+
+.arete-dep-action:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.arete-dep-action svg {
+	width: 12px;
+	height: 12px;
+}
+
+.arete-dep-remove {
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	color: var(--text-muted);
+	padding: 2px;
+	border-radius: 50%;
+}
+
+.arete-dep-remove:hover {
+	color: var(--color-red);
+	background: rgba(var(--color-red-rgb), 0.1);
+}
+
+.arete-dep-remove svg {
+	width: 12px;
+	height: 12px;
+}
+
+.arete-dep-diag-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	padding: 4px 0;
+}
+
+.arete-dep-diag-item.mod-warning {
+	color: var(--color-orange);
+}
+
+.arete-dep-diag-item.mod-cycle {
+	color: var(--color-red);
+}
+
+/* Add Button in Editor */
+.arete-dep-add-btn {
+	width: 100%;
+	text-align: left;
+	background: var(--background-secondary);
+	border: 1px dashed var(--background-modifier-border);
+	color: var(--text-muted);
+	padding: 6px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.arete-dep-add-btn:hover {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+	background: rgba(var(--interactive-accent-rgb), 0.05);
+}

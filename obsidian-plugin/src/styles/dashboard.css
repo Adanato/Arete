@@ -1,4 +1,4 @@
-/* Dashboard Styles */
+/* Arete Plugin - Dashboard View Styles */
 
 .arete-dashboard-container {
 	background: var(--background-primary);
@@ -13,6 +13,7 @@
 	font-weight: 500;
 }
 
+/* Tab Bar */
 .arete-tab-bar {
 	display: flex;
 	overflow-x: auto;
@@ -28,9 +29,10 @@
 }
 
 .arete-tab-btn.is-active {
-	background: var(--background-modifier-hover);
+	background: rgba(var(--interactive-accent-rgb), 0.1);
 }
 
+/* Leech Table */
 .arete-leech-table th {
 	padding: 8px;
 	border-bottom: 2px solid var(--background-modifier-border);
@@ -45,95 +47,4 @@
 
 .arete-leech-table tr:hover {
 	background: var(--background-primary-alt);
-}
-
-.arete-success {
-	color: var(--color-green);
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	margin-bottom: 1rem;
-	font-size: 1.2em;
-}
-
-.arete-stats {
-	background-color: var(--background-primary-alt);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	padding: 1rem;
-	list-style: none;
-	margin: 0;
-}
-
-.arete-stats li {
-	display: flex;
-	justify-content: space-between;
-	padding: 0.5rem 0;
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.arete-stats li:last-child {
-	border-bottom: none;
-}
-
-.arete-stats-label {
-	color: var(--text-muted);
-}
-.arete-stats-val {
-	font-weight: bold;
-}
-
-.arete-error {
-	color: var(--color-red);
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	margin-bottom: 1rem;
-	font-size: 1.2em;
-}
-
-.arete-error-table {
-	width: 100%;
-	border-collapse: collapse;
-	margin-bottom: 1rem;
-	font-size: 0.9rem;
-	background-color: var(--background-primary-alt);
-	border-radius: 8px;
-	overflow: hidden;
-}
-
-.arete-error-table th {
-	text-align: left;
-	padding: 0.8rem;
-	background-color: var(--background-secondary-alt);
-	color: var(--text-muted);
-	font-weight: 600;
-}
-
-.arete-error-table td {
-	padding: 0.8rem;
-	border-top: 1px solid var(--background-modifier-border);
-	vertical-align: top;
-}
-
-.arete-error-line {
-	font-family: var(--font-monospace);
-	color: var(--text-accent);
-	font-weight: bold;
-	width: 60px;
-}
-
-.arete-err-msg {
-	color: var(--text-error);
-	line-height: 1.4;
-}
-
-.arete-hint {
-	margin-top: 1rem;
-	padding: 0.8rem;
-	background-color: var(--background-secondary);
-	border-left: 4px solid var(--text-accent);
-	color: var(--text-muted);
-	font-style: italic;
-	font-size: 0.9rem;
 }
