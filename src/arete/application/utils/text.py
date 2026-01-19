@@ -45,8 +45,7 @@ def convert_math_to_tex_delimiters(text: str) -> str:
 
 
 def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
-    """
-    Parse YAML frontmatter from markdown text.
+    """Parse YAML frontmatter from markdown text.
     Uses line-by-line parsing instead of regex for reliability.
     """
     # Handle potential BOM (Byte Order Mark)
@@ -106,9 +105,7 @@ def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
-    """
-    Custom YAML loader that forbids duplicate keys.
-    """
+    """Custom YAML loader that forbids duplicate keys."""
 
     def construct_mapping(self, node, deep=False):
         mapping = set()
@@ -128,8 +125,7 @@ class UniqueKeyLoader(yaml.SafeLoader):
 
 
 def validate_frontmatter(md_text: str) -> dict[str, Any]:
-    """
-    Parses frontmatter but raises detailed exceptions on failure.
+    """Parses frontmatter but raises detailed exceptions on failure.
     Uses line-by-line parsing instead of regex for reliability.
     Returns the metadata dict if successful.
     """
@@ -208,8 +204,7 @@ def rebuild_markdown_with_frontmatter(meta: dict[str, Any], body: str) -> str:
 
 
 def _extract_frontmatter_bounds(md_text: str) -> tuple[str, int, int] | None:
-    """
-    Extract frontmatter content and its character bounds from markdown text.
+    """Extract frontmatter content and its character bounds from markdown text.
     Returns (yaml_content, start_index, end_index) or None if no frontmatter.
     Uses line-by-line parsing (no regex).
     """
@@ -233,8 +228,7 @@ def _extract_frontmatter_bounds(md_text: str) -> tuple[str, int, int] | None:
 
 # ---------- Build apy editor-note text ----------
 def apply_fixes(md_text: str) -> str:
-    """
-    Attempts to fix common frontmatter issues safely.
+    """Attempts to fix common frontmatter issues safely.
     1. Tabs -> Spaces
     2. Missing 'cards' list
     3. Skip leading empty blocks (requested: 'skip empty --- bruh')
@@ -363,8 +357,7 @@ def apply_fixes(md_text: str) -> str:
 
 
 def fix_mathjax_escapes(md_text: str) -> str:
-    """
-    Finds double-quoted strings in frontmatter that contain common MathJax
+    """Finds double-quoted strings in frontmatter that contain common MathJax
     escapes like \\in or \\mathbb and ensures they are double-escaped so
     PyYAML can parse them. This allows us to migrate broken files to |- blocks.
     """

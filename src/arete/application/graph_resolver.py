@@ -1,5 +1,4 @@
-"""
-Graph resolver for building dependency graphs from vault files.
+"""Graph resolver for building dependency graphs from vault files.
 
 Parses YAML frontmatter to extract deps.requires and deps.related,
 builds the full dependency graph, and provides traversal utilities.
@@ -17,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_graph(vault_root: Path) -> DependencyGraph:
-    """
-    Build a complete dependency graph from all markdown files in the vault.
+    """Build a complete dependency graph from all markdown files in the vault.
 
     Scans for files with cards that have `id` and `deps` fields.
 
@@ -121,8 +119,7 @@ def _resolve_reference(
     file_index: dict[str, list[str]],
     graph: DependencyGraph,
 ) -> list[str]:
-    """
-    Resolve a dependency reference to card ID(s).
+    """Resolve a dependency reference to card ID(s).
 
     - arete_XXX: Direct card ID (returns single-element list if exists)
     - basename: All cards in that file (returns list of all card IDs)
@@ -153,8 +150,7 @@ def get_local_graph(
     depth: int = 2,
     max_nodes: int = 150,
 ) -> LocalGraphResult | None:
-    """
-    Get a local subgraph centered on a specific card.
+    """Get a local subgraph centered on a specific card.
 
     Args:
         graph: The full dependency graph
@@ -165,6 +161,7 @@ def get_local_graph(
     Returns:
         LocalGraphResult with prerequisites, dependents, and related cards,
         or None if card_id not found.
+
     """
     if card_id not in graph.nodes:
         return None
@@ -217,8 +214,7 @@ def get_local_graph(
 
 
 def detect_cycles(graph: DependencyGraph) -> list[list[str]]:
-    """
-    Detect all cycles in the requires graph.
+    """Detect all cycles in the requires graph.
 
     Returns a list of strongly connected components (cycles).
     Each cycle is a list of card IDs that form a co-requisite group.
@@ -244,8 +240,7 @@ def detect_cycles(graph: DependencyGraph) -> list[list[str]]:
 
 
 def detect_cycles_for_card(graph: DependencyGraph, card_id: str) -> list[list[str]]:
-    """
-    Detect cycles that include a specific card.
+    """Detect cycles that include a specific card.
 
     Uses DFS to find back edges from the card.
     """
@@ -284,8 +279,7 @@ def topological_sort(
     graph: DependencyGraph,
     card_ids: list[str],
 ) -> list[str]:
-    """
-    Topologically sort a subset of cards based on requires edges.
+    """Topologically sort a subset of cards based on requires edges.
 
     Cards without prerequisites come first.
     If cycles exist, they are treated as a group (arbitrary order within).
@@ -296,6 +290,7 @@ def topological_sort(
 
     Returns:
         Sorted list of card IDs (prerequisites before dependents)
+
     """
     # Filter to only requested cards that exist
     valid_ids = {cid for cid in card_ids if cid in graph.nodes}

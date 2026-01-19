@@ -4,9 +4,7 @@ from pathlib import Path
 
 @dataclass
 class AnkiModel:
-    """
-    Represents an Anki Note Type (Model).
-    """
+    """Represents an Anki Note Type (Model)."""
 
     name: str
     fields: list[str]
@@ -14,9 +12,7 @@ class AnkiModel:
 
 @dataclass
 class AnkiDeck:
-    """
-    Represents an Anki Deck.
-    """
+    """Represents an Anki Deck."""
 
     name: str
     # Future extensibility: dynamic options, confusion flags, etc.
@@ -33,8 +29,7 @@ class AnkiDeck:
 
 @dataclass
 class AnkiNote:
-    """
-    Represents a fully parsed Anki note ready to be sent to the backend.
+    """Represents a fully parsed Anki note ready to be sent to the backend.
 
     Attributes:
         model: The Anki model name (e.g., 'Basic', 'Cloze').
@@ -48,6 +43,7 @@ class AnkiNote:
         nid: Existing Note ID from Obsidian frontmatter (if any).
         cid: Existing Card ID from Obsidian frontmatter (if any).
         content_hash: MD5 hash of the fields/tags for cache-aware syncing.
+
     """
 
     model: str
@@ -80,8 +76,7 @@ class AnkiNote:
 
 @dataclass
 class AnkiCardStats:
-    """
-    Statistics for a specific Anki card/note.
+    """Statistics for a specific Anki card/note.
     Used for dashboard analytics.
     """
 
@@ -109,8 +104,7 @@ class WorkItem:
 
 @dataclass
 class UpdateItem:
-    """
-    Result of an Anki backend operation. Returned by AnkiBridge implementation.
+    """Result of an Anki backend operation. Returned by AnkiBridge implementation.
 
     Attributes:
         source_file: Identifies which file this result belongs to.
@@ -120,6 +114,7 @@ class UpdateItem:
         ok: Whether the operation succeeded.
         error: Descriptive error message if ok is False.
         note: The original AnkiNote object (used for cache persistence).
+
     """
 
     source_file: Path

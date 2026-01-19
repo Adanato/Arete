@@ -140,9 +140,7 @@ def test_server_stats_endpoint():
 
 
 def test_server_suspend_endpoint():
-    """
-    Verify POST /anki/cards/suspend calls bridge.suspend_cards with config overrides
-    """
+    """Verify POST /anki/cards/suspend calls bridge.suspend_cards with config overrides"""
     client = TestClient(app)
     mock_bridge = AsyncMock()
     mock_bridge.suspend_cards.return_value = True
@@ -169,9 +167,7 @@ def test_server_suspend_endpoint():
 
 
 def test_server_model_templates_endpoint():
-    """
-    Verify GET /anki/models/{name}/templates calls bridge
-    """
+    """Verify GET /anki/models/{name}/templates calls bridge"""
     client = TestClient(app)
     mock_bridge = AsyncMock()
     mock_bridge.get_model_templates.return_value = {"Card 1": {"Front": "F", "Back": "B"}}

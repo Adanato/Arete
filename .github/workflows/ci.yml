@@ -116,8 +116,10 @@ jobs:
         if [ "${{ matrix.network_mode }}" == "host" ]; then
           uv run just setup-anki-data
           docker compose -f docker/docker-compose.host.yml up -d
+          echo "ANKI_CONNECT_URL=http://127.0.0.1:8765" >> $GITHUB_ENV
         else
           uv run just docker-up
+          echo "ANKI_CONNECT_URL=http://127.0.0.1:8766" >> $GITHUB_ENV
         fi
 
     - name: Wait for Anki

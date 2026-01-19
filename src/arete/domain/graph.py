@@ -1,5 +1,4 @@
-"""
-Domain types for dependency graph.
+"""Domain types for dependency graph.
 
 These types represent the structure of card dependencies
 without any persistence or resolution logic.
@@ -10,14 +9,14 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class CardNode:
-    """
-    A node in the dependency graph representing a single card.
+    """A node in the dependency graph representing a single card.
 
     Attributes:
         id: Stable Arete ID (e.g., arete_01JH8Y3ZK4QJ9W6E2N8F6M0P5R)
         title: Display name (typically the Front field or filename)
         file_path: Path to source markdown file
         line_number: Line number in source file for navigation
+
     """
 
     id: str
@@ -28,8 +27,7 @@ class CardNode:
 
 @dataclass
 class DependencyGraph:
-    """
-    Complete dependency graph for a vault.
+    """Complete dependency graph for a vault.
 
     Nodes are cards, edges are requires/related relationships.
     """
@@ -85,8 +83,7 @@ class DependencyGraph:
 
 @dataclass
 class LocalGraphResult:
-    """
-    Result of a local graph query centered on a specific card.
+    """Result of a local graph query centered on a specific card.
 
     Used by the UI to render the dependency visualization.
     """

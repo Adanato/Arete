@@ -1,5 +1,4 @@
-"""
-Anki Repository
+"""Anki Repository
 Provides direct access to the Anki Collection (SQLite) using the `anki` python library.
 From `anki` library calls.
 """
@@ -27,9 +26,7 @@ from arete.domain.models import AnkiNote
 
 
 class AnkiRepository:
-    """
-    Direct interface to Anki's database.
-    """
+    """Direct interface to Anki's database."""
 
     def __init__(self, base_path: Path | None = None, profile_name: str | None = None):
         if not base_path:
@@ -42,9 +39,7 @@ class AnkiRepository:
         self._collection_path: Path | None = None
 
     def _resolve_collection_path(self) -> Path:
-        """
-        Determines the path to collection.anki2 by checking prefs21.db for the active profile.
-        """
+        """Determines the path to collection.anki2 by checking prefs21.db for the active profile."""
         if self._collection_path:
             return self._collection_path
 
@@ -121,8 +116,7 @@ class AnkiRepository:
         return self.col.models.by_name(model_name)
 
     def add_note(self, note_data: AnkiNote) -> int:
-        """
-        Add a new note to the collection.
+        """Add a new note to the collection.
         Returns the new Note ID (nid).
         """
         if not self.col:
@@ -177,9 +171,7 @@ class AnkiRepository:
         return note.id
 
     def update_note(self, nid: int, note_data: AnkiNote) -> bool:
-        """
-        Update an existing note.
-        """
+        """Update an existing note."""
         if not self.col:
             raise RuntimeError("Collection not open")
 

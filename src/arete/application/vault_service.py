@@ -21,8 +21,7 @@ class VaultService:
         self.logger = logging.getLogger(__name__)
 
     def scan_for_compatible_files(self) -> Iterable[tuple[Path, dict[str, Any], bool]]:
-        """
-        Iterates over all markdown files in the vault, checks them for validity
+        """Iterates over all markdown files in the vault, checks them for validity
         (frontmatter, version), and yields valid files.
         Returns: (path, meta, is_fresh)
                  is_fresh=True means we just parsed it (cache was cold/dirty).
@@ -123,8 +122,7 @@ class VaultService:
         return (True, len(cards), None, meta, True)
 
     def format_vault(self, dry_run: bool = False) -> int:
-        """
-        Scans and re-serializes all compatible files to normalize YAML.
+        """Scans and re-serializes all compatible files to normalize YAML.
         Returns the number of files updated.
         """
         count = 0
@@ -157,9 +155,7 @@ class VaultService:
         return count
 
     def apply_updates(self, updates: list[UpdateItem], dry_run: bool = False):
-        """
-        Writes back new NIDs/CIDs to the markdown files.
-        """
+        """Writes back new NIDs/CIDs to the markdown files."""
         by_file: dict[Path, list[UpdateItem]] = defaultdict(list)
         for u in updates:
             if u.ok and (u.new_nid or u.new_cid):

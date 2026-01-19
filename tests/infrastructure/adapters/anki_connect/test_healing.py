@@ -18,8 +18,7 @@ def adapter():
 
 @pytest.mark.asyncio
 async def test_healing_search_sanitization(adapter):
-    """
-    Verify that when a duplicate error occurs, the search query used to find the existing note
+    """Verify that when a duplicate error occurs, the search query used to find the existing note
     is properly sanitized (newlines removed, quotes escaped).
     """
     note = AnkiNote(
@@ -66,9 +65,7 @@ async def test_healing_search_sanitization(adapter):
 
 @pytest.mark.asyncio
 async def test_healing_search_robustness(adapter):
-    """
-    Verify handling of vertical tabs and literal backslashes (common in MathJax).
-    """
+    """Verify handling of vertical tabs and literal backslashes (common in MathJax)."""
     note = AnkiNote(
         model="Basic",
         deck="TestDeck",
@@ -106,9 +103,7 @@ async def test_healing_search_robustness(adapter):
 
 @pytest.mark.asyncio
 async def test_healing_search_query_limit(adapter):
-    """
-    Verify that very long fields are truncated in the search query.
-    """
+    """Verify that very long fields are truncated in the search query."""
     long_text = "A" * 200
     note = AnkiNote(
         model="Basic",
@@ -149,9 +144,7 @@ async def test_healing_search_query_limit(adapter):
 
 @pytest.mark.asyncio
 async def test_healing_search_quote_hell(adapter):
-    """
-    Verify handling of mixed double quotes and literal backslashes typical in code blocks.
-    """
+    """Verify handling of mixed double quotes and literal backslashes typical in code blocks."""
     raw = 'print("Hello \\"World\\"") \n path = "C:\\\\User"'
     note = AnkiNote(
         model="Basic",
@@ -189,9 +182,7 @@ async def test_healing_search_quote_hell(adapter):
 
 @pytest.mark.asyncio
 async def test_healing_failure_propagates_error(adapter):
-    """
-    Verify that if the search fails to find a candidate, original Duplicate error is raised.
-    """
+    """Verify that if the search fails to find a candidate, original Duplicate error is raised."""
     note = AnkiNote(
         model="Basic",
         deck="TestDeck",
@@ -221,9 +212,7 @@ async def test_healing_failure_propagates_error(adapter):
 
 @pytest.mark.asyncio
 async def test_cid_fetching_on_create(adapter):
-    """
-    Verify that after a successful addNote, we fetch the CID.
-    """
+    """Verify that after a successful addNote, we fetch the CID."""
     note = AnkiNote(
         model="Basic",
         deck="TestDeck",
@@ -258,9 +247,7 @@ async def test_cid_fetching_on_create(adapter):
 
 @pytest.mark.asyncio
 async def test_cid_fetching_on_heal(adapter):
-    """
-    Verify that after healing, we also fetch the CID.
-    """
+    """Verify that after healing, we also fetch the CID."""
     note = AnkiNote(
         model="Basic",
         deck="TestDeck",

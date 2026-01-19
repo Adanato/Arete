@@ -2,9 +2,7 @@ import requests
 
 
 def test_invalid_model(tmp_path, anki_url, setup_anki, run_arete, test_deck):
-    """
-    Card references non-existent model.
-    """
+    """Card references non-existent model."""
     md_file = tmp_path / "badmodel.md"
     md_file.write_text(
         f"""---

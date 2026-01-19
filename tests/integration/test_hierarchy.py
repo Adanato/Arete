@@ -2,9 +2,7 @@ import requests
 
 
 def test_nested_decks(tmp_path, anki_url, setup_anki, run_arete):
-    """
-    Verify creating notes in nested decks (Parent::Child::Grandchild).
-    """
+    """Verify creating notes in nested decks (Parent::Child::Grandchild)."""
     md_file = tmp_path / "nested.md"
     md_file.write_text(
         """---
@@ -40,9 +38,7 @@ cards:
 
 
 def test_move_deck(tmp_path, anki_url, setup_anki, run_arete):
-    """
-    Verify moving a note from Deck A to Deck B by changing frontmatter.
-    """
+    """Verify moving a note from Deck A to Deck B by changing frontmatter."""
     md_file = tmp_path / "moving.md"
     # 1. Start in Deck A
     md_file.write_text(

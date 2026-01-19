@@ -1,5 +1,4 @@
-"""
-Connect Stats Repository — Infrastructure adapter using AnkiConnect HTTP API.
+"""Connect Stats Repository — Infrastructure adapter using AnkiConnect HTTP API.
 
 Implements StatsRepository by calling AnkiConnect endpoints.
 """
@@ -16,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectStatsRepository(StatsRepository):
-    """
-    Fetches card statistics via AnkiConnect HTTP API.
+    """Fetches card statistics via AnkiConnect HTTP API.
 
     Attempts custom getFSRSStats action if available, otherwise falls back
     to standard cardsInfo.
@@ -27,9 +25,7 @@ class ConnectStatsRepository(StatsRepository):
         self.url = url
 
     async def get_card_stats(self, nids: list[int]) -> list[CardStatsAggregate]:
-        """
-        Fetch comprehensive stats for cards belonging to the given note IDs.
-        """
+        """Fetch comprehensive stats for cards belonging to the given note IDs."""
         if not nids:
             return []
 
@@ -111,9 +107,7 @@ class ConnectStatsRepository(StatsRepository):
         return stats_list
 
     async def get_review_history(self, cids: list[int]) -> list[ReviewEntry]:
-        """
-        Fetch review history via AnkiConnect's getReviewsOfCards action.
-        """
+        """Fetch review history via AnkiConnect's getReviewsOfCards action."""
         if not cids:
             return []
 
@@ -145,9 +139,7 @@ class ConnectStatsRepository(StatsRepository):
         return entries
 
     async def _invoke(self, action: str, **params: Any) -> Any:
-        """
-        Invoke an AnkiConnect action.
-        """
+        """Invoke an AnkiConnect action."""
         payload = {"action": action, "version": 6, "params": params}
 
         async with httpx.AsyncClient() as client:
@@ -161,8 +153,7 @@ class ConnectStatsRepository(StatsRepository):
             return data.get("result")
 
     async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
-        """
-        Fetch FSRS parameters for the given decks via AnkiConnect.
+        """Fetch FSRS parameters for the given decks via AnkiConnect.
 
         Falls back to defaults if the custom action isn't available.
         """

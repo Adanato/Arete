@@ -10,9 +10,7 @@ from arete.main import run_sync_logic
 
 @pytest.mark.asyncio
 async def test_run_sync_logic_failure_exit():
-    """
-    Test that run_sync_logic sys.exit(1) if stats.total_errors > 0.
-    """
+    """Test that run_sync_logic sys.exit(1) if stats.total_errors > 0."""
     # root_input must be set to pass assertion in main.py
     # We use valid Path objects
     config = AppConfig(
@@ -47,9 +45,7 @@ async def test_run_sync_logic_failure_exit():
 
 
 def test_main_module_invoke():
-    """
-    Test calling arete.__main__ logic via runpy to cover the __name__ == "__main__" block.
-    """
+    """Test calling arete.__main__ logic via runpy to cover the __name__ == "__main__" block."""
     import runpy
 
     with patch("arete.interface.cli.app") as mock_app:

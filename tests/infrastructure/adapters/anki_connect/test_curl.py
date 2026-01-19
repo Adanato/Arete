@@ -8,7 +8,6 @@ from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 @pytest.mark.asyncio
 async def test_curl_bridge_active():
     """Verify that we use curl.exe when available on WSL."""
-
     mock_uname = "Linux 5.10.16.3-microsoft-standard-WSL2"
 
     with (
@@ -46,7 +45,6 @@ async def test_curl_bridge_active():
 @pytest.mark.asyncio
 async def test_curl_bridge_fallback():
     """Verify fallback to standard logic if curl.exe is missing."""
-
     mock_uname = "Linux 5.10.16.3-microsoft-standard-WSL2"
 
     with (

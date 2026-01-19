@@ -10,9 +10,7 @@ def test_version_exists():
 
 
 def test_yaml_literal_dumper_dict():
-    """
-    Test _LiteralDumper handling a dict (branch checking).
-    """
+    """Test _LiteralDumper handling a dict (branch checking)."""
     data = {"key": "multi\nline\nstring"}
     out = yaml.dump(data, Dumper=_LiteralDumper)
     assert "|" in out or ">" in out  # Depending on heuristic, but verifying it runs

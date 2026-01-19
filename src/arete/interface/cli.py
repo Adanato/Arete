@@ -40,9 +40,7 @@ def main_callback(
         ),
     ] = 1,
 ):
-    """
-    Global settings for arete.
-    """
+    """Global settings for arete."""
     ctx.ensure_object(dict)
     ctx.obj["verbose_bonus"] = verbose
 
@@ -82,9 +80,7 @@ def sync(
     ] = None,
     workers: Annotated[int | None, typer.Option(help="Parallel sync workers.")] = None,
 ):
-    """
-    [bold green]Sync[/bold green] your Obsidian notes to Anki.
-    """
+    """[bold green]Sync[/bold green] your Obsidian notes to Anki."""
     # Clean up None values so Pydantic defaults/config take over
     overrides = {
         "root_input": path,
@@ -113,9 +109,7 @@ def sync(
 
 @app.command()
 def init():
-    """
-    Launch the interactive setup wizard.
-    """
+    """Launch the interactive setup wizard."""
     from arete.application.wizard import run_init_wizard
 
     run_init_wizard()
@@ -124,10 +118,7 @@ def init():
 
 @config_app.command("show")
 def config_show():
-    """
-    Display final resolved configuration.
-    """
-
+    """Display final resolved configuration."""
     config = resolve_config()
     # Path to str for JSON
     d = {k: str(v) if isinstance(v, Path) else v for k, v in config.model_dump().items()}
@@ -136,9 +127,7 @@ def config_show():
 
 @config_app.command("open")
 def config_open():
-    """
-    Open the config file in your default editor.
-    """
+    """Open the config file in your default editor."""
     import subprocess
 
     cfg_path = Path.home() / ".config/arete/config.toml"
@@ -160,9 +149,7 @@ def server(
     host: Annotated[str, typer.Option(help="Host to bind the server to.")] = "127.0.0.1",
     reload: Annotated[bool, typer.Option(help="Enable auto-reload.")] = False,
 ):
-    """
-    Start the persistent background server (Daemon).
-    """
+    """Start the persistent background server (Daemon)."""
     import uvicorn
 
     typer.secho(f"🚀 Starting Arete Server on http://{host}:{port}", fg="green")
@@ -171,9 +158,7 @@ def server(
 
 @app.command()
 def logs():
-    """
-    Open the log directory.
-    """
+    """Open the log directory."""
     import subprocess
 
     config = resolve_config()
@@ -218,11 +203,9 @@ def check_file(
     path: Annotated[Path, typer.Argument(help="Path to the markdown file to check.")],
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON.")] = False,
 ):
-    """
-    Validate a single file for arete compatibility.
+    """Validate a single file for arete compatibility.
     Checks YAML syntax and required fields.
     """
-
     from yaml import YAMLError
 
     from arete.application.utils.text import validate_frontmatter
@@ -517,9 +500,7 @@ def check_file(
 def fix_file(
     path: Annotated[Path, typer.Argument(help="Path to the markdown file to fix.")],
 ):
-    """
-    Attempts to automatically fix common format errors in a file.
-    """
+    """Attempts to automatically fix common format errors in a file."""
     from arete.application.utils.text import apply_fixes, validate_frontmatter
 
     if not path.exists():
@@ -544,8 +525,7 @@ def fix_file(
 
 
 def _merge_split_cards(cards: list[Any]) -> list[Any]:
-    """
-    Heuristic to merge cards that were accidentally split into two list items.
+    """Heuristic to merge cards that were accidentally split into two list items.
     Ensures that Front and Back are recombined into one card if possible.
     """
     if not cards or len(cards) < 2:
@@ -593,13 +573,11 @@ def migrate(
         ),
     ] = 0,
 ):
-    """
-    Migrate legacy files and normalize YAML frontmatter.
+    """Migrate legacy files and normalize YAML frontmatter.
 
     1. Upgrades 'anki_template_version: 1' to 'arete: true'.
     2. Normalizes YAML serialization to use consistent block scalars (|-).
     """
-
     from arete.application.id_service import assign_arete_ids, ensure_card_ids
     from arete.application.utils.fs import iter_markdown_files
     from arete.application.utils.text import (
@@ -784,8 +762,7 @@ def format(
         bool, typer.Option("--dry-run", help="Preview changes without saving.")
     ] = False,
 ):
-    """
-    [bold blue]Format[/bold blue] YAML frontmatter in your vault.
+    """[bold blue]Format[/bold blue] YAML frontmatter in your vault.
     Normalizes serialization to use stripped block scalars (|-).
     """
     from arete.application.config import resolve_config
@@ -812,8 +789,7 @@ def format(
 
 @app.command("mcp-server")
 def mcp_server():
-    """
-    Start MCP (Model Context Protocol) server for AI agent integration.
+    """Start MCP (Model Context Protocol) server for AI agent integration.
 
     This exposes Arete's sync capabilities to AI agents like Claude, Gemini, etc.
     Configure in Claude Desktop's config.json:
@@ -846,9 +822,7 @@ def anki_stats(
     anki_connect_url: Annotated[str | None, typer.Option(help="AnkiConnect URL Override")] = None,
     anki_base: Annotated[str | None, typer.Option(help="Anki Base Directory Override")] = None,
 ):
-    """
-    Fetch card statistics for the given Note IDs.
-    """
+    """Fetch card statistics for the given Note IDs."""
     import asyncio
     import json
     from dataclasses import asdict
@@ -1091,8 +1065,7 @@ def anki_queue(
         bool, typer.Option("--dry-run", help="Show plan without creating decks.")
     ] = False,
 ):
-    """
-    Build dependency-aware study queues.
+    """Build dependency-aware study queues.
 
     Resolves prerequisites for due cards, filters weak ones,
     and creates filtered decks in Anki.

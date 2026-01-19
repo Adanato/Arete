@@ -9,8 +9,7 @@ from arete.domain.graph import CardNode, DependencyGraph
 
 @pytest.fixture
 def mock_graph_deps():
-    """
-    Creates a dependency graph:
+    """Creates a dependency graph:
     A -> B (A requires B)
     B -> C (B requires C)
     D (independent)

@@ -13,8 +13,7 @@ import requests
 
 @pytest.fixture(scope="session")
 def anki_url():
-    """
-    Returns the URL for AnkiConnect.
+    """Returns the URL for AnkiConnect.
     Defaults to 8766 (Anki 24+ default/Docker default).
     """
     return os.getenv("ANKI_CONNECT_URL", "http://127.0.0.1:8766")
@@ -30,9 +29,7 @@ def anki_media_dir():
 
 @pytest.fixture(scope="session")
 def check_anki_available(anki_url):
-    """
-    Verifies AnkiConnect is running before running any integration tests.
-    """
+    """Verifies AnkiConnect is running before running any integration tests."""
     try:
         # Action version returns results like 6
         resp = requests.post(anki_url, json={"action": "version", "version": 6}, timeout=2)
@@ -44,9 +41,7 @@ def check_anki_available(anki_url):
 
 @pytest.fixture
 def test_deck(anki_url):
-    """
-    Creates/Ensures a clean 'IntegrationTest' deck.
-    """
+    """Creates/Ensures a clean 'IntegrationTest' deck."""
     deck_name = "IntegrationTest"
 
     # Ensure deck exists and is empty
@@ -70,9 +65,7 @@ def test_deck(anki_url):
 
 @pytest.fixture
 def setup_anki(anki_url, test_deck):
-    """
-    Ensures O2A_Basic model exists with expected fields.
-    """
+    """Ensures O2A_Basic model exists with expected fields."""
     # Create it (ignore error if exists)
     requests.post(
         anki_url,
@@ -97,9 +90,7 @@ def setup_anki(anki_url, test_deck):
 
 @pytest.fixture
 def run_arete(anki_url):
-    """
-    Helper to run the CLI tool in subprocess.
-    """
+    """Helper to run the CLI tool in subprocess."""
 
     def _run(vault_path, anki_url=anki_url, args=None, capture_output=True):
         cmd = [

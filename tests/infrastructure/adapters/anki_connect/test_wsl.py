@@ -5,7 +5,6 @@ from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 
 def test_wsl_detection_active():
     """Verify that we replace localhost with nameserver IP when on WSL."""
-
     mock_uname = "Linux 5.10.16.3-microsoft-standard-WSL2"
     mock_resolv = "nameserver 172.17.0.1\n"
 
@@ -22,7 +21,6 @@ def test_wsl_detection_active():
 
 def test_wsl_detection_non_wsl():
     """Verify no change if not on WSL."""
-
     mock_uname = "Darwin 21.6.0"
 
     with patch("platform.uname") as mock_platform:
@@ -38,7 +36,6 @@ def test_wsl_detection_non_wsl():
 
 def test_wsl_detection_failed_read():
     """Verify safeguard if /etc/resolv.conf is unreadable or malformed."""
-
     mock_uname = "Linux 5.10.16.3-microsoft-standard-WSL2"
 
     with patch("platform.uname") as mock_platform:

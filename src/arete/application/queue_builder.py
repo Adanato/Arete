@@ -1,5 +1,4 @@
-"""
-Queue builder for dependency-aware study sessions.
+"""Queue builder for dependency-aware study sessions.
 
 Builds ordered study queues by:
 1. Walking requires edges backward from due cards
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class WeakPrereqCriteria:
-    """
-    Criteria for determining if a prerequisite is "weak" and needs review.
+    """Criteria for determining if a prerequisite is "weak" and needs review.
 
     All thresholds are optional. If not set, that criterion is not checked.
     """
@@ -37,8 +35,7 @@ def build_simple_queue(
     depth: int = 2,
     max_cards: int = 50,
 ) -> "QueueBuildResult":
-    """
-    Build a simple study queue from due cards.
+    """Build a simple study queue from due cards.
 
     MVP: Collects prerequisites up to depth, then topological sort.
 
@@ -50,6 +47,7 @@ def build_simple_queue(
 
     Returns:
         QueueBuildResult with ordered queues and diagnostics
+
     """
     from arete.application.graph_resolver import build_graph, detect_cycles, topological_sort
 
@@ -113,8 +111,7 @@ def build_dependency_queue(
     weak_criteria: WeakPrereqCriteria | None = None,
     card_stats: dict[str, dict] | None = None,
 ) -> QueueBuildResult:
-    """
-    Build a study queue that includes weak prerequisites before due cards.
+    """Build a study queue that includes weak prerequisites before due cards.
 
     Args:
         vault_root: Path to the Obsidian vault
@@ -127,6 +124,7 @@ def build_dependency_queue(
 
     Returns:
         QueueBuildResult with ordered queues and diagnostics
+
     """
     if include_related:
         raise NotImplementedError(
@@ -201,9 +199,7 @@ def _collect_prereqs(
     depth: int,
     visited: set[str],
 ) -> set[str]:
-    """
-    Recursively collect prerequisites up to a given depth.
-    """
+    """Recursively collect prerequisites up to a given depth."""
     if depth <= 0 or card_id in visited:
         return set()
 
@@ -222,8 +218,7 @@ def _is_weak_prereq(
     criteria: WeakPrereqCriteria | None,
     card_stats: dict[str, dict] | None,
 ) -> bool:
-    """
-    Determine if a prerequisite card is "weak" based on criteria.
+    """Determine if a prerequisite card is "weak" based on criteria.
 
     If no criteria or stats are provided, all prereqs are considered weak.
     """

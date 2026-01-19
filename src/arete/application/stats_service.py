@@ -1,5 +1,4 @@
-"""
-Arete Stats Service
+"""Arete Stats Service
 Wraps AnkiBridge to provide learning statistics.
 """
 
@@ -36,8 +35,7 @@ class StatsService:
 
     @staticmethod
     def clean_note_name(raw_name: str) -> str:
-        """
-        Cleans raw _obsidian_source strings.
+        """Cleans raw _obsidian_source strings.
         Example: 'Obsidian Vault|My Note.md|89' -> 'My Note'
         """
         import re
@@ -68,9 +66,7 @@ class StatsService:
         return name.strip()
 
     async def get_learning_insights(self, lapse_threshold: int = 3) -> LearningStats:
-        """
-        Fetch stats via the bridge (Connect or Direct).
-        """
+        """Fetch stats via the bridge (Connect or Direct)."""
         try:
             insights = await self.anki.get_learning_insights(lapse_threshold=lapse_threshold)
 

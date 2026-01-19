@@ -16,9 +16,7 @@ def runner(request):
 
 @pytest.fixture
 def vault_scenarios(tmp_path):
-    """
-    Returns a factory that populates tmp_path with a specific scenario.
-    """
+    """Returns a factory that populates tmp_path with a specific scenario."""
     fixtures_root = Path("tests/fixtures/vault_scenarios").resolve()
 
     def _setup(scenario_name):
@@ -123,8 +121,7 @@ def test_stats_retrieval(runner, vault_scenarios, anki_url):
 
 
 def test_link_healing(runner, vault_scenarios, anki_url, setup_anki):
-    """
-    Test that if a local file loses its NID but the card exists in Anki,
+    """Test that if a local file loses its NID but the card exists in Anki,
     Arete 'heals' the link by finding the existing card and updating the file.
     """
     vault = vault_scenarios("basic")
@@ -169,9 +166,7 @@ def test_link_healing(runner, vault_scenarios, anki_url, setup_anki):
 
 
 def test_prune_flow(runner, vault_scenarios, anki_url, setup_anki):
-    """
-    Test that deleting a file and syncing with --prune removes the card from Anki.
-    """
+    """Test that deleting a file and syncing with --prune removes the card from Anki."""
     vault = vault_scenarios("basic")
     prune_file = vault / "prune_me.md"
 

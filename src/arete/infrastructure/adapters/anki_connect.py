@@ -13,9 +13,7 @@ from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 
 
 class AnkiConnectAdapter(AnkiBridge):
-    """
-    Adapter for communicating with Anki via the AnkiConnect add-on (HTTP API).
-    """
+    """Adapter for communicating with Anki via the AnkiConnect add-on (HTTP API)."""
 
     def __init__(self, url: str = "http://127.0.0.1:8765"):
         self.logger = logging.getLogger(__name__)
@@ -109,8 +107,7 @@ class AnkiConnectAdapter(AnkiBridge):
             return False
 
     async def ensure_model_has_source_field(self, model_name: str) -> bool:
-        """
-        Ensure the note model has the _obsidian_source field.
+        """Ensure the note model has the _obsidian_source field.
         This enables backwards compatibility for existing cards.
         """
         cache_key = f"_source_field_{model_name}"
@@ -450,9 +447,7 @@ class AnkiConnectAdapter(AnkiBridge):
         return await service.get_learning_insights(lapse_threshold=lapse_threshold)
 
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
-        """
-        Fetch stats via AnkiConnect.
-        """
+        """Fetch stats via AnkiConnect."""
         all_stats = []
         if not nids:
             return []
@@ -585,8 +580,7 @@ class AnkiConnectAdapter(AnkiBridge):
     async def create_topo_deck(
         self, deck_name: str, cids: list[int], reschedule: bool = True
     ) -> bool:
-        """
-        AnkiConnect doesn't easily support the low-level 'due' manipulation
+        """AnkiConnect doesn't easily support the low-level 'due' manipulation
         required for topological sorting since it goes through the API.
 
         We could try to create a filtered deck via 'createDeck' (config?),

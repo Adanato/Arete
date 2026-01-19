@@ -1,5 +1,4 @@
-"""
-Arete AI Agent Module
+"""Arete AI Agent Module
 Uses Atomic Agents framework to provide AI-powered learning insights and tool execution.
 """
 
@@ -20,9 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class AreteOutputSchema(BaseIOSchema):
-    """
-    Structured output for the Arete AI Agent.
-    """
+    """Structured output for the Arete AI Agent."""
 
     chat_message: str = Field(..., description="The response message from the agent.")
     suggested_questions: list[str] = Field(
@@ -76,9 +73,7 @@ system_prompt_generator = SystemPromptGenerator(
 
 
 def create_arete_agent(api_key: str, provider: str = "openai") -> AtomicAgent:
-    """
-    Creates and configures an AtomicAgent for Arete.
-    """
+    """Creates and configures an AtomicAgent for Arete."""
     if provider == "gemini":
         import google.generativeai as genai  # type: ignore
 

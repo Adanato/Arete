@@ -65,6 +65,10 @@ coverage:
 @check-types:
     uv run pyright {{SRC}}
 
+# Check architectural layers and isolation
+@check-architecture:
+    uv run lint-imports
+
 # --- Frontend (Obsidian Plugin) ---
 
 # Build Obsidian plugin
@@ -110,6 +114,7 @@ coverage:
     @echo "--- 🐍 Backend QA ---"
     just fix
     just check-types
+    just check-architecture
     just test
     @echo "--- 🟦 Frontend QA ---"
     {{NPM}} run format

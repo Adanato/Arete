@@ -1,5 +1,4 @@
-"""
-Markdown to Anki HTML conversion logic.
+"""Markdown to Anki HTML conversion logic.
 Extracted from apy logic to allow direct Python usage.
 """
 
@@ -76,8 +75,7 @@ _md_instance: markdown.Markdown | None = None
 
 
 def markdown_to_anki_html(text: str, latex_mode: str = "mathjax") -> str:
-    """
-    Convert markdown text to Anki-compatible HTML.
+    """Convert markdown text to Anki-compatible HTML.
     Includes special handling for MathJax protection.
     """
     global _md_instance

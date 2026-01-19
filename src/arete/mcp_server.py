@@ -1,5 +1,4 @@
-"""
-Arete MCP Server
+"""Arete MCP Server
 
 Exposes Arete sync capabilities via the Model Context Protocol (MCP),
 enabling AI agents (Claude, Gemini, etc.) to interact with Anki flashcard sync.

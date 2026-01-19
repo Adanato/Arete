@@ -13,9 +13,7 @@ from arete.infrastructure.anki.repository import AnkiRepository
 
 
 class AnkiDirectAdapter(AnkiBridge):
-    """
-    Direct Python adapter for Anki using the 'anki' library.
-    """
+    """Direct Python adapter for Anki using the 'anki' library."""
 
     def __init__(self, anki_base: Path | None):
         self.anki_base = anki_base
@@ -141,14 +139,14 @@ class AnkiDirectAdapter(AnkiBridge):
         return []
 
     async def get_due_cards(self, deck_name: str | None = None) -> list[int]:
-        """
-        Get all cards due today from Anki, optionally filtered by deck.
+        """Get all cards due today from Anki, optionally filtered by deck.
 
         Args:
             deck_name: Optional deck name (supports nested, e.g., "Math::Calculus")
 
         Returns:
             List of Anki note IDs (nids) that are due
+
         """
         with AnkiRepository(self.anki_base) as repo:
             if not repo.col:
@@ -163,13 +161,13 @@ class AnkiDirectAdapter(AnkiBridge):
             return nids
 
     async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
-        """
-        Map Anki note IDs to Arete card IDs.
+        """Map Anki note IDs to Arete card IDs.
 
         Looks for Arete ID in note tags (arete_XXX pattern).
 
         Returns:
             List of Arete IDs
+
         """
         arete_ids: list[str] = []
 
@@ -301,9 +299,7 @@ class AnkiDirectAdapter(AnkiBridge):
         return LearningStats(total_cards=total_cards, problematic_notes=problematic_notes[:5])
 
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
-        """
-        Direct DB implementation of fetching card stats.
-        """
+        """Direct DB implementation of fetching card stats."""
         stats_list = []
         if not nids:
             return []
@@ -402,9 +398,7 @@ class AnkiDirectAdapter(AnkiBridge):
             return model.get("css", "")
 
     async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
-        """
-        Return { "Card 1": {"Front": "...", "Back": "..."} }
-        """
+        """Return { "Card 1": {"Front": "...", "Back": "..."} }"""
         with AnkiRepository(self.anki_base) as repo:
             if not repo.col:
                 return {}
@@ -418,8 +412,7 @@ class AnkiDirectAdapter(AnkiBridge):
             return result
 
     async def gui_browse(self, query: str) -> bool:
-        """
-        Open the Anki browser.
+        """Open the Anki browser.
         Launches Anki first, waits 3s, then uses AnkiConnect to apply the search query.
         """
         import asyncio
@@ -523,9 +516,7 @@ class AnkiDirectAdapter(AnkiBridge):
     async def create_topo_deck(
         self, deck_name: str, cids: list[int], reschedule: bool = True
     ) -> bool:
-        """
-        Create a filtered deck enforcing the order of CIDs provided.
-        """
+        """Create a filtered deck enforcing the order of CIDs provided."""
         if not cids:
             return False
 

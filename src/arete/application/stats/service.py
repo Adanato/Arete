@@ -3,9 +3,7 @@ from arete.domain.stats.ports import StatsRepository
 
 
 class FsrsStatsService:
-    """
-    Application service for fetching and enriching card statistics using FSRS logic.
-    """
+    """Application service for fetching and enriching card statistics using FSRS logic."""
 
     def __init__(self, repo: StatsRepository, calculator: MetricsCalculator):
         self.repo = repo

@@ -1,5 +1,4 @@
-"""
-Domain models for FSRS statistics.
+"""Domain models for FSRS statistics.
 
 These are pure data structures with no I/O or external dependencies.
 """
@@ -9,13 +8,13 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class FsrsMemoryState:
-    """
-    FSRS memory state for a card.
+    """FSRS memory state for a card.
 
     Attributes:
         stability: Days until recall probability drops to 90%.
         difficulty: Card difficulty (0.0-1.0 normalized from Anki's 1-10 scale).
         retrievability: Current probability of recall (0.0-1.0).
+
     """
 
     stability: float
@@ -25,8 +24,7 @@ class FsrsMemoryState:
 
 @dataclass(frozen=True)
 class ReviewEntry:
-    """
-    A single review log entry.
+    """A single review log entry.
 
     Attributes:
         card_id: The card that was reviewed.
@@ -39,6 +37,7 @@ class ReviewEntry:
         stability: FSRS stability after this review.
         difficulty: FSRS difficulty after this review.
         retrievability: FSRS retrievability before this review.
+
     """
 
     card_id: int
@@ -55,8 +54,7 @@ class ReviewEntry:
 
 @dataclass
 class CardStatsAggregate:
-    """
-    Comprehensive statistics for a card, combining Anki data with FSRS metrics.
+    """Comprehensive statistics for a card, combining Anki data with FSRS metrics.
 
     This is the rich domain object used for analytics and dependency queue logic.
     """

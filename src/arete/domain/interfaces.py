@@ -36,8 +36,7 @@ class ContentCache(Protocol):
 
 
 class AnkiBridge(ABC):
-    """
-    Abstract interface for Anki backend operations.
+    """Abstract interface for Anki backend operations.
 
     Implementations (Adapters) are responsible for translating domain-level
     WorkItems into backend-specific commands (e.g., HTTP for AnkiConnect
@@ -52,8 +51,7 @@ class AnkiBridge(ABC):
 
     @abstractmethod
     async def sync_notes(self, work_items: list[WorkItem]) -> list[UpdateItem]:
-        """
-        Process a batch of notes: add new ones or update existing ones.
+        """Process a batch of notes: add new ones or update existing ones.
 
         If a note has an existing 'nid', the adapter should attempt to
         update the existing note. If no 'nid' is provided, it should create
@@ -71,8 +69,7 @@ class AnkiBridge(ABC):
 
     @abstractmethod
     async def ensure_deck(self, deck: AnkiDeck | str) -> bool:
-        """
-        Ensure the named deck exists.
+        """Ensure the named deck exists.
         Implementations should handle nested '::' hierarchies.
         """
         pass
@@ -84,8 +81,7 @@ class AnkiBridge(ABC):
 
     @abstractmethod
     async def get_notes_in_deck(self, deck_name: str) -> dict[str, int]:
-        """
-        Return mapping of {obsidian_nid: anki_nid} for all notes in a deck.
+        """Return mapping of {obsidian_nid: anki_nid} for all notes in a deck.
         Used primarily by the Pruning stage to identify orphaned cards.
         """
         pass
@@ -102,25 +98,21 @@ class AnkiBridge(ABC):
 
     @abstractmethod
     async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
-        """
-        Fetch learning statistics and identify problematic notes.
+        """Fetch learning statistics and identify problematic notes.
         Returns a LearningStats-compatible object or data.
         """
         pass
 
     @abstractmethod
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
-        """
-        Fetch detailed statistics for a list of Note IDs.
+        """Fetch detailed statistics for a list of Note IDs.
         Used by the dashboard to show lapses, difficulty, etc.
         """
         pass
 
     @abstractmethod
     async def gui_browse(self, query: str) -> bool:
-        """
-        Open the Anki browser with the specified search query.
-        """
+        """Open the Anki browser with the specified search query."""
         pass
 
     @abstractmethod
@@ -167,7 +159,5 @@ class AnkiBridge(ABC):
 
     @abstractmethod
     async def close(self) -> None:
-        """
-        Release any held resources (e.g. HTTP clients, DB connections).
-        """
+        """Release any held resources (e.g. HTTP clients, DB connections)."""
         pass

@@ -16,9 +16,7 @@ def sanitize(v: Any) -> str:
 
 
 def detect_anki_paths() -> tuple[Path | None, Path]:
-    """
-    Returns (anki_base_dir, anki_media_dir)
-    """
+    """Returns (anki_base_dir, anki_media_dir)"""
     system = platform.system()
 
     if system == "Darwin":

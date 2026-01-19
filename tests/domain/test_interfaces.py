@@ -80,8 +80,7 @@ class TrivialAnkiBridge(AnkiBridge):
 
 @pytest.mark.asyncio
 async def test_anki_bridge_abstract_coverage():
-    """
-    Call the abstract (pass) methods via a trivial implementation to ensure
+    """Call the abstract (pass) methods via a trivial implementation to ensure
     100% coverage of domain/interfaces.py.
     """
     bridge = TrivialAnkiBridge()

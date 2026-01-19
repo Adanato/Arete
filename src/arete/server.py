@@ -43,9 +43,7 @@ start_time = time.time()
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """
-    Simple health check to verify server is reachable.
-    """
+    """Simple health check to verify server is reachable."""
     return HealthResponse(status="ok", version=VERSION, uptime_seconds=time.time() - start_time)
 
 
@@ -79,10 +77,7 @@ class SyncStatsResponse(BaseModel):
 
 @app.post("/sync", response_model=SyncStatsResponse)
 async def trigger_sync(req: SyncRequest):
-    """
-    Trigger a sync operation.
-    """
-
+    """Trigger a sync operation."""
     from arete.application.config import resolve_config
     from arete.main import execute_sync
 
@@ -133,9 +128,7 @@ class FormatResponse(BaseModel):
 
 @app.post("/vault/format", response_model=FormatResponse)
 async def format_vault(req: FormatRequest):
-    """
-    Format and normalize YAML in the entire vault.
-    """
+    """Format and normalize YAML in the entire vault."""
     from arete.application.config import resolve_config
     from arete.application.factory import get_vault_service
 
@@ -255,8 +248,7 @@ async def get_model_templates(
 
 @app.post("/shutdown")
 async def shutdown_server():
-    """
-    Gracefully shuts down the server.
+    """Gracefully shuts down the server.
     Useful for plugins to kill the process when they unload.
     """
     logger.info("Received shutdown request.")
@@ -347,8 +339,7 @@ class StatsRequest(BaseModel):
 
 @app.post("/anki/stats")
 async def get_stats(req: StatsRequest):
-    """
-    Get stats for a list of Note IDs.
+    """Get stats for a list of Note IDs.
     Uses the configured backend (Auto/Direct/Connect).
     """
     from arete.application.config import resolve_config
@@ -387,9 +378,7 @@ class BrowseRequest(BaseModel):
 
 @app.post("/anki/browse")
 async def browse_anki(req: BrowseRequest):
-    """
-    Open the Anki browser with a query.
-    """
+    """Open the Anki browser with a query."""
     from arete.application.config import resolve_config
     from arete.application.factory import get_anki_bridge
 

@@ -1,5 +1,4 @@
-"""
-Anki Bridge Factory
+"""Anki Bridge Factory
 Centralizes the logic for selecting the appropriate Anki adapter.
 """
 
@@ -14,9 +13,7 @@ from arete.infrastructure.persistence.cache import ContentCache
 
 
 async def get_anki_bridge(config: AppConfig) -> AnkiBridge:
-    """
-    Returns the appropriate AnkiBridge implementation based on config and responsiveness.
-    """
+    """Returns the appropriate AnkiBridge implementation based on config and responsiveness."""
     # 1. Manual selection
     if config.backend == "ankiconnect":
         return AnkiConnectAdapter(url=config.anki_connect_url)
@@ -39,9 +36,7 @@ async def get_anki_bridge(config: AppConfig) -> AnkiBridge:
 
 
 def get_vault_service(config: AppConfig) -> VaultService:
-    """
-    Returns the VaultService instance configured for the given app config.
-    """
+    """Returns the VaultService instance configured for the given app config."""
     if config.vault_root is None:
         raise ValueError("vault_root is required for VaultService")
     cache = ContentCache(config.vault_root / ".arete.db")
@@ -49,9 +44,7 @@ def get_vault_service(config: AppConfig) -> VaultService:
 
 
 def get_stats_repo(config: AppConfig) -> StatsRepository:
-    """
-    Returns the appropriate StatsRepository implementation based on config.
-    """
+    """Returns the appropriate StatsRepository implementation based on config."""
     if config.backend == "ankiconnect":
         url = config.anki_connect_url or "http://localhost:8765"
         return ConnectStatsRepository(url=url)

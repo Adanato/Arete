@@ -80,9 +80,13 @@ layers = [
     "infrastructure",
     "domain",
 ]
-containers = [
-    "arete",
-]
+containers = ["arete"]
+
+[[tool.importlinter.contracts]]
+name = "Application level isolation"
+type = "forbidden"
+source_modules = ["arete.application"]
+forbidden_modules = ["arete.infrastructure.adapters"]
 
 [[tool.importlinter.contracts]]
 name = "Domain isolation"
@@ -116,11 +120,24 @@ exclude = [
 # B: flake8-bugbear
 # C4: flake8-comprehensions
 # UP: pyupgrade
-select = ["E", "F", "I", "B", "C4", "UP", "W", "TID252"]
+# W: pycodestyle warnings
+# C90: mccabe complexity
+select = ["E", "F", "I", "B", "C4", "UP", "W", "TID252", "C90"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E501"]
+# Ignore complexity for high-level orchestration modules temporarily
+"src/arete/interface/cli.py" = ["C901"]
+"src/arete/application/pipeline.py" = ["C901"]
+"src/arete/application/parser.py" = ["C901"]
+"src/arete/application/vault_service.py" = ["C901"]
+"src/arete/application/graph_resolver.py" = ["C901"]
+"src/arete/application/utils/text.py" = ["C901"]
+"src/arete/infrastructure/adapters/anki_connect.py" = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
 
 [tool.ruff.format]
 quote-style = "double"

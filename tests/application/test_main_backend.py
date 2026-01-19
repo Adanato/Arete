@@ -124,7 +124,6 @@ async def test_backend_manual_ankiconnect_and_fallback(
     mock_setup_logging, mock_run_pipeline, mock_anki_connect_adapter_cls, mock_config
 ):
     """Test manual selection of AnkiConnect backend and its fallback."""
-
     mock_logger = MagicMock()
     mock_setup_logging.return_value = (mock_logger, Path("/tmp/log.txt"), "run-123")
 

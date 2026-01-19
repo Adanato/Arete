@@ -1,5 +1,4 @@
-"""
-Metrics calculator for deriving insights from raw FSRS stats.
+"""Metrics calculator for deriving insights from raw FSRS stats.
 
 This is a pure computation module with no I/O.
 """
@@ -12,9 +11,7 @@ from arete.domain.stats.models import CardStatsAggregate, ReviewEntry
 
 @dataclass
 class EnrichedStats:
-    """
-    Card stats enriched with computed metrics.
-    """
+    """Card stats enriched with computed metrics."""
 
     # Original aggregate
     card_id: int
@@ -52,16 +49,13 @@ class EnrichedStats:
 
 
 class MetricsCalculator:
-    """
-    Computes derived metrics from raw CardStatsAggregate objects.
+    """Computes derived metrics from raw CardStatsAggregate objects.
 
     Stateless and side-effect free.
     """
 
     def enrich(self, card: CardStatsAggregate, deck_params: dict | None = None) -> EnrichedStats:
-        """
-        Enrich a card's stats with computed metrics.
-        """
+        """Enrich a card's stats with computed metrics."""
         retrievability = self._compute_retrievability(card)
         lapse_rate = self._compute_lapse_rate(card)
         volatility = self._compute_volatility(card.reviews)
@@ -109,8 +103,7 @@ class MetricsCalculator:
         )
 
     def _compute_retrievability(self, card: CardStatsAggregate) -> float | None:
-        """
-        Compute current recall probability using FSRS formula.
+        """Compute current recall probability using FSRS formula.
 
         R = 0.9^(t/S) where t = days since last review, S = stability.
         """
@@ -126,16 +119,13 @@ class MetricsCalculator:
         return 0.9 ** (days_elapsed / card.fsrs.stability)
 
     def _compute_lapse_rate(self, card: CardStatsAggregate) -> float | None:
-        """
-        Compute lapse rate as lapses / total reviews.
-        """
+        """Compute lapse rate as lapses / total reviews."""
         if card.reps == 0:
             return None
         return card.lapses / card.reps
 
     def _compute_volatility(self, reviews: list[ReviewEntry]) -> float | None:
-        """
-        Compute variance in stability over recent reviews.
+        """Compute variance in stability over recent reviews.
 
         High volatility indicates unstable learning or inconsistent review performance.
         """
@@ -174,8 +164,7 @@ class MetricsCalculator:
         return variance
 
     def _compute_schedule_adherence(self, card: CardStatsAggregate) -> float | None:
-        """
-        Ratio of Actual Interval / Predicted Interval (Stability).
+        """Ratio of Actual Interval / Predicted Interval (Stability).
 
         1.0 means perfect adherence to FSRS 90% retention scheduling.
         < 1.0 means early review. > 1.0 means late review.
@@ -191,9 +180,7 @@ class MetricsCalculator:
         return card.interval / card.fsrs.stability
 
     def _compute_days_overdue(self, card: CardStatsAggregate) -> int | None:
-        """
-        Compute days overdue (negative if not yet due).
-        """
+        """Compute days overdue (negative if not yet due)."""
         if not card.last_review or card.interval == 0:
             return None
 
@@ -202,8 +189,7 @@ class MetricsCalculator:
         return int((now_epoch - expected_due_epoch) / 86400)
 
     def _compute_interval_growth(self, reviews: list[ReviewEntry]) -> float | None:
-        """
-        Compute interval growth multiplier from the most recent review.
+        """Compute interval growth multiplier from the most recent review.
 
         Values > 1.0 indicate successful spacing. < 1.0 indicates failing/resetting.
         This effectively replaces Stability Gain for users without FSRS log history.
@@ -220,8 +206,7 @@ class MetricsCalculator:
         return latest.interval / latest.last_interval
 
     def _compute_press_fatigue(self, reviews: list[ReviewEntry]) -> float | None:
-        """
-        Compute 'Press Fatigue' which is the ratio of Hard/(Hard+Good) presses.
+        """Compute 'Press Fatigue' which is the ratio of Hard/(Hard+Good) presses.
 
         High fatigue means the user is struggling to get 'Good' even if they aren't failing.
         Uses the last 20 reviews for a rolling window of recent fatigue.
@@ -240,8 +225,7 @@ class MetricsCalculator:
         return hard_count / total_valid
 
     def _compute_ret_at_review(self, reviews: list[ReviewEntry]) -> float | None:
-        """
-        Extract the retrievability at the moment of the last review.
+        """Extract the retrievability at the moment of the last review.
         This represents the 'difficulty' of the test for the learner.
         """
         if not reviews:
@@ -249,8 +233,7 @@ class MetricsCalculator:
         return reviews[-1].retrievability
 
     def _detect_overlearning(self, card: CardStatsAggregate) -> bool:
-        """
-        Flags cards that are being reviewed too often for their stability.
+        """Flags cards that are being reviewed too often for their stability.
         Criteria: Stability > 90 days AND Retrievability > 98% AND days_overdue < -30.
         """
         if not card.fsrs or card.fsrs.stability < 90:

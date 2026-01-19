@@ -13,9 +13,7 @@ from arete.infrastructure.persistence.cache import ContentCache
 
 
 async def execute_sync(config: AppConfig) -> RunStats:
-    """
-    Core sync execution logic. Returns stats object instead of exiting.
-    """
+    """Core sync execution logic. Returns stats object instead of exiting."""
     logger, main_log_path, run_id = setup_logging(config.log_dir, config.verbose)
     logger.info(f"=== obsidian → anki (run_id={run_id}) ===")
     logger.info(f"System: {platform.system()} {platform.release()} ({platform.machine()})")
@@ -67,9 +65,7 @@ async def execute_sync(config: AppConfig) -> RunStats:
 
 
 async def run_sync_logic(config: AppConfig):
-    """
-    Orchestrates the sync process using the provided config.
-    """
+    """Orchestrates the sync process using the provided config."""
     stats = await execute_sync(config)
 
     # Re-acquire logger since execute_sync sets it up (or we could return it)
@@ -96,9 +92,7 @@ async def run_sync_logic(config: AppConfig):
 
 
 def main():
-    """
-    Professional entry point that delegates to Typer.
-    """
+    """Professional entry point that delegates to Typer."""
     from arete.interface.cli import app
 
     app()

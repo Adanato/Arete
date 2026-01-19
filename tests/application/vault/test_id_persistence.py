@@ -4,9 +4,7 @@ from arete.infrastructure.persistence.cache import ContentCache
 
 
 def test_nid_persistence(tmp_path):
-    """
-    Verify that VaultService.apply_updates writes new NIDs back to the markdown file.
-    """
+    """Verify that VaultService.apply_updates writes new NIDs back to the markdown file."""
     # 1. Setup: Create a dummy markdown file
     md_file = tmp_path / "test_card.md"
     md_content = """---
@@ -58,9 +56,7 @@ cards:
 
 
 def test_existing_nid_update(tmp_path):
-    """
-    Verify that if an NID changes (e.g. healing), it updates the existing field.
-    """
+    """Verify that if an NID changes (e.g. healing), it updates the existing field."""
     md_file = tmp_path / "test_update.md"
     md_content = """---
 arete: true

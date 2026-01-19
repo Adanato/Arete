@@ -54,9 +54,7 @@ class RunRecorder:
 
 
 def setup_logging(log_dir: Path, verbose: int) -> tuple[logging.Logger, Path, str]:
-    """
-    Returns: (logger, log_path, run_id)
-    """
+    """Returns: (logger, log_path, run_id)"""
     log_dir.mkdir(parents=True, exist_ok=True)
     run_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{os.getpid()}"
     main_log_path = log_dir / f"run_{run_id}.log"
@@ -134,9 +132,7 @@ def write_run_report(recorder: RunRecorder, log_dir: Path, run_id: str):
 
 
 def rotate_logs(log_dir: Path, keep: int = 50):
-    """
-    Keep only the latest N run logs and reports.
-    """
+    """Keep only the latest N run logs and reports."""
     try:
         # Sort by modification time (oldest first)
         logs = sorted(log_dir.glob("run_*.log"), key=os.path.getmtime)

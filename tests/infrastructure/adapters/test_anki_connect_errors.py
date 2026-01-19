@@ -58,8 +58,7 @@ async def test_ensure_deck_failure(adapter):
 @pytest.mark.asyncio
 @respx.mock
 async def test_sync_notes_healing_failure(adapter, sample_note):
-    """
-    Simulate "addNote" failing with "duplicate".
+    """Simulate "addNote" failing with "duplicate".
     Then "findNotes" returns empty list (healing fails).
     """
 
@@ -90,8 +89,7 @@ async def test_sync_notes_healing_failure(adapter, sample_note):
 @pytest.mark.asyncio
 @respx.mock
 async def test_sync_notes_healing_success(adapter, sample_note):
-    """
-    Simulate "addNote" failing with "duplicate".
+    """Simulate "addNote" failing with "duplicate".
     Then "findNotes" returns a valid ID (healing success).
     """
 
@@ -124,9 +122,7 @@ async def test_sync_notes_healing_success(adapter, sample_note):
 @pytest.mark.asyncio
 @respx.mock
 async def test_sync_notes_cid_failure(adapter, sample_note):
-    """
-    Simulate addNote success, but notesInfo (CID fetch) fails/returns empty.
-    """
+    """Simulate addNote success, but notesInfo (CID fetch) fails/returns empty."""
 
     def side_effect(request):
         data = json.loads(request.content)
@@ -152,8 +148,7 @@ async def test_sync_notes_cid_failure(adapter, sample_note):
 
 @pytest.mark.asyncio
 async def test_invoke_windows_curl_failure():
-    """
-    Test the WSL curl execution path.
+    """Test the WSL curl execution path.
     1. Force use_windows_curl = True
     2. Mock subprocess to return error.
     """
@@ -205,9 +200,7 @@ async def test_invoke_invalid_response(adapter):
 @pytest.mark.asyncio
 @respx.mock
 async def test_get_notes_in_deck_html_strip(adapter):
-    """
-    Verify that <p>123</p> is stripped to 123 for NID.
-    """
+    """Verify that <p>123</p> is stripped to 123 for NID."""
     respx.post("http://mock-anki:8765").mock(
         side_effect=[
             # findNotes

@@ -26,9 +26,7 @@ def test_iter_markdown_files_nested(tmp_path):
 
 
 def test_iter_markdown_files_excludes(tmp_path):
-    """
-    Verify that standard ignored directories and hidden folders are skipped.
-    """
+    """Verify that standard ignored directories and hidden folders are skipped."""
     # 1. .git (explicit exclude)
     git = tmp_path / ".git"
     git.mkdir()

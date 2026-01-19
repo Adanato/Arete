@@ -4,8 +4,7 @@ from pathlib import Path
 
 
 def iter_markdown_files(root: Path) -> Iterable[Path]:
-    """
-    Recursively find markdown files in a vault, skipping common hidden
+    """Recursively find markdown files in a vault, skipping common hidden
     and system directories.
     """
     if root.is_file() and root.suffix.lower() == ".md":

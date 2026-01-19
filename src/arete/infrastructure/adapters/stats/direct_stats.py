@@ -1,5 +1,4 @@
-"""
-Direct Stats Repository — Infrastructure adapter for Anki's SQLite database.
+"""Direct Stats Repository — Infrastructure adapter for Anki's SQLite database.
 
 Implements StatsRepository by querying the Anki collection directly.
 """
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class DirectStatsRepository(StatsRepository):
-    """
-    Fetches card statistics directly from Anki's SQLite database.
+    """Fetches card statistics directly from Anki's SQLite database.
 
     Accesses FSRS memory state via card.memory_state when available.
     """
@@ -25,9 +23,7 @@ class DirectStatsRepository(StatsRepository):
         self.anki_base = anki_base
 
     async def get_card_stats(self, nids: list[int]) -> list[CardStatsAggregate]:
-        """
-        Fetch comprehensive stats for cards belonging to the given note IDs.
-        """
+        """Fetch comprehensive stats for cards belonging to the given note IDs."""
         if not nids:
             return []
 
@@ -107,9 +103,7 @@ class DirectStatsRepository(StatsRepository):
         return stats_list
 
     async def get_review_history(self, cids: list[int]) -> list[ReviewEntry]:
-        """
-        Fetch review history from the revlog table.
-        """
+        """Fetch review history from the revlog table."""
         if not cids:
             return []
 
@@ -178,9 +172,7 @@ class DirectStatsRepository(StatsRepository):
         return entries
 
     async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
-        """
-        Fetch FSRS parameters (desired retention, weights) for the given decks.
-        """
+        """Fetch FSRS parameters (desired retention, weights) for the given decks."""
         params: dict[str, dict] = {}
 
         with AnkiRepository(self.anki_base) as repo:
@@ -214,9 +206,7 @@ class DirectStatsRepository(StatsRepository):
         return params
 
     def _get_answer_distribution(self, repo: AnkiRepository, cid: int) -> dict[int, int]:
-        """
-        Get counts of each answer button rating for a card.
-        """
+        """Get counts of each answer button rating for a card."""
         try:
             if repo.col is None or repo.col.db is None:
                 return {}
@@ -230,9 +220,7 @@ class DirectStatsRepository(StatsRepository):
             return {}
 
     def _get_last_review_time(self, repo: AnkiRepository, cid: int) -> int | None:
-        """
-        Get the most recent review time for a card.
-        """
+        """Get the most recent review time for a card."""
         try:
             if repo.col is None or repo.col.db is None:
                 return None
@@ -244,9 +232,7 @@ class DirectStatsRepository(StatsRepository):
         return None
 
     def _get_average_time(self, repo: AnkiRepository, cid: int) -> int:
-        """
-        Get average time taken (ms) for a card.
-        """
+        """Get average time taken (ms) for a card."""
         try:
             if repo.col is None or repo.col.db is None:
                 return 0

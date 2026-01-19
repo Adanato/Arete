@@ -19,9 +19,7 @@ def temp_vault(tmp_path):
 
 
 def test_vault_service_uses_cache_by_default(temp_vault, mock_cache):
-    """
-    Verify that VaultService queries the cache when ignore_cache is False (default).
-    """
+    """Verify that VaultService queries the cache when ignore_cache is False (default)."""
     # Setup
     md_file = temp_vault / "test.md"
     md_file.write_text("---\ncards:\n  - Front: F\n    Back: B\n---\nBody", encoding="utf-8")
@@ -39,9 +37,7 @@ def test_vault_service_uses_cache_by_default(temp_vault, mock_cache):
 
 
 def test_vault_service_bypasses_cache_when_ignored(temp_vault, mock_cache):
-    """
-    Verify that VaultService DOES NOT query the cache when ignore_cache is True.
-    """
+    """Verify that VaultService DOES NOT query the cache when ignore_cache is True."""
     # Setup
     md_file = temp_vault / "test.md"
     # Needs valid frontmatter because cache lookup will be skipped, so it must parse manually

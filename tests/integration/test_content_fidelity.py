@@ -2,9 +2,7 @@ import requests
 
 
 def test_complex_markdown(tmp_path, anki_url, setup_anki, run_arete, test_deck):
-    """
-    Verify that Code blocks, MathJax, and Tables are preserved/converted correctly.
-    """
+    """Verify that Code blocks, MathJax, and Tables are preserved/converted correctly."""
     md_file = tmp_path / "complex.md"
     content = f"""---
 deck: {test_deck}

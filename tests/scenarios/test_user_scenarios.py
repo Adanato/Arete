@@ -24,9 +24,7 @@ SCENARIOS = [
 
 @pytest.mark.parametrize("filename, expected_msg", SCENARIOS)
 def test_mock_vault_scenarios(filename, expected_msg):
-    """
-    Ensures that known 'bad' files in the mock_vault are correctly flagging checks.
-    """
+    """Ensures that known 'bad' files in the mock_vault are correctly flagging checks."""
     vault_path = Path("tests/mock_vault")
     file_path = vault_path / filename
 
