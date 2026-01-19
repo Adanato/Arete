@@ -14,7 +14,7 @@
 	},
 	"keywords": [],
 	"author": "Adam Nguyen",
-	"license": "MIT",
+	"license": "GPL-3.0",
 	"devDependencies": {
 		"@types/d3": "^7.4.3",
 		"@types/jest": "^30.0.0",
