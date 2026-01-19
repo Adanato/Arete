@@ -31,6 +31,68 @@ class WeakPrereqCriteria:
     max_interval: int | None = None  # Maximum interval in days
 
 
+def build_simple_queue(
+    vault_root: Path,
+    due_card_ids: list[str],
+    depth: int = 2,
+    max_cards: int = 50,
+) -> "QueueBuildResult":
+    """
+    Build a simple study queue from due cards.
+
+    MVP: Collects prerequisites up to depth, then topological sort.
+
+    Args:
+        vault_root: Path to the Obsidian vault
+        due_card_ids: List of Arete IDs that are due for review
+        depth: How many prerequisite levels to include
+        max_cards: Maximum cards in queue
+
+    Returns:
+        QueueBuildResult with ordered queues and diagnostics
+    """
+    from arete.application.graph_resolver import build_graph, detect_cycles, topological_sort
+
+    graph = build_graph(vault_root)
+
+    # Collect all prerequisites for due cards
+    all_prereqs: set[str] = set()
+    missing_prereqs: list[str] = []
+
+    for card_id in due_card_ids:
+        prereqs = _collect_prereqs(graph, card_id, depth, set())
+        for prereq_id in prereqs:
+            if prereq_id in graph.nodes:
+                all_prereqs.add(prereq_id)
+        # Track unresolved refs
+        for ref in graph.unresolved_refs.get(card_id, []):
+            if ref not in missing_prereqs:
+                missing_prereqs.append(ref)
+
+    # Remove due cards from prereqs (they'll be in main queue)
+    all_prereqs -= set(due_card_ids)
+
+    # Limit size
+    prereq_list = list(all_prereqs)
+    if len(prereq_list) + len(due_card_ids) > max_cards:
+        prereq_list = prereq_list[: max_cards - len(due_card_ids)]
+
+    # Topological sort both queues
+    prereq_queue = topological_sort(graph, prereq_list)
+    main_queue = topological_sort(graph, due_card_ids)
+
+    # Detect cycles
+    cycles = detect_cycles(graph)
+
+    return QueueBuildResult(
+        prereq_queue=prereq_queue,
+        main_queue=main_queue,
+        skipped_strong=[],
+        missing_prereqs=missing_prereqs,
+        cycles=cycles,
+    )
+
+
 @dataclass
 class QueueBuildResult:
     """Result of queue building operation."""

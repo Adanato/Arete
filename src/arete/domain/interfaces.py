@@ -144,6 +144,18 @@ class AnkiBridge(ABC):
         pass
 
     @abstractmethod
+    async def create_topo_deck(
+        self, deck_name: str, cids: list[int], reschedule: bool = True
+    ) -> bool:
+        """Create a filtered deck with topological ordering enforced."""
+        pass
+
+    @abstractmethod
+    async def get_card_ids_for_arete_ids(self, arete_ids: list[str]) -> list[int]:
+        """Resolve Arete IDs (e.g. arete_123) to Anki Card IDs (CIDs)."""
+        pass
+
+    @abstractmethod
     async def close(self) -> None:
         """
         Release any held resources (e.g. HTTP clients, DB connections).

@@ -224,4 +224,59 @@ export class AreteClient {
 		const res = await this.invoke('/anki/browse', { query });
 		return res && res.ok;
 	}
+
+	async getDeckNames(): Promise<string[]> {
+		try {
+			const res = await this.invoke('/anki/decks', {});
+			return res.decks || [];
+		} catch (e) {
+			console.error('[AreteClient] getDeckNames failed:', e);
+			return [];
+		}
+	}
+
+	async buildStudyQueue(
+		deck: string | null,
+		depth: number,
+		maxCards: number,
+	): Promise<{
+		deck: string;
+		dueCount: number;
+		totalWithPrereqs: number;
+		queue: Array<{
+			position: number;
+			id: string;
+			title: string;
+			file: string;
+			isPrereq: boolean;
+		}>;
+	}> {
+		const res = await this.invoke('/queue/build', {
+			deck: deck || null,
+			depth,
+			max_cards: maxCards,
+		});
+		return {
+			deck: res.deck || 'All Decks',
+			dueCount: res.due_count || 0,
+			totalWithPrereqs: res.total_with_prereqs || 0,
+			queue: (res.queue || []).map((c: any, idx: number) => ({
+				position: c.position || idx + 1,
+				id: c.id,
+				title: c.title,
+				file: c.file,
+				isPrereq: c.is_prereq || false,
+			})),
+		};
+	}
+
+	async createQueueDeck(cardIds: string[]): Promise<boolean> {
+		try {
+			const res = await this.invoke('/queue/create-deck', { card_ids: cardIds });
+			return res.ok || false;
+		} catch (e) {
+			console.error('[AreteClient] createQueueDeck failed:', e);
+			return false;
+		}
+	}
 }

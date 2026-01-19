@@ -405,3 +405,155 @@ async def browse_anki(req: BrowseRequest):
     except Exception as e:
         logger.error(f"Browse failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Queue Builder Endpoints ---
+
+
+class DecksRequest(BaseModel):
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+
+
+@app.post("/anki/decks")
+async def get_decks(req: DecksRequest):
+    """Get all deck names from Anki."""
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_anki_bridge
+
+    try:
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+        decks = await anki.get_deck_names()
+        return {"decks": decks}
+    except Exception as e:
+        logger.error(f"Get decks failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class QueueBuildRequest(BaseModel):
+    deck: str | None = None
+    depth: int = 2
+    max_cards: int = 50
+    vault_root: str | None = None
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+
+
+@app.post("/queue/build")
+async def build_queue(req: QueueBuildRequest):
+    """Build a study queue from due cards with prerequisites."""
+    from pathlib import Path
+
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_anki_bridge
+    from arete.application.graph_resolver import build_graph
+    from arete.application.queue_builder import build_simple_queue
+
+    try:
+        overrides = {
+            "vault_root": req.vault_root,
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+
+        # Get due cards from Anki
+        nids = await anki.get_due_cards(req.deck)
+        arete_ids = await anki.map_nids_to_arete_ids(nids)
+
+        if not arete_ids:
+            return {
+                "deck": req.deck or "All Decks",
+                "due_count": 0,
+                "total_with_prereqs": 0,
+                "queue": [],
+            }
+
+        # Build queue with prerequisites
+        vault_root = Path(config.vault_root)
+        result = build_simple_queue(vault_root, arete_ids, req.depth, req.max_cards)
+
+        # Build response with card details
+        graph = build_graph(vault_root)
+        queue_items = []
+        all_cards = result.prereq_queue + result.main_queue
+
+        for idx, card_id in enumerate(all_cards, 1):
+            node = graph.nodes.get(card_id)
+            queue_items.append(
+                {
+                    "position": idx,
+                    "id": card_id,
+                    "title": node.title if node else card_id,
+                    "file": node.file_path if node else "",
+                    "is_prereq": card_id in result.prereq_queue,
+                }
+            )
+
+        return {
+            "deck": req.deck or "All Decks",
+            "due_count": len(arete_ids),
+            "total_with_prereqs": len(all_cards),
+            "queue": queue_items,
+        }
+    except Exception as e:
+        logger.error(f"Queue build failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class QueueCreateDeckRequest(BaseModel):
+    card_ids: list[str]
+    deck_name: str = "Arete Study Queue"
+    backend: str | None = None
+    anki_connect_url: str | None = None
+    anki_base: str | None = None
+    reschedule: bool = True  # Default to True (Study Mode)
+
+
+@app.post("/queue/create-deck")
+async def create_queue_deck(req: QueueCreateDeckRequest):
+    """Create a filtered deck in Anki with queue ordering tags."""
+    from arete.application.config import resolve_config
+    from arete.application.factory import get_anki_bridge
+
+    logger.info(f"Create queue deck requested: {len(req.card_ids)} cards")
+
+    try:
+        overrides = {
+            "backend": req.backend,
+            "anki_connect_url": req.anki_connect_url,
+            "anki_base": req.anki_base,
+        }
+        config = resolve_config({k: v for k, v in overrides.items() if v is not None})
+        anki = await get_anki_bridge(config)
+
+        # 1. Resolve to CIDs
+        cids = await anki.get_card_ids_for_arete_ids(req.card_ids)
+        if not cids:
+            # Maybe the user hasn't synced?
+            return {"ok": False, "message": "No matching Anki cards found. Have you synced?"}
+
+        # 2. Create Deck
+        success = await anki.create_topo_deck(req.deck_name, cids, reschedule=req.reschedule)
+
+        if success:
+            return {
+                "ok": True,
+                "message": f"Created deck '{req.deck_name}' with {len(cids)} cards.",
+            }
+        else:
+            return {"ok": False, "message": "Failed to create deck (check logs)."}
+
+    except Exception as e:
+        logger.error(f"Create deck failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e

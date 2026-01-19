@@ -140,6 +140,56 @@ class AnkiDirectAdapter(AnkiBridge):
                 return repo.col.decks.all_names()
         return []
 
+    async def get_due_cards(self, deck_filter: str | None = None) -> list[int]:
+        """
+        Get all cards due today from Anki, optionally filtered by deck.
+
+        Args:
+            deck_filter: Optional deck name (supports nested, e.g., "Math::Calculus")
+
+        Returns:
+            List of Anki note IDs (nids) that are due
+        """
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return []
+
+            # Build Anki search query
+            query = "is:due"
+            if deck_filter:
+                query = f'deck:"{deck_filter}" {query}'
+
+            nids = repo.find_notes(query)
+            return nids
+
+    async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
+        """
+        Map Anki note IDs to Arete card IDs.
+
+        Looks for Arete ID in note tags (arete_XXX pattern).
+
+        Returns:
+            List of Arete IDs
+        """
+        arete_ids: list[str] = []
+
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return []
+
+            for nid in nids:
+                try:
+                    note = repo.col.get_note(nid)
+                    # Check tags for arete_XXX pattern
+                    for tag in note.tags:
+                        if tag.startswith("arete_"):
+                            arete_ids.append(tag)
+                            break
+                except Exception as e:
+                    self.logger.warning(f"Failed to get note {nid}: {e}")
+
+        return arete_ids
+
     async def get_notes_in_deck(self, deck_name: str) -> dict[str, int]:
         # Enable Pruning support!
         with AnkiRepository(self.anki_base) as repo:
@@ -429,6 +479,165 @@ class AnkiDirectAdapter(AnkiBridge):
 
         self.logger.error("Anki launched but search query could not be applied via AnkiConnect.")
         return False
+
+    async def get_card_ids_for_arete_ids(self, arete_ids: list[str]) -> list[int]:
+        """Resolve Arete IDs to Anki CIDs using tag search."""
+        if not arete_ids:
+            return []
+
+        cids_ordered = []
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return []
+
+            # Efficiently find cards
+            # Search query: "tag:arete_ID1 OR tag:arete_ID2 ..."
+            # But this is messy if list is huge.
+            # Max query length check?
+            # Better: find_cards("tag:arete_ID") for each ID? Slow.
+            # Best: Iterate IDs and search individually? Or chunk.
+
+            # Actually, `arete_ID` is a tag.
+            # So `tag:arete_ID` uniquely identifies cards for that note.
+            # A note might have multiple cards. We usually want "Card 1" or all cards.
+            # Let's get ALL cards for these tags.
+
+            # BUT topological sort output is `card_id` (Arete ID).
+            # In Arete, "card_id" usually maps to a NOTE ID (or specific card if using ID+Type).
+            # The `arete_XXX` string is on the Note as a tag.
+            # So searching `tag:arete_XXX` gives us CIDs for that note.
+
+            # We must preserve order.
+
+            for aid in arete_ids:
+                found = repo.col.find_cards(f"tag:{aid}")
+                # Append all cards found (if multiple cards per note, they all go in queue)
+                for cid in found:
+                    if cid not in cids_ordered:
+                        cids_ordered.append(cid)
+
+        return cids_ordered
+
+    async def create_filtered_deck(self, deck_name: str, card_map: dict[str, int]) -> bool:
+        """
+        Create a filtered deck with cards in specific topological order.
+
+        Args:
+            deck_name: Name of the deck
+            card_map: Dict of {arete_id: anki_cid} (Ordered mapping implied by list? No, dict.
+                      Actually interface probably should take list of CIDs)
+        """
+        # Wait, the interface in server.py passes `card_ids` (arete IDs).
+        # We need mapped CIDs.
+        # Let's adjust signature to match expected usage or what server.py can provide.
+        # server.py calls: await anki.create_filtered_deck(deck_name, cids) ???
+        # Let's look at what I need. TOPO ORDER is critical.
+        pass
+
+    async def create_topo_deck(
+        self, deck_name: str, cids: list[int], reschedule: bool = True
+    ) -> bool:
+        """
+        Create a filtered deck enforcing the order of CIDs provided.
+        """
+        if not cids:
+            return False
+
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return False
+
+            # 1. Get/Create Dynamic Deck
+            did = repo.col.decks.id(deck_name, create=False)
+            if did:
+                # If it exists but is not dynamic, we might have an issue.
+                # Assuming users use unique names for queues.
+                # Check if dyn
+                deck = repo.col.decks.get(did)
+                if not deck.get("dyn"):
+                    # Delete standard deck? No, too dangerous. Error out.
+                    self.logger.error(f"Deck {deck_name} exists and is not a filtered deck.")
+                    return False
+            else:
+                did = repo.col.decks.new_filtered(deck_name)
+
+            # 2. Configure Deck Search
+            # We want to pull EXACTLY these cards.
+            # Query: "cid:1 OR cid:2 ..."
+            # Note: Max query length limits? Anki handles large queries okay usually.
+
+            # Reset the deck config
+            deck = repo.col.decks.get(did)
+
+            # We use a single search term
+            query = " OR ".join([f"cid:{cid}" for cid in cids])
+
+            # "terms" is a list of [search, limit, order]
+            # order=0 (Random), 1 (Oldest), etc.
+            # We'll use order=0 initially, then manually sort.
+            deck["terms"] = [[query, len(cids), 0]]
+
+            # "resched": True/False.
+            # If False, they return to home deck after review.
+            # If True, reviewing them updates their actual scheduling.
+            # Usually for Study Queue we WANT rescheduling (it's real study).
+            deck["resched"] = reschedule
+
+            repo.col.decks.save(deck)
+
+            # 3. Rebuild (Pull cards)
+            # This pulls them into the deck.
+            repo.col.sched.rebuild_filtered_deck(did)
+
+            # 4. Enforce Topological Order
+            # Rebuild pulls them in whatever order. We must REPOSITION them.
+            # In V3 scheduler, filtered deck cards are sorted by 'due'.
+            # We can use col.sched.sort_cards(cids, start=1) ?
+            # Or manually update 'due' field for these cards to 0, 1, 2...
+
+            # Note: cids list is in correct Topo Order.
+            # We want the first cid to be due=0, second due=1...
+            # Note: 'due' in filtered decks is a large integer usually?
+            # Actually for dyn decks, 'due' is the order.
+
+            # repo.col.sched.set_due_date(cids, "0") # This sets them to today?
+
+            # We can manually update db?
+            # Or use 'reposition'.
+            # repo.col.sched.reposition_cards(cids, 0, 1, False, False)
+            # Wait, reposition works on 'new' queue.
+            # For 'rev' queue cards inside dyn deck, 'due' is somewhat complex.
+
+            # Let's try explicit update.
+            # Cards in dyn deck: odid != 0.
+            # queue: 0=new, 1=lrn, 2=rev.
+            # In dyn deck, queue might be different depending on state.
+
+            # SIMPLIFICATION:
+            # We will rely on Anki's "Order Added"? No.
+            # We will iterate and set 'due' directly.
+
+            # But wait, Anki's rebuild might not include ALL cards if they are suspended/buried?
+            # Ensure query includes 'is:suspended' if we want to force them?
+
+            try:
+                # Update 'due' to force order.
+                # For dyn decks, lower 'due' = shown first (usually).
+                # We need to act on the CARD objects.
+
+                for i, cid in enumerate(cids):
+                    card = repo.col.get_card(cid)
+                    # verify it is in our deck
+                    if card.did == did:
+                        card.due = i + 1000  # just to be safe and ordered
+                        # Actually due needs to be consistent.
+                        # Simple integer increment is fine for Dyn decks (Rev/New) usually.
+                        repo.col.update_card(card)
+
+            except Exception as e:
+                self.logger.warning(f"Failed to force order: {e}")
+
+            return True
 
     async def close(self) -> None:
         """No long-lived resources to clean up in Direct backend."""

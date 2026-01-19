@@ -58,11 +58,13 @@ def build_graph(vault_root: Path) -> DependencyGraph:
                     continue  # Skip cards without Arete ID
 
                 # Extract title from Front field or use ID
+                # V2: fields are at root. V1 (internal model): fields might be nested.
                 fields = card.get("fields", {})
-                if isinstance(fields, dict):
-                    title = fields.get("Front", card_id)
+                if isinstance(fields, dict) and "Front" in fields:
+                    title = fields.get("Front")
                 else:
-                    title = card_id
+                    # Fallback to checking root level (V2)
+                    title = card.get("Front") or card.get("title") or card_id
 
                 # Get line number if available
                 line_number = card.get("__line__", 1)
