@@ -1,13 +1,10 @@
 import { EditorView, gutter, GutterMarker, Decoration, DecorationSet } from '@codemirror/view';
 import { RangeSetBuilder, StateField, StateEffect } from '@codemirror/state';
-import { syntaxTree } from '@codemirror/language';
-import { parseYaml } from 'obsidian';
+import { Notice } from 'obsidian';
 import type { AnkiCardStats } from '@/domain/stats';
 import { CardVisualsService } from '@/application/services/CardVisualsService';
 
 // Re-use interfaces from service
-import { CardRange } from '@/application/services/CardParserService';
-
 // Effect to trigger card highlight
 export const highlightCardEffect = StateEffect.define<{ cardIndex: number } | null>();
 
@@ -98,7 +95,11 @@ class CardGutterMarker extends GutterMarker {
 		if (this.isSynced) marker.classList.add('arete-gutter-synced');
 
 		// 1. Resolve Visuals from Service (UI Separation)
-		const visuals = CardVisualsService.getGutterVisuals(this.stats, this.algorithm, this.isSynced);
+		const visuals = CardVisualsService.getGutterVisuals(
+			this.stats,
+			this.algorithm,
+			this.isSynced,
+		);
 		marker.title = visuals.tooltip;
 
 		if (this.isStart) {
@@ -174,12 +175,12 @@ class CardGutterMarker extends GutterMarker {
 		marker.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			
+
 			// Debug Notice
-			const msg = this.stats 
+			const msg = this.stats
 				? `Card ${this.index + 1}: NID ${this.stats.noteId}, Diff: ${this.stats.difficulty}`
 				: `Card ${this.index + 1}: No stats found.`;
-			new (require('obsidian').Notice)(msg);
+			new Notice(msg);
 
 			document.querySelectorAll('.arete-gutter-marker.arete-gutter-active').forEach((el) => {
 				el.classList.remove('arete-gutter-active');
@@ -195,16 +196,6 @@ class CardGutterMarker extends GutterMarker {
 
 		return marker;
 	}
-}
-
-// Helper: Find last non-blank line in a range
-function findLastContentLine(lines: string[], startLine: number, endLine: number): number {
-	for (let i = endLine; i >= startLine; i--) {
-		if (lines[i].trim().length > 0) {
-			return i;
-		}
-	}
-	return startLine; // Fallback to start if all blank
 }
 
 import { CardParserService, ParseResult } from '@/application/services/CardParserService';
@@ -260,7 +251,11 @@ const cardHighlightField = StateField.define<DecorationSet>({
 // Create the gutter extension
 export function createCardGutter(
 	onCardClick: (cardIndex: number) => void,
-	getCardStats: (nid: number | null, cid: number | null, view: EditorView) => AnkiCardStats | null = () => null,
+	getCardStats: (
+		nid: number | null,
+		cid: number | null,
+		view: EditorView,
+	) => AnkiCardStats | null = () => null,
 	algorithm: 'fsrs' | 'sm2' = 'fsrs',
 ) {
 	return [

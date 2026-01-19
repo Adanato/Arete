@@ -89,14 +89,14 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 	text-align: center;
 	min-width: 16px;
-    display: inline-block;
+	display: inline-block;
 }
 
 /* Unsynced state for the badge - ensure it is VISIBLE */
 .arete-gutter-marker:not(.arete-gutter-synced) .arete-gutter-badge {
-    background: var(--text-muted); /* Darker gray background */
-    color: var(--background-primary); /* High contrast text */
-    opacity: 1; /* NO opacity reduction */
+	background: var(--text-muted); /* Darker gray background */
+	color: var(--background-primary); /* High contrast text */
+	opacity: 1; /* NO opacity reduction */
 }
 
 /* Stats Styles */
@@ -114,5 +114,5 @@
 }
 
 .arete-gutter-marker.arete-gutter-active {
-    background: rgba(var(--interactive-accent-rgb), 0.05);
+	background: rgba(var(--interactive-accent-rgb), 0.05);
 }
