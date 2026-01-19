@@ -45,5 +45,9 @@
 		"d3": "^7.9.0",
 		"mustache": "^4.2.0",
 		"three": "^0.182.0"
+	},
+	"overrides": {
+		"@codemirror/view": "6.26.1",
+		"@codemirror/state": "6.5.0"
 	}
 }
