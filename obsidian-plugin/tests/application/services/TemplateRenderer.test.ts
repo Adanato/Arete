@@ -1,6 +1,7 @@
 import { TemplateRenderer } from '@/application/services/TemplateRenderer';
 import { AreteClient } from '@/infrastructure/arete/AreteClient';
 import { App, MarkdownRenderer } from 'obsidian';
+import { DEFAULT_SETTINGS } from '@/domain/settings';
 
 jest.mock('@/infrastructure/arete/AreteClient');
 
@@ -11,7 +12,7 @@ describe('TemplateRenderer', () => {
 
 	beforeEach(() => {
 		mockApp = new (jest.requireMock('obsidian').App)() as App;
-		mockRepo = new AreteClient('http://localhost:8765') as jest.Mocked<AreteClient>;
+		mockRepo = new AreteClient(DEFAULT_SETTINGS) as jest.Mocked<AreteClient>;
 
 		// Setup default mocks for repo
 		(AreteClient as jest.Mock).mockImplementation(() => mockRepo);

@@ -2,6 +2,7 @@
 import { EventEmitter } from 'events';
 
 // 1. Mock child_process and fs globally
+
 jest.mock('child_process', () => ({
 	spawn: jest.fn(),
 	exec: jest.fn(),
@@ -309,6 +310,28 @@ jest.mock('obsidian', () => {
 		MarkdownRenderer: {
 			render: jest.fn(),
 		},
+		FuzzySuggestModal: class {
+			app: any;
+			constructor(app: any) {
+				this.app = app;
+			}
+			open() {
+				/* no-op */
+			}
+			close() {
+				/* no-op */
+			}
+			getItems(): any[] {
+				return [];
+			}
+			getItemText(item: any): string {
+				return '';
+			}
+			onChooseItem(item: any, evt: any) {
+				/* no-op */
+			}
+		},
+		WorkspaceLeaf: class {},
 		requestUrl: jest.fn(),
 	};
 });

@@ -2,6 +2,7 @@ import '../../test-setup';
 import { App } from 'obsidian';
 import { LeechService } from '@application/services/LeechService';
 import { AreteClient } from '@infrastructure/arete/AreteClient';
+import { DEFAULT_SETTINGS } from '@domain/settings';
 
 describe('LeechService', () => {
 	let service: LeechService;
@@ -10,7 +11,7 @@ describe('LeechService', () => {
 
 	beforeEach(() => {
 		app = new App();
-		areteClient = new AreteClient({});
+		areteClient = new AreteClient(DEFAULT_SETTINGS);
 		service = new LeechService(app, areteClient);
 	});
 

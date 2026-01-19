@@ -153,5 +153,28 @@ export const createMockObsidian = () => {
 				/* no-op */
 			}
 		},
+		FuzzySuggestModal: class {
+			app: any;
+			constructor(app: any) {
+				this.app = app;
+			}
+			open() {
+				/* no-op */
+			}
+			close() {
+				/* no-op */
+			}
+			getItems(): any[] {
+				return [];
+			}
+			getItemText(item: any): string {
+				return '';
+			}
+			onChooseItem(item: any, evt: any) {
+				/* no-op */
+			}
+		},
+		WorkspaceLeaf: class {},
+		requestUrl: jest.fn(),
 	};
 };

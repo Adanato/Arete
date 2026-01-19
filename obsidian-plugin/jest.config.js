@@ -21,6 +21,7 @@ module.exports = {
 		'^@application/(.*)$': '<rootDir>/src/application/$1',
 		'^@infrastructure/(.*)$': '<rootDir>/src/infrastructure/$1',
 		'^@presentation/(.*)$': '<rootDir>/src/presentation/$1',
+		'^obsidian$': '<rootDir>/tests/obsidian-mock.ts',
 	},
 	setupFilesAfterEnv: ['<rootDir>/tests/test-setup.ts'],
 };
