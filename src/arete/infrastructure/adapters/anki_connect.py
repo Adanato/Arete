@@ -527,6 +527,43 @@ class AnkiConnectAdapter(AnkiBridge):
             self.logger.error(f"Failed to open Anki browser: {e}")
             return False
 
+    async def get_card_ids_for_arete_ids(self, arete_ids: list[str]) -> list[int]:
+        """Resolve Arete IDs via 'findCards'."""
+        if not arete_ids:
+            return []
+
+        # Construct query: tag:ID1 OR tag:ID2 ...
+        # Optimization: AnkiConnect might choke on massive queries.
+        # But let's try standard OR join.
+        query = " OR ".join([f"tag:{aid}" for aid in arete_ids])
+        try:
+            cids = await self._invoke("findCards", query=query)
+            # We want to preserve order? The query result order is undefined/sorted by ID.
+            # The interface doc says "Resolve ... to CIDs". It doesn't strictly imply order here,
+            # but strict order is handled by the caller or by create_topo_deck receiving IDs.
+            # However, if multiple cards match one ID (unlikely for arete_id), we get them all.
+            return cids
+        except Exception as e:
+            self.logger.error(f"Failed to resolve arete IDs: {e}")
+            return []
+
+    async def create_topo_deck(
+        self, deck_name: str, cids: list[int], reschedule: bool = True
+    ) -> bool:
+        """
+        AnkiConnect doesn't easily support the low-level 'due' manipulation
+        required for topological sorting since it goes through the API.
+
+        We could try to create a filtered deck via 'createDeck' (config?),
+        but manipulating the 'due' column directly is not exposed.
+
+        For now, we return False to indicate this backend doesn't support it,
+        or we could implement a best-effort (unordered) filtered deck.
+        """
+        self.logger.warning("create_topo_deck is not fully supported via AnkiConnect yet.")
+        # Future: Use 'addCustomOne' or similar if available?
+        return False
+
     async def close(self) -> None:
         if self._client:
             await self._client.aclose()

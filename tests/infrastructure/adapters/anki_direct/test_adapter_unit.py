@@ -178,3 +178,41 @@ async def test_get_card_stats_exceptions(adapter):
         instance.col.get_card.side_effect = Exception("Card missing")
         res = await adapter.get_card_stats([1])
         assert res == []
+
+
+@pytest.mark.asyncio
+async def test_get_due_cards(adapter):
+    with patch("arete.infrastructure.adapters.anki_direct.AnkiRepository") as MockRepo:
+        instance = MockRepo.return_value.__enter__.return_value
+        instance.col = MagicMock()
+        instance.find_notes.return_value = [101, 102]
+
+        # Case 1: No filter
+        res = await adapter.get_due_cards()
+        assert res == [101, 102]
+        instance.find_notes.assert_called_with("is:due")
+
+        # Case 2: With filter
+        res = await adapter.get_due_cards("Math::Calc")
+        instance.find_notes.assert_called_with('deck:"Math::Calc" is:due')
+
+
+@pytest.mark.asyncio
+async def test_map_nids_to_arete_ids(adapter):
+    with patch("arete.infrastructure.adapters.anki_direct.AnkiRepository") as MockRepo:
+        instance = MockRepo.return_value.__enter__.return_value
+        instance.col = MagicMock()
+
+        # Mock notes
+        note1 = MagicMock()
+        note1.tags = ["arete_A", "hard"]
+        note2 = MagicMock()
+        note2.tags = ["other", "arete_B"]
+        note3 = MagicMock()
+        note3.tags = ["no_id"]
+
+        instance.col.get_note.side_effect = [note1, note2, note3]
+
+        res = await adapter.map_nids_to_arete_ids([1, 2, 3])
+        assert res == ["arete_A", "arete_B"]
+        assert len(res) == 2

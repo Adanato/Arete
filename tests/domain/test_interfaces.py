@@ -60,6 +60,14 @@ class TrivialAnkiBridge(AnkiBridge):
     async def gui_browse(self, query: str) -> bool:
         return await super().gui_browse(query)
 
+    async def create_topo_deck(
+        self, deck_name: str, cids: list[int], reschedule: bool = True
+    ) -> bool:
+        return await super().create_topo_deck(deck_name, cids, reschedule)
+
+    async def get_card_ids_for_arete_ids(self, arete_ids: list[str]) -> list[int]:
+        return await super().get_card_ids_for_arete_ids(arete_ids)
+
     async def close(self):
         await super().close()
 
@@ -80,7 +88,10 @@ async def test_anki_bridge_abstract_coverage():
     await bridge.get_deck_names()
     await bridge.get_notes_in_deck("Default")
     await bridge.delete_notes([])
+    await bridge.delete_notes([])
     await bridge.delete_decks([])
     await bridge.gui_browse("nid:123")
+    await bridge.create_topo_deck("test", [])
+    await bridge.get_card_ids_for_arete_ids([])
 
     assert True  # If we got here without crash, coverage is triggered.
