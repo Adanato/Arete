@@ -286,6 +286,7 @@ jest.mock('obsidian', () => {
 		Modal: class {
 			app: any;
 			contentEl = (global as any).mockCreateMockElement('div');
+			modalEl = (global as any).mockCreateMockElement('div');
 			constructor(app: any) {
 				this.app = app;
 			}

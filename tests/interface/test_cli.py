@@ -38,22 +38,22 @@ def test_sync_command_help():
     assert "--backend" in output
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_basic(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_basic(mock_resolve_config, mock_run_sync):
     """Test basic sync command execution."""
     # Mock config
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
 
-    # Mock async execution
-    mock_asyncio_run.return_value = None
+    # Mock sync execution
+    mock_run_sync.return_value = None
 
     result = runner.invoke(app, ["sync", "/tmp/vault"])
 
     assert result.exit_code == 0
     mock_resolve_config.assert_called_once()
-    mock_asyncio_run.assert_called_once()
+    mock_run_sync.assert_called_once()
 
     # Verify config overrides
     call_args = mock_resolve_config.call_args[0][0]
@@ -61,13 +61,13 @@ def test_sync_command_basic(mock_resolve_config, mock_asyncio_run):
     assert str(call_args["root_input"]) == expected_path
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_with_flags(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_with_flags(mock_resolve_config, mock_run_sync):
     """Test sync command with various flags."""
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
-    mock_asyncio_run.return_value = None
+    mock_run_sync.return_value = None
 
     result = runner.invoke(
         app,
@@ -94,13 +94,13 @@ def test_sync_command_with_flags(mock_resolve_config, mock_asyncio_run):
     assert call_args["workers"] == 4
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_verbose_flag(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_verbose_flag(mock_resolve_config, mock_run_sync):
     """Test verbose flag increments verbosity."""
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
-    mock_asyncio_run.return_value = None
+    mock_run_sync.return_value = None
 
     # Test -v
     result = runner.invoke(app, ["-v", "sync", "."])
@@ -181,13 +181,13 @@ def test_logs_command(mock_resolve_config, mock_subprocess):
         assert str(call_args[1]) == str(Path("/tmp/logs"))
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_no_path_uses_cwd(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_no_path_uses_cwd(mock_resolve_config, mock_run_sync):
     """Test sync without path argument defaults to CWD."""
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
-    mock_asyncio_run.return_value = None
+    mock_run_sync.return_value = None
 
     result = runner.invoke(app, ["sync"])
 
@@ -197,13 +197,13 @@ def test_sync_command_no_path_uses_cwd(mock_resolve_config, mock_asyncio_run):
     assert "root_input" not in call_args or call_args["root_input"] is None
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_anki_connect_url(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_anki_connect_url(mock_resolve_config, mock_run_sync):
     """Test custom AnkiConnect URL."""
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
-    mock_asyncio_run.return_value = None
+    mock_run_sync.return_value = None
 
     result = runner.invoke(app, ["sync", ".", "--anki-connect-url", "http://custom:9999"])
 
@@ -212,13 +212,13 @@ def test_sync_command_anki_connect_url(mock_resolve_config, mock_asyncio_run):
     assert call_args["anki_connect_url"] == "http://custom:9999"
 
 
-@patch("asyncio.run")
+@patch("arete.main.run_sync_logic")
 @patch("arete.interface.cli.resolve_config")
-def test_sync_command_clear_cache(mock_resolve_config, mock_asyncio_run):
+def test_sync_command_clear_cache(mock_resolve_config, mock_run_sync):
     """Test --clear-cache flag."""
     mock_config = MagicMock()
     mock_resolve_config.return_value = mock_config
-    mock_asyncio_run.return_value = None
+    mock_run_sync.return_value = None
 
     result = runner.invoke(app, ["sync", ".", "--clear-cache"])
 

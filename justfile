@@ -45,16 +45,16 @@ test-integration:
 
 # Lint backend code with Ruff
 @lint:
-    {{RUFF}} check {{SRC}} {{TESTS}}
+    {{RUFF}} check {{SRC}} {{TESTS}} scripts/
 
 # Format backend code with Ruff
 @format:
-    {{RUFF}} format {{SRC}} {{TESTS}}
+    {{RUFF}} format {{SRC}} {{TESTS}} scripts/
 
 # Fix all auto-fixable backend issues
 @fix:
-    {{RUFF}} check --fix {{SRC}} {{TESTS}}
-    {{RUFF}} format {{SRC}} {{TESTS}}
+    {{RUFF}} check --fix {{SRC}} {{TESTS}} scripts/
+    {{RUFF}} format {{SRC}} {{TESTS}} scripts/
 
 # Static type checking
 @check-types:
