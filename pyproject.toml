@@ -122,22 +122,17 @@ exclude = [
 # UP: pyupgrade
 # W: pycodestyle warnings
 # C90: mccabe complexity
-select = ["E", "F", "I", "B", "C4", "UP", "W", "TID252", "C90"]
-ignore = []
+# D: pydocstyle (documentation)
+# FIX: flake8-fixme (TODO detection)
+select = ["E", "F", "I", "B", "C4", "UP", "W", "TID252", "C90", "D", "FIX"]
+ignore = ["D100", "D101", "D102", "D103", "D104"] # We will enable these selectively below
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E501"]
-# Ignore complexity for high-level orchestration modules temporarily
-"src/arete/interface/cli.py" = ["C901"]
-"src/arete/application/pipeline.py" = ["C901"]
-"src/arete/application/parser.py" = ["C901"]
-"src/arete/application/vault_service.py" = ["C901"]
-"src/arete/application/graph_resolver.py" = ["C901"]
-"src/arete/application/utils/text.py" = ["C901"]
-"src/arete/infrastructure/adapters/anki_connect.py" = ["C901"]
+"src/arete/domain/**/*.py" = ["D100", "D101", "D102", "D103", "D104"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 15
+max-complexity = 10
 
 [tool.ruff.format]
 quote-style = "double"
