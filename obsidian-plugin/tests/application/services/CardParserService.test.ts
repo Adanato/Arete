@@ -60,7 +60,7 @@ cards:
 		// cards: (3)
 		// - model: Basic (4)
 		expect(result.ranges[0].startLine).toBe(4);
-		
+
 		// Card 1 ends where "cid: 1762277751241" is (line 10)
 		expect(result.ranges[0].endLine).toBe(10);
 	});
@@ -70,14 +70,14 @@ cards:
 		expect(result.frontmatterEndLine).toBe(18);
 	});
 
-    it('should handle missing nid/cid gracefully', () => {
-        const partialYaml = `---
+	it('should handle missing nid/cid gracefully', () => {
+		const partialYaml = `---
 cards:
   - model: Basic
     front: dummy
 ---`;
-        const result = CardParserService.parseCards(partialYaml);
-        expect(result.ranges.length).toBe(1);
-        expect(result.ranges[0].nid).toBeNull();
-    });
+		const result = CardParserService.parseCards(partialYaml);
+		expect(result.ranges.length).toBe(1);
+		expect(result.ranges[0].nid).toBeNull();
+	});
 });

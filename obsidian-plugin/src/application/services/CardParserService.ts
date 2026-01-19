@@ -42,9 +42,9 @@ export class CardParserService {
 
 			// Stop at frontmatter end if we are in it
 			if (line === '---' && frontmatterEndLine !== null && i === frontmatterEndLine) {
-                // We reached the end of frontmatter
-                break; 
-            }
+				// We reached the end of frontmatter
+				break;
+			}
 			if (!trimmed) continue;
 
 			if (!inCards) {
@@ -96,14 +96,33 @@ export class CardParserService {
 						const cleanBlock = block.replace(/^\s*-/, ' ');
 						const data = parseYaml(cleanBlock);
 						if (data && typeof data === 'object') {
-							const rawNid = data.nid ?? data.NID;
-							const rawCid = data.cid ?? data.CID;
+							// Safely access V2/nesting
+							// Check if 'anki' property exists and is an object (not null/array)
+							let ankiBlock: any = {};
+							if (
+								'anki' in data &&
+								typeof data.anki === 'object' &&
+								data.anki !== null
+							) {
+								ankiBlock = data.anki;
+							}
+
+							const rawNid = ankiBlock.nid ?? ankiBlock.NID ?? data.nid ?? data.NID;
+							const rawCid = ankiBlock.cid ?? ankiBlock.CID ?? data.cid ?? data.CID;
 
 							if (rawNid !== undefined && rawNid !== null) {
-								nid = typeof rawNid === 'string' ? parseInt(rawNid) : Number(rawNid);
+								const parsed =
+									typeof rawNid === 'string'
+										? parseInt(rawNid, 10)
+										: Number(rawNid);
+								if (!isNaN(parsed)) nid = parsed;
 							}
 							if (rawCid !== undefined && rawCid !== null) {
-								cid = typeof rawCid === 'string' ? parseInt(rawCid) : Number(rawCid);
+								const parsed =
+									typeof rawCid === 'string'
+										? parseInt(rawCid, 10)
+										: Number(rawCid);
+								if (!isNaN(parsed)) cid = parsed;
 							}
 						}
 					} catch (e) {

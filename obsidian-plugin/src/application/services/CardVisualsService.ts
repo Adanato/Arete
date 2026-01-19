@@ -47,7 +47,11 @@ export class CardVisualsService {
 
 			// Sub-elements: Difficulty
 			if (algorithm === 'fsrs') {
-				if (stats.difficulty !== undefined && stats.difficulty !== null && stats.difficulty > 0) {
+				if (
+					stats.difficulty !== undefined &&
+					stats.difficulty !== null &&
+					stats.difficulty > 0
+				) {
 					diffText = stats.difficulty.toFixed(1);
 					if (stats.difficulty > 9) diffColor = 'var(--color-red)';
 					else if (stats.difficulty > 5) diffColor = 'var(--color-orange)';

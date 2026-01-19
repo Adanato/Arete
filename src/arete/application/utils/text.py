@@ -7,7 +7,6 @@ import yaml.error
 import yaml.scanner  # type: ignore
 
 from .common import sanitize
-from .consts import FRONTMATTER_RE
 from .yaml import _LiteralDumper
 
 # ---------- Math: Normalize to \( \) and \[ \] delimiters ----------
@@ -46,21 +45,47 @@ def convert_math_to_tex_delimiters(text: str) -> str:
 
 
 def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
+    """
+    Parse YAML frontmatter from markdown text.
+    Uses line-by-line parsing instead of regex for reliability.
+    """
     # Handle potential BOM (Byte Order Mark)
     md_text = md_text.lstrip("\ufeff")
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
+
+    lines = md_text.split("\n")
+
+    # Check for opening ---
+    if not lines or lines[0].strip() != "---":
         return {}, md_text
-    raw = m.group(1)
+
+    # Find closing ---
+    yaml_end_line = None
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            yaml_end_line = i
+            break
+
+    if yaml_end_line is None:
+        # No closing ---, return empty
+        return {}, md_text
+
+    # Extract YAML content and body
+    yaml_lines = lines[1:yaml_end_line]
+    body_lines = lines[yaml_end_line + 1 :]
+
+    raw = "\n".join(yaml_lines)
+    body = "\n".join(body_lines)
+
+    # Fix tabs (common user error)
     if "\t" in raw:
         raw = raw.replace("\t", "  ")
+
     try:
         # Use our custom loader to get line numbers and handle duplicates
         meta = yaml.load(raw, Loader=UniqueKeyLoader) or {}
 
-        # Add offset to __line__ to make it absolute
-        # m.start(1) is the beginning of the captured YAML content.
-        offset = md_text[: m.start(1)].count("\n")
+        # Add offset to __line__ to make it absolute (account for opening ---)
+        offset = 1  # Opening --- is line 0, YAML starts at line 1
 
         def _add_offset(d):
             if isinstance(d, dict):
@@ -76,8 +101,8 @@ def parse_frontmatter(md_text: str) -> tuple[dict[str, Any], str]:
 
     except Exception as e:
         return {"__yaml_error__": str(e)}, md_text
-    rest = md_text[m.end() :]
-    return meta, rest
+
+    return meta, body
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -105,46 +130,50 @@ class UniqueKeyLoader(yaml.SafeLoader):
 def validate_frontmatter(md_text: str) -> dict[str, Any]:
     """
     Parses frontmatter but raises detailed exceptions on failure.
+    Uses line-by-line parsing instead of regex for reliability.
     Returns the metadata dict if successful.
     """
     # Handle potential BOM (Byte Order Mark)
     md_text = md_text.lstrip("\ufeff")
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
-        # Detect unclosed frontmatter
-        if md_text.startswith("---"):
-            err = yaml.scanner.ScannerError(
-                problem="Unclosed YAML frontmatter. Found starting '---' but no closing '---'.",
-                problem_mark=yaml.error.Mark("name", 0, 1, -1, "", 0),
-            )
-            raise err
+
+    lines = md_text.split("\n")
+
+    # Check for opening ---
+    if not lines or lines[0].strip() != "---":
         return {}
 
-    # Calculate offset lines (how many newlines before the content starts)
-    # m.start(1) is the index where the capture group begins.
-    pre_content = md_text[: m.start(1)]
-    offset = pre_content.count("\n")
+    # Find closing ---
+    yaml_end_line = None
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            yaml_end_line = i
+            break
 
-    raw = m.group(1)
+    if yaml_end_line is None:
+        # Unclosed frontmatter
+        err = yaml.scanner.ScannerError(
+            problem="Unclosed YAML frontmatter. Found starting '---' but no closing '---'.",
+            problem_mark=yaml.error.Mark("name", 0, 1, -1, "", 0),
+        )
+        raise err
+
+    # Extract YAML content
+    yaml_lines = lines[1:yaml_end_line]
+    raw = "\n".join(yaml_lines)
+
+    # Offset for line numbers (opening --- is line 0)
+    offset = 1
 
     # Strict validation: Explicitly forbid tabs anywhere in frontmatter
-    # Obsidian strictly forbids them, and PyYAML is too permissive sometimes.
     if "\t" in raw:
-        # Create a mock error to pass to our exception handler
-        # We find the line number of the first tab
         tab_index = raw.find("\t")
         lines_before_tab = raw[:tab_index].count("\n")
         line = lines_before_tab + 1
 
-        # We raise a generic YAMLError which cli.py catches
-        # We manually construct a problem mark
         err = yaml.scanner.ScannerError(
             problem="found character '\\t' that cannot start any token",
-            problem_mark=yaml.error.Mark("name", 0, line, -1, "", 0),
+            problem_mark=yaml.error.Mark("name", 0, line + offset, -1, "", 0),
         )
-        # Adjust line offset immediately
-        if offset:
-            err.problem_mark.line += offset  # type: ignore
         raise err
 
     try:
@@ -178,6 +207,30 @@ def rebuild_markdown_with_frontmatter(meta: dict[str, Any], body: str) -> str:
     return f"---\n{yaml_text}---\n{body}"
 
 
+def _extract_frontmatter_bounds(md_text: str) -> tuple[str, int, int] | None:
+    """
+    Extract frontmatter content and its character bounds from markdown text.
+    Returns (yaml_content, start_index, end_index) or None if no frontmatter.
+    Uses line-by-line parsing (no regex).
+    """
+    lines = md_text.split("\n")
+
+    if not lines or lines[0].strip() != "---":
+        return None
+
+    # Find closing ---
+    char_pos = len(lines[0]) + 1  # +1 for newline
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            # Found closing ---
+            start = len(lines[0]) + 1  # After opening ---\n
+            yaml_content = "\n".join(lines[1:i])
+            return yaml_content, start, start + len(yaml_content)
+        char_pos += len(line) + 1  # +1 for newline
+
+    return None
+
+
 # ---------- Build apy editor-note text ----------
 def apply_fixes(md_text: str) -> str:
     """
@@ -198,11 +251,11 @@ def apply_fixes(md_text: str) -> str:
         md_text = re.sub(r"^---\s*\n(\s*\n)*---\s*\n", "", md_text, count=1)
         md_text = md_text.lstrip()
 
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
+    bounds = _extract_frontmatter_bounds(md_text)
+    if bounds is None:
         return md_text
 
-    original_fm = m.group(1)
+    original_fm, fm_start, fm_end = bounds
     new_fm = original_fm
 
     # 1. Fix Tabs
@@ -304,8 +357,7 @@ def apply_fixes(md_text: str) -> str:
     new_fm = re.sub(r'(\|[-+]?)\s*([\'"])', r"\2", new_fm)
 
     if new_fm != original_fm:
-        start, end = m.span(1)
-        md_text = md_text[:start] + new_fm + md_text[end:]
+        md_text = md_text[:fm_start] + new_fm + md_text[fm_end:]
 
     return md_text
 
@@ -316,11 +368,11 @@ def fix_mathjax_escapes(md_text: str) -> str:
     escapes like \\in or \\mathbb and ensures they are double-escaped so
     PyYAML can parse them. This allows us to migrate broken files to |- blocks.
     """
-    m = FRONTMATTER_RE.match(md_text)
-    if not m:
+    bounds = _extract_frontmatter_bounds(md_text)
+    if bounds is None:
         return md_text
 
-    original_fm = m.group(1)
+    original_fm, fm_start, fm_end = bounds
     # Simple heuristic for YAML 1.2 double-quote escapes: 0 abt nr vf e " / \ L P _
     valid_escapes = '0abtnrvfe"/\\ '
 
@@ -355,8 +407,7 @@ def fix_mathjax_escapes(md_text: str) -> str:
     new_fm = "\n".join(fixed_lines)
 
     if new_fm != original_fm:
-        start, end = m.span(1)
-        return md_text[:start] + new_fm + md_text[end:]
+        return md_text[:fm_start] + new_fm + md_text[fm_end:]
 
     return md_text
 

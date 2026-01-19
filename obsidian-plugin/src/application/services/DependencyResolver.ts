@@ -135,19 +135,22 @@ export class DependencyResolver {
 			// Direct card ID lookup
 			if (this.graphBuilder.hasNode(ref)) {
 				return [ref];
-			} else {
-				console.warn(`[DependencyResolver] Reference '${ref}' not found in graph`);
-				return [];
 			}
 		} else {
 			// Note basename → all cards in that file
-			if (this.fileIndex.has(ref)) {
-				return this.fileIndex.get(ref)!;
+			// Strip wikilinks brackets if present e.g. "[[Name]]" -> "Name"
+			const normalizedRef = ref.replace(/^\[\[|\]\]$/g, '');
+
+			if (this.fileIndex.has(normalizedRef)) {
+				return this.fileIndex.get(normalizedRef)!;
 			} else {
-				console.warn(`[DependencyResolver] No file with basename '${ref}' found`);
+				console.warn(
+					`[DependencyResolver] No file with basename '${normalizedRef}' found (raw: '${ref}')`,
+				);
 				return [];
 			}
 		}
+		return [];
 	}
 
 	/**
@@ -216,12 +219,11 @@ export class DependencyResolver {
 		}
 	}
 
-
 	/**
 	 * Get local subgraph centered on a card.
 	 */
 	// ... inside DependencyResolver
-	
+
 	getLocalGraph(cardId: string, depth = 2): LocalGraphResult | null {
 		if (!this.graphBuilder.hasNode(cardId)) {
 			return null;
@@ -266,23 +268,23 @@ export class DependencyResolver {
 
 		// Collect all edges within the subgraph
 		const subgraphNodes = new Set([cardId, ...prereqIds, ...dependentIds, ...relatedIds]);
-		const links: any[] = []; 
+		const links: any[] = [];
 
 		for (const sourceId of subgraphNodes) {
 			// Check requires (outbound edges from sourceId)
 			// requires map in GraphBuilder is Source -> Targets
 			const targets = this.graphBuilder.getPrerequisites(sourceId); // nomenclature is confusing, let's assume getPrerequisites returns "things sourceId depends on"
-            // Wait, I need to be sure about getPrerequisites. 
-            // In DependencyResolver line 90: getPrerequisites(cardId) returns this.requires.get(cardId). 
+			// Wait, I need to be sure about getPrerequisites.
+			// In DependencyResolver line 90: getPrerequisites(cardId) returns this.requires.get(cardId).
 			// In addRequires(from, to), we push to from's list. So yes, it returns outgoing edges.
-			
+
 			for (const targetId of targets) {
 				if (subgraphNodes.has(targetId)) {
 					links.push({ type: 'requires', fromId: sourceId, toId: targetId });
 				}
 			}
 
-            // Check related
+			// Check related
 			const rels = this.graphBuilder.getRelated(sourceId);
 			for (const targetId of rels) {
 				if (subgraphNodes.has(targetId)) {
@@ -304,45 +306,76 @@ export class DependencyResolver {
 		};
 	}
 
-
 	// --- Private helpers ---
 
+	/**
+	 * BFS traversal to collect prerequisites up to set depth.
+	 */
 	private walkPrereqs(
-		cardId: string,
-		depth: number,
+		startCardId: string,
+		maxDepth: number,
 		collected: Set<string>,
-		visited: Set<string>,
+		// visited set not strictly needed as we handle it per-level or via distance map
+		// keeping signature compatible if needed, but implementation is new.
+		_unused?: Set<string>,
 	): void {
-		if (depth <= 0 || visited.has(cardId)) return;
-		visited.add(cardId);
+		if (maxDepth <= 0) return;
 
-		const prereqs = this.graphBuilder.getPrerequisites(cardId);
-		// console.log(`[DependencyResolver] walkPrereqs ${cardId} depth=${depth} count=${prereqs.length}`);
+		// Queue: { id, depth } (depth is distance from start)
+		const queue: Array<{ id: string; distance: number }> = [{ id: startCardId, distance: 0 }];
+		const visited = new Set<string>([startCardId]);
 
-		for (const prereqId of prereqs) {
-			if (this.graphBuilder.hasNode(prereqId)) {
-				collected.add(prereqId);
-				this.walkPrereqs(prereqId, depth - 1, collected, visited);
+		while (queue.length > 0) {
+			const { id, distance } = queue.shift()!;
+
+			if (distance >= maxDepth) continue;
+
+			// Get prereqs (outgoing/upstream)
+			const neighbors = this.graphBuilder.getPrerequisites(id);
+			for (const nid of neighbors) {
+				if (this.graphBuilder.hasNode(nid)) {
+					// We collect it
+					collected.add(nid);
+
+					if (!visited.has(nid)) {
+						visited.add(nid);
+						queue.push({ id: nid, distance: distance + 1 });
+					}
+				}
 			}
 		}
 	}
 
+	/**
+	 * BFS traversal to collect dependents up to set depth.
+	 */
 	private walkDependents(
-		cardId: string,
-		depth: number,
+		startCardId: string,
+		maxDepth: number,
 		collected: Set<string>,
-		visited: Set<string>,
+		_unused?: Set<string>,
 	): void {
-		if (depth <= 0 || visited.has(cardId)) return;
-		visited.add(cardId);
+		if (maxDepth <= 0) return;
 
-		const deps = this.graphBuilder.getDependents(cardId);
-		// console.log(`[DependencyResolver] walkDependents ${cardId} depth=${depth} count=${deps.length}`);
+		const queue: Array<{ id: string; distance: number }> = [{ id: startCardId, distance: 0 }];
+		const visited = new Set<string>([startCardId]);
 
-		for (const depId of deps) {
-			if (this.graphBuilder.hasNode(depId)) {
-				collected.add(depId);
-				this.walkDependents(depId, depth - 1, collected, visited);
+		while (queue.length > 0) {
+			const { id, distance } = queue.shift()!;
+
+			if (distance >= maxDepth) continue;
+
+			// Get dependents (incoming/downstream)
+			const neighbors = this.graphBuilder.getDependents(id);
+			for (const nid of neighbors) {
+				if (this.graphBuilder.hasNode(nid)) {
+					collected.add(nid);
+
+					if (!visited.has(nid)) {
+						visited.add(nid);
+						queue.push({ id: nid, distance: distance + 1 });
+					}
+				}
 			}
 		}
 	}

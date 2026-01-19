@@ -15,8 +15,9 @@ export class CheckResultModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl } = this;
-		contentEl.addClass('arete-modal');
+		const { contentEl, modalEl } = this;
+		modalEl.addClass('arete-check-modal');
+		contentEl.addClass('arete-modal-content');
 
 		const header = contentEl.createDiv({ cls: 'modal-header' });
 		header.createEl('h2', { text: 'Arete File Check' });

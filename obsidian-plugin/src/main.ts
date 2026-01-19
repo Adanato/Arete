@@ -35,10 +35,6 @@ import {
 	highlightCardEffect,
 } from '@presentation/extensions/CardGutterExtension';
 
-interface AreteData extends AretePluginSettings {
-	statsCache?: StatsCache;
-}
-
 export default class AretePlugin extends Plugin {
 	settings: AretePluginSettings;
 	statsCache: StatsCache;
@@ -54,6 +50,10 @@ export default class AretePlugin extends Plugin {
 	dependencyResolver: DependencyResolver;
 	areteClient: AreteClient;
 	templateRenderer: TemplateRenderer;
+
+	// Centralized context: filePath -> cardId
+	private activeCardContext: Map<string, string> = new Map();
+
 	private syncOnSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async onload() {
@@ -143,23 +143,23 @@ export default class AretePlugin extends Plugin {
 		this.updateStatusBar('idle');
 
 		// 2. Ribbon Icon
-		this.addRibbonIcon('sheets-in-box', 'Sync to Anki (Arete)', (evt: MouseEvent) => {
+		this.addRibbonIcon('sheets-in-box', 'Sync to Anki (Arete)', (_evt: MouseEvent) => {
 			this.runSync();
 		});
 
-		this.addRibbonIcon('refresh-cw', 'Force Sync All (Arete)', (evt: MouseEvent) => {
+		this.addRibbonIcon('refresh-cw', 'Force Sync All (Arete)', (_evt: MouseEvent) => {
 			this.runSync(false, null, true);
 		});
 
-		this.addRibbonIcon('layout-dashboard', 'Arete Dashboard', (evt: MouseEvent) => {
+		this.addRibbonIcon('layout-dashboard', 'Arete Dashboard', (_evt: MouseEvent) => {
 			this.activateDashboardView();
 		});
 
-		this.addRibbonIcon('bot', 'Arete AI Assistant', (evt: MouseEvent) => {
+		this.addRibbonIcon('bot', 'Arete AI Assistant', (_evt: MouseEvent) => {
 			this.activateChatView();
 		});
 
-		this.addRibbonIcon('network', 'Arete Local Graph', (evt: MouseEvent) => {
+		this.addRibbonIcon('network', 'Arete Local Graph', (_evt: MouseEvent) => {
 			this.activateLocalGraphView();
 		});
 
@@ -304,32 +304,54 @@ export default class AretePlugin extends Plugin {
 			},
 		});
 
-		// 6. Card Gutter Extension
 		this.registerEditorExtension(
 			createCardGutter(
 				(cardIndex) => {
 					this.highlightCardLines(cardIndex);
-					this.activateYamlEditorView(cardIndex);
+					// improved: only sync if open, don't force focus
+					this.syncYamlEditorToCard(cardIndex);
+
+					// Sync with Graph View
+					const activeFile = this.app.workspace.getActiveFile();
+					if (activeFile) {
+						const cache = this.app.metadataCache.getFileCache(activeFile);
+						if (cache?.frontmatter?.cards && cache.frontmatter.cards[cardIndex]) {
+							const cardId = cache.frontmatter.cards[cardIndex].id;
+							if (cardId) {
+								// Set central context logic
+								this.setCardContext(activeFile.path, cardId);
+								// Trigger event for immediate update if graph is open
+								this.app.workspace.trigger('arete:card-selected', cardId);
+							}
+						}
+					}
 				},
 				(nid: number | null, cid: number | null, view: EditorView) => {
 					const info = view.state.field(editorInfoField);
 					const file = info?.file;
 					if (!file) {
-						if (view.state.field(require('obsidian').MarkdownView)) console.warn('[Arete Gutter] No file in editorInfoField');
+						// Only log if we really can't find the file and it's unexpected
+						// console.warn('[Arete Gutter] No file in editorInfoField');
 						return null;
 					}
-					
+
 					const cache = this.statsService.getCache();
 					const conceptStats = cache.concepts[file.path];
-					
+
 					// DEBUG: Log first 10 cards and the requested NID
 					if (nid) {
-						console.log(`[Arete Debug] Looking up NID: ${nid} (type: ${typeof nid}) for file: ${file.name}`);
+						console.log(
+							`[Arete Debug] Looking up NID: ${nid} (type: ${typeof nid}) for file: ${file.name}`,
+						);
 						if (conceptStats?.cardStats) {
 							const keys = Object.keys(conceptStats.cardStats);
 							if (!conceptStats.cardStats[nid]) {
-								console.warn(`[Arete Debug] KEY NOT FOUND. Available keys sample: ${keys.slice(0, 5).join(', ')}`);
-								console.warn(`[Arete Debug] Type of search key: ${typeof nid}, Type of first available key: ${typeof keys[0]}`);
+								console.warn(
+									`[Arete Debug] KEY NOT FOUND. Available keys sample: ${keys.slice(0, 5).join(', ')}`,
+								);
+								console.warn(
+									`[Arete Debug] Type of search key: ${typeof nid}, Type of first available key: ${typeof keys[0]}`,
+								);
 							}
 						}
 					}
@@ -338,7 +360,7 @@ export default class AretePlugin extends Plugin {
 
 					if (cid && conceptStats.cardStats[cid]) return conceptStats.cardStats[cid];
 					if (nid && conceptStats.cardStats[nid]) return conceptStats.cardStats[nid];
-					
+
 					return null;
 				},
 				this.settings.stats_algorithm,
@@ -460,9 +482,7 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
-
-
-	async activateLocalGraphView() {
+	async activateLocalGraphView(cardId?: string) {
 		const { workspace } = this.app;
 		let leaf = workspace.getLeavesOfType(LOCAL_GRAPH_VIEW_TYPE)[0];
 
@@ -479,6 +499,24 @@ export default class AretePlugin extends Plugin {
 
 		if (leaf) {
 			workspace.revealLeaf(leaf);
+			const activeFile = this.app.workspace.getActiveFile();
+
+			if (leaf.view instanceof LocalGraphView) {
+				const view = leaf.view as LocalGraphView;
+
+				if (cardId) {
+					// 1. Explicit Card Navigation
+					// Use current file from workspace if available, otherwise just try to set card
+					if (activeFile) {
+						view.setContext(activeFile.path, cardId); // Robust: explicit file + card
+					}
+					// Also update centralized map
+					if (activeFile) this.setCardContext(activeFile.path, cardId);
+				} else if (activeFile) {
+					// 2. Just opening graph for current file
+					view.setContext(activeFile.path, this.getCardContext(activeFile.path));
+				}
+			}
 		}
 	}
 
@@ -589,5 +627,15 @@ export default class AretePlugin extends Plugin {
 			this.statsCache = this.statsService.getCache();
 			await this.saveSettings();
 		}
+	}
+
+	// --- Context Management ---
+
+	setCardContext(filePath: string, cardId: string) {
+		this.activeCardContext.set(filePath, cardId);
+	}
+
+	getCardContext(filePath: string): string | undefined {
+		return this.activeCardContext.get(filePath);
 	}
 }

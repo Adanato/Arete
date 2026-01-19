@@ -9,7 +9,7 @@ import { LeechCard } from '@application/services/LeechService';
 
 export const DASHBOARD_VIEW_TYPE = 'arete-stats-view';
 
-type DashboardTab = 'overview' | 'leeches' | 'integrity';
+type DashboardTab = 'overview' | 'leeches' | 'integrity' | 'queue-builder';
 
 export class DashboardView extends ItemView {
 	plugin: AretePlugin;
@@ -84,6 +84,9 @@ export class DashboardView extends ItemView {
 			case 'integrity':
 				this.renderIntegrity(contentEl);
 				break;
+			case 'queue-builder':
+				this.renderQueueBuilder(contentEl);
+				break;
 		}
 	}
 
@@ -147,6 +150,7 @@ export class DashboardView extends ItemView {
 			{ id: 'overview', label: 'Overview', icon: 'bar-chart-2' },
 			{ id: 'leeches', label: 'Leeches', icon: 'flame' },
 			{ id: 'integrity', label: 'Integrity', icon: 'link' },
+			{ id: 'queue-builder', label: 'Queue Builder', icon: 'list-ordered' },
 		];
 
 		tabs.forEach((tab) => {
@@ -739,6 +743,137 @@ export class DashboardView extends ItemView {
 				});
 			}
 		}
+	}
+
+	// --- 4. QUEUE BUILDER TAB ---
+	renderQueueBuilder(container: HTMLElement) {
+		container.empty();
+
+		// Header
+		container.createEl('h3', { text: 'Queue Builder' });
+		container.createEl('p', {
+			text: 'Build a study queue that includes prerequisite cards before your due cards.',
+			cls: 'setting-item-description',
+		});
+
+		// Controls
+		const controls = container.createDiv();
+		controls.style.padding = '1rem';
+		controls.style.background = 'var(--background-secondary)';
+		controls.style.borderRadius = '8px';
+		controls.style.marginBottom = '1rem';
+
+		// Deck selector
+		const deckRow = controls.createDiv({ cls: 'setting-item' });
+		deckRow.createDiv({ text: 'Deck Filter', cls: 'setting-item-name' });
+		const deckSelect = deckRow.createEl('select');
+		deckSelect.style.marginLeft = 'auto';
+		deckSelect.createEl('option', { value: '', text: 'All Decks' });
+
+		// Load decks async
+		this.plugin.areteClient.getDeckNames().then((decks) => {
+			decks.forEach((d) => deckSelect.createEl('option', { value: d, text: d }));
+		});
+
+		// Depth control
+		const depthRow = controls.createDiv({ cls: 'setting-item' });
+		depthRow.createDiv({ text: 'Prerequisite Depth', cls: 'setting-item-name' });
+		const depthInput = depthRow.createEl('input', { type: 'number', value: '2' });
+		depthInput.style.width = '60px';
+		depthInput.style.marginLeft = 'auto';
+		depthInput.min = '1';
+		depthInput.max = '5';
+
+		// Max cards control
+		const maxRow = controls.createDiv({ cls: 'setting-item' });
+		maxRow.createDiv({ text: 'Max Cards', cls: 'setting-item-name' });
+		const maxInput = maxRow.createEl('input', { type: 'number', value: '50' });
+		maxInput.style.width = '60px';
+		maxInput.style.marginLeft = 'auto';
+		maxInput.min = '10';
+		maxInput.max = '200';
+
+		// Build button
+		const buildBtn = controls.createEl('button', { text: 'Build Queue', cls: 'mod-cta' });
+		buildBtn.style.marginTop = '1rem';
+
+		// Results area
+		const resultsArea = container.createDiv({ cls: 'arete-queue-results' });
+
+		buildBtn.onclick = async () => {
+			buildBtn.textContent = 'Building...';
+			buildBtn.disabled = true;
+
+			try {
+				const result = await this.plugin.areteClient.buildStudyQueue(
+					deckSelect.value || null,
+					parseInt(depthInput.value) || 2,
+					parseInt(maxInput.value) || 50,
+				);
+
+				resultsArea.empty();
+
+				// Summary
+				const summary = resultsArea.createDiv();
+				summary.style.padding = '0.5rem';
+				summary.style.background = 'var(--background-primary-alt)';
+				summary.style.borderRadius = '4px';
+				summary.style.marginBottom = '0.5rem';
+				summary.createEl('strong', { text: result.deck });
+				summary.createSpan({
+					text: ` — ${result.dueCount} due, ${result.totalWithPrereqs} total`,
+				});
+
+				// Send button
+				const sendBtn = resultsArea.createEl('button', { text: 'Send to Anki' });
+				sendBtn.style.marginBottom = '0.5rem';
+				sendBtn.onclick = async () => {
+					const ok = await this.plugin.areteClient.createQueueDeck(
+						result.queue.map((c) => c.id),
+					);
+					new Notice(ok ? 'Queue sent to Anki!' : 'Failed to create deck.');
+				};
+
+				// Queue list
+				const list = resultsArea.createDiv();
+				list.style.maxHeight = '300px';
+				list.style.overflowY = 'auto';
+
+				result.queue.forEach((card) => {
+					const item = list.createDiv();
+					item.style.display = 'flex';
+					item.style.padding = '4px 8px';
+					item.style.borderBottom = '1px solid var(--background-modifier-border)';
+
+					const pos = item.createSpan({ text: String(card.position) });
+					pos.style.width = '30px';
+					pos.style.fontWeight = 'bold';
+
+					if (card.isPrereq) {
+						const badge = item.createSpan({ text: 'PREREQ' });
+						badge.style.fontSize = '0.7em';
+						badge.style.padding = '2px 4px';
+						badge.style.background = 'var(--interactive-accent)';
+						badge.style.color = 'var(--text-on-accent)';
+						badge.style.borderRadius = '4px';
+						badge.style.marginRight = '8px';
+					}
+
+					const title = item.createSpan({ text: card.title });
+					title.style.flex = '1';
+					title.style.cursor = 'pointer';
+					title.onclick = () => this.openFile(card.file);
+				});
+
+				new Notice(`Queue built: ${result.totalWithPrereqs} cards`);
+			} catch (e) {
+				console.error('[QueueBuilder] Error:', e);
+				new Notice('Failed to build queue.');
+			} finally {
+				buildBtn.textContent = 'Build Queue';
+				buildBtn.disabled = false;
+			}
+		};
 	}
 
 	// --- Helpers ---

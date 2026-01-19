@@ -50,9 +50,9 @@ describe('CardVisualsService', () => {
 		expect(visuals.barColor).toBe('var(--interactive-accent)');
 	});
 
-    it('should format SM2 ease correctly', () => {
-        const sm2Stats: AnkiCardStats = { ...healthyStats, ease: 2500 };
-        const visuals = CardVisualsService.getGutterVisuals(sm2Stats, 'sm2', true);
-        expect(visuals.diffText).toBe('E:250%');
-    });
+	it('should format SM2 ease correctly', () => {
+		const sm2Stats: AnkiCardStats = { ...healthyStats, ease: 2500 };
+		const visuals = CardVisualsService.getGutterVisuals(sm2Stats, 'sm2', true);
+		expect(visuals.diffText).toBe('E:250%');
+	});
 });

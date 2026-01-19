@@ -688,6 +688,33 @@ def migrate(
                         if has_anki_data:
                             card["anki"] = anki_block
 
+                        # 3. Order keys consistently: id, model, content, deps, anki
+                        preferred_order = [
+                            "id",
+                            "model",
+                            "Front",
+                            "Back",
+                            "Text",
+                            "Extra",
+                            "deps",
+                            "anki",
+                        ]
+                        ordered_card = {}
+                        # First, add keys in preferred order
+                        for key in preferred_order:
+                            if key in card:
+                                ordered_card[key] = card.pop(key)
+                        # Then add remaining keys (custom fields)
+                        for key in list(card.keys()):
+                            if not key.startswith("__"):
+                                ordered_card[key] = card.pop(key)
+                        # Preserve internal keys
+                        for key in list(card.keys()):
+                            ordered_card[key] = card[key]
+                        # Replace card contents
+                        card.clear()
+                        card.update(ordered_card)
+
                 if config.verbose >= 2:
                     typer.echo(f"  [Check] {p}: Normalizing YAML...")
 

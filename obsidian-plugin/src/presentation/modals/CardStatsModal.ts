@@ -18,11 +18,8 @@ export class CardStatsModal extends Modal {
 	onOpen() {
 		const { contentEl, modalEl } = this;
 		contentEl.empty();
-		contentEl.addClass('arete-stats-modal');
-
-		// Make modal wider
-		modalEl.style.width = '650px';
-		modalEl.style.maxWidth = '90vw';
+		modalEl.addClass('arete-stats-modal');
+		contentEl.addClass('arete-stats-modal-content');
 
 		contentEl.createEl('h2', { text: 'Card Memory Insights' }).style.marginBottom = '1rem';
 

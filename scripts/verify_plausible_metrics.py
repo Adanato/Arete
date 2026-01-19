@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from pathlib import Path
@@ -9,6 +8,7 @@ from arete.infrastructure.adapters.stats.direct_stats import DirectStatsReposito
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 async def verify_metrics():
     # User 4 path (known to have FSRS data but maybe missing history)
@@ -33,8 +33,9 @@ async def verify_metrics():
     #         self.profile_name = profile_name
 
     repo = DirectStatsRepository(base_path)
-    # Note: If DirectStatsRepository doesn't support profile arg yet, we might need to rely on it picking default or manually setting it.
-    # But wait, AnkiRepository logic tries to find collection from prefs.
+    # If the user hasn't provided a profile arg yet, we might need to rely on it
+    # picking default or manually setting it.
+    # Anki 2.1.22+ uses separate collection from prefs.
     # Let's try passing just base_path.
 
     # We need to construct db_path manually for the sqlite check below
@@ -50,6 +51,7 @@ async def verify_metrics():
 
     # Let's cheat and use SQLite to find a nid with reviews
     import sqlite3
+
     db_path = repo_path / "collection.anki2"
     conn = sqlite3.connect(db_path)
     cursor = conn.execute("SELECT nid FROM cards WHERE reps > 5 LIMIT 5")
@@ -75,7 +77,11 @@ async def verify_metrics():
         print(f"  History Len: {len(s.reviews)}")
         if s.reviews:
             last = s.reviews[-1]
-            print(f"  Last Review: ivl={last.interval}, lastIvl={last.last_interval}, time={last.time_taken}")
+            print(
+                f"  Last Review: ivl={last.interval}, "
+                f"lastIvl={last.last_interval}, time={last.time_taken}"
+            )
+
 
 if __name__ == "__main__":
     asyncio.run(verify_metrics())

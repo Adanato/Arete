@@ -19,6 +19,7 @@ import { ProblematicCard } from '@application/services/StatsService';
 import type { AnkiCardStats } from '@/domain/stats';
 import { CardStatsModal } from '@/presentation/modals/CardStatsModal';
 import { DependencyField } from '@/presentation/components/DependencyField';
+import { CardRenderer } from '@/presentation/renderers/CardRenderer';
 
 export const YAML_EDITOR_VIEW_TYPE = 'arete-yaml-editor';
 
@@ -302,7 +303,7 @@ export class CardYamlEditorView extends ItemView {
 
 		const activeFile = this.app.workspace.getActiveFile();
 		const card = this.cards[this.currentCardIndex];
-		const nid = card?.['nid'];
+		const nid = card?.['nid'] || card?.['anki']?.['nid'];
 
 		if (activeFile && nid) {
 			const cache = this.plugin.statsService.getCache().concepts[activeFile.path];
@@ -394,7 +395,7 @@ export class CardYamlEditorView extends ItemView {
 			leftGroup.createDiv({
 				cls: 'arete-stat-badge mod-muted',
 				text: 'Unsynced',
-				attr: { title: 'Card not yet synced to Anki' }
+				attr: { title: 'Card not yet synced to Anki' },
 			});
 		}
 
@@ -424,7 +425,7 @@ export class CardYamlEditorView extends ItemView {
 			statsBtn.style.opacity = '0.4';
 			statsBtn.style.cursor = 'not-allowed';
 		}
-		
+
 		statsBtn.addEventListener('click', () => {
 			if (!nid) {
 				new Notice('Card not synced to Anki yet (No NID).');
@@ -441,7 +442,7 @@ export class CardYamlEditorView extends ItemView {
 				}
 
 				const cardStats = conceptStats.cardStats?.[nid];
-				
+
 				if (cardStats) {
 					new CardStatsModal(this.app, cardStats).open();
 				} else {
@@ -455,9 +456,14 @@ export class CardYamlEditorView extends ItemView {
 			cls: 'arete-toolbar-btn',
 			attr: { title: 'Open Local Graph' },
 		});
-		setIcon(graphBtn, 'share-2'); 
+		setIcon(graphBtn, 'share-2');
 		graphBtn.addEventListener('click', () => {
-			this.plugin.activateLocalGraphView();
+			const current = this.cards[this.currentCardIndex];
+			if (current && current.id) {
+				this.plugin.activateLocalGraphView(current.id);
+			} else {
+				this.plugin.activateLocalGraphView();
+			}
 		});
 
 		const rightGroup = this.toolbarContainer.createDiv({ cls: 'arete-toolbar-group' });
@@ -519,14 +525,23 @@ export class CardYamlEditorView extends ItemView {
 
 		// Ensure deps structure exists
 		if (!card.deps || typeof card.deps !== 'object') {
-            card.deps = {};
-        }
+			card.deps = {};
+		}
 		const deps = card.deps as any;
-        if (!deps.requires) deps.requires = [];
-        if (!deps.related) deps.related = [];
+		if (!deps.requires) deps.requires = [];
+		if (!deps.related) deps.related = [];
 
 		// Standard fields to exclude from generic loop
-		const excludeFields = ['id', 'model', 'nid', 'cid', 'deps', 'prerequisites', 'related'];
+		const excludeFields = [
+			'id',
+			'model',
+			'nid',
+			'cid',
+			'deps',
+			'prerequisites',
+			'related',
+			'anki',
+		];
 
 		// Render generic fields
 		Object.entries(card).forEach(([key, value]) => {
@@ -568,15 +583,15 @@ export class CardYamlEditorView extends ItemView {
 	}
 
 	private renderDependencySection(
-		label: string, 
-		initialValues: string[], 
-		onChange: (newValues: string[]) => void
+		label: string,
+		initialValues: string[],
+		onChange: (newValues: string[]) => void,
 	) {
 		if (!this.fieldEditorContainer) return;
-		
+
 		const group = this.fieldEditorContainer.createDiv({ cls: 'arete-field-group' });
 		group.createEl('label', { cls: 'arete-field-label', text: label });
-		
+
 		const container = group.createDiv({ cls: 'arete-field-dep-container' });
 		new DependencyField(container, this.app, initialValues, onChange);
 	}
@@ -588,23 +603,14 @@ export class CardYamlEditorView extends ItemView {
 		const card = this.cards[this.currentCardIndex];
 		if (!card) return;
 
-		Object.entries(card).forEach(async ([key, value]) => {
-			if (['model', 'Model', 'nid', 'NID', 'cid', 'CID'].includes(key)) return;
-
-			const section = this.previewContainer?.createDiv({ cls: 'arete-preview-section' });
-			section?.createDiv({ cls: 'arete-preview-label', text: key });
-			const content = section?.createDiv({ cls: 'arete-preview-content' });
-
-			if (content && typeof value === 'string') {
-				await MarkdownRenderer.render(
-					this.app,
-					value,
-					content,
-					this.currentFilePath || '',
-					this,
-				);
-			}
-		});
+		// Use shared renderer for consistency
+		await CardRenderer.render(
+			this.app,
+			this.previewContainer,
+			card,
+			this.currentFilePath || '',
+			this,
+		);
 	}
 
 	private createEditor() {
@@ -658,26 +664,41 @@ export class CardYamlEditorView extends ItemView {
 		const card = this.cards[index];
 		return Object.entries(card)
 			.map(([key, value]) => {
-                // Ensure deps is ALWAYS treated as a structure, never a raw string
-                if (key === 'deps') {
-                    if (typeof value === 'object' && value !== null) {
-                        const lines = [`deps:`];
-                        const deps = value as any;
-                        
-                        if (Array.isArray(deps.requires) && deps.requires.length > 0) {
-                            lines.push(`  requires:`);
-                            deps.requires.forEach((req: string) => lines.push(`    - ${req}`));
-                        }
-                        if (Array.isArray(deps.related) && deps.related.length > 0) {
-                            lines.push(`  related:`);
-                            deps.related.forEach((rel: string) => lines.push(`    - ${rel}`));
-                        }
-                        if (lines.length === 1) return `deps: {}`; // Empty object
-                        return lines.join('\n');
-                    }
-                    // If deps is anything else (string, null, etc.), force reset to empty dict
-                    return `deps: {}`;
-                }
+				// Ensure deps is ALWAYS treated as a structure, never a raw string
+				if (key === 'deps') {
+					if (typeof value === 'object' && value !== null) {
+						const lines = [`deps:`];
+						const deps = value as any;
+
+						if (Array.isArray(deps.requires) && deps.requires.length > 0) {
+							lines.push(`  requires:`);
+							deps.requires.forEach((req: string) => lines.push(`    - ${req}`));
+						}
+						if (Array.isArray(deps.related) && deps.related.length > 0) {
+							lines.push(`  related:`);
+							deps.related.forEach((rel: string) => lines.push(`    - ${rel}`));
+						}
+						if (lines.length === 1) return `deps: {}`; // Empty object
+						return lines.join('\n');
+					}
+					// If deps is anything else (string, null, etc.), force reset to empty dict
+					return `deps: {}`;
+				}
+
+				if (key === 'anki') {
+					if (typeof value === 'object' && value !== null) {
+						const ankiBlock = value as any;
+						const lines = [`anki:`];
+						if (ankiBlock.nid) lines.push(`  nid: ${ankiBlock.nid}`);
+						if (ankiBlock.cid) lines.push(`  cid: ${ankiBlock.cid}`);
+						if (ankiBlock.note_id) lines.push(`  note_id: ${ankiBlock.note_id}`);
+						if (ankiBlock.card_id) lines.push(`  card_id: ${ankiBlock.card_id}`);
+						// If empty anki block, just return anki: {}
+						if (lines.length === 1) return `anki: {}`;
+						return lines.join('\n');
+					}
+					return `anki: {}`;
+				}
 
 				// Use |- block scalar for safer string handling (quotes, etc.)
 				const isContentField = [
@@ -711,34 +732,34 @@ export class CardYamlEditorView extends ItemView {
 	private parseYamlToCard(yamlStr: string): CardData {
 		try {
 			const raw = parseYaml(yamlStr) || {};
-            return this.normalizeCard(raw);
+			return this.normalizeCard(raw);
 		} catch (e) {
 			console.error('[Arete] Failed to parse card YAML:', e);
 			return {};
 		}
 	}
 
-    /**
-     * Normalizes card keys to lowercase for internal consistency.
-     * Maps ID -> id, Model -> model, etc.
-     */
-    private normalizeCard(card: any): CardData {
-        const normalized: CardData = { ...card };
-        
-        // Map common uppercase keys to lowercase
-        if (card.ID && !card.id) normalized.id = card.ID;
-        if (card.Model && !card.model) normalized.model = card.Model;
-        if (card.NID && !card.nid) normalized.nid = card.NID;
-        if (card.CID && !card.cid) normalized.cid = card.CID;
+	/**
+	 * Normalizes card keys to lowercase for internal consistency.
+	 * Maps ID -> id, Model -> model, etc.
+	 */
+	private normalizeCard(card: any): CardData {
+		const normalized: CardData = { ...card };
 
-        // Cleanup uppercase leftover if mapped
-        if (card.ID) delete normalized['ID'];
-        if (card.Model) delete normalized['Model'];
-        if (card.NID) delete normalized['NID'];
-        if (card.CID) delete normalized['CID'];
+		// Map common uppercase keys to lowercase
+		if (card.ID && !card.id) normalized.id = card.ID;
+		if (card.Model && !card.model) normalized.model = card.Model;
+		if (card.NID && !card.nid) normalized.nid = card.NID;
+		if (card.CID && !card.cid) normalized.cid = card.CID;
 
-        return normalized;
-    }
+		// Cleanup uppercase leftover if mapped
+		if (card.ID) delete normalized['ID'];
+		if (card.Model) delete normalized['Model'];
+		if (card.NID) delete normalized['NID'];
+		if (card.CID) delete normalized['CID'];
+
+		return normalized;
+	}
 
 	private debouncedSyncToMain() {
 		if (this.syncDebounceTimer) clearTimeout(this.syncDebounceTimer);

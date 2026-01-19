@@ -5,6 +5,7 @@ module.exports = {
 	transform: {
 		'^.+\\.ts$': 'ts-jest',
 	},
+	transformIgnorePatterns: ['node_modules/(?!((d3.*)|internmap|delaunator|robust-predicates))'],
 	testMatch: ['**/tests/**/*.test.ts'],
 	collectCoverage: true,
 	coverageThreshold: {
@@ -22,6 +23,7 @@ module.exports = {
 		'^@infrastructure/(.*)$': '<rootDir>/src/infrastructure/$1',
 		'^@presentation/(.*)$': '<rootDir>/src/presentation/$1',
 		'^obsidian$': '<rootDir>/tests/obsidian-mock.ts',
+		'^d3$': '<rootDir>/tests/mocks/d3.mock.ts',
 	},
 	setupFilesAfterEnv: ['<rootDir>/tests/test-setup.ts'],
 };

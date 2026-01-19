@@ -177,12 +177,29 @@ class VaultService:
                     i = u.source_index - 1
                     if 0 <= i < len(cards):
                         card_data = cards[i]
-                        if u.new_nid and sanitize(card_data.get("nid", "")) != u.new_nid:
-                            card_data["nid"] = u.new_nid
+                        # V2 format: write nid/cid into anki block
+                        anki_block = card_data.get("anki", {})
+                        if not isinstance(anki_block, dict):
+                            anki_block = {}
+
+                        if u.new_nid and sanitize(anki_block.get("nid", "")) != u.new_nid:
+                            anki_block["nid"] = u.new_nid
                             changed = True
-                        if u.new_cid and sanitize(card_data.get("cid", "")) != u.new_cid:
-                            card_data["cid"] = u.new_cid
+                        if u.new_cid and sanitize(anki_block.get("cid", "")) != u.new_cid:
+                            anki_block["cid"] = u.new_cid
                             changed = True
+
+                        if anki_block:
+                            card_data["anki"] = anki_block
+
+                        # Also migrate legacy root-level nid/cid to anki block
+                        for legacy_key in ["nid", "cid"]:
+                            if legacy_key in card_data and legacy_key not in ["anki"]:
+                                if legacy_key not in anki_block:
+                                    anki_block[legacy_key] = card_data[legacy_key]
+                                del card_data[legacy_key]
+                                card_data["anki"] = anki_block
+                                changed = True
                 # FORCE FIX: If we are ignoring cache (force sync), always mark as changed
                 # to trigger a rewrite with normalized YAML (|- block style).
                 if self.ignore_cache:

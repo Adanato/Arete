@@ -5,11 +5,12 @@
  * that mimics Obsidian's native graph view behavior.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice, TFile } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, TFile, Component } from 'obsidian';
 import * as d3 from 'd3';
 import type AretePlugin from '@/main';
 import { DependencyResolver } from '@/application/services/DependencyResolver';
 import { LocalGraphResult } from '@/domain/graph/types';
+import { CardRenderer } from '@/presentation/renderers/CardRenderer';
 
 export const LOCAL_GRAPH_VIEW_TYPE = 'arete-local-graph';
 
@@ -36,6 +37,10 @@ export class LocalGraphView extends ItemView {
 	private showRelated = true;
 	private simulation: d3.Simulation<GraphNode, GraphLink> | null = null;
 	private svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+	private tooltipContainer: HTMLElement | null = null;
+	private tooltipComponent: Component = new Component();
+	private renderCardNodes = false;
+	private currentFilePath: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: AretePlugin) {
 		super(leaf);
@@ -56,13 +61,14 @@ export class LocalGraphView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		this.container = this.containerEl.children[1] as HTMLElement;
+		this.container = this.contentEl; // Safer than children[1]
 		this.container.empty();
 		this.container.addClass('arete-local-graph-d3');
 		this.container.style.display = 'flex';
 		this.container.style.flexDirection = 'column';
 		this.container.style.height = '100%';
 		this.container.style.overflow = 'hidden';
+		this.container.style.position = 'relative'; // For absolute tooltip
 
 		this.renderToolbar();
 
@@ -72,11 +78,27 @@ export class LocalGraphView extends ItemView {
 		graphDiv.style.position = 'relative';
 
 		// Initial graph build
+		// Ensure we capture initial file
+		const activeFile = this.app.workspace.getActiveFile();
+		if (activeFile) this.currentFilePath = activeFile.path;
 		await this.refresh();
 
 		// Register events
 		this.registerEvent(
+			(this.app.workspace as any).on('arete:card-selected', (cardId: string) => {
+				console.log('[Arete Graph] Received selection event:', cardId);
+				this.centeredCardId = cardId;
+				// If we receive a selection, we assume the file context is still valid or will handle in refresh
+				this.refresh();
+			}),
+		);
+
+		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => {
+				const af = this.app.workspace.getActiveFile();
+				if (af) {
+					this.currentFilePath = af.path;
+				}
 				this.refresh();
 			}),
 		);
@@ -102,6 +124,25 @@ export class LocalGraphView extends ItemView {
 		refreshBtn.setAttribute('title', 'Rebuild Graph');
 		refreshBtn.addEventListener('click', () => {
 			this.resolver.buildGraph().then(() => this.refresh());
+		});
+
+		// Render Mode Toggle
+		const renderToggle = toolbar.createDiv({
+			cls: 'clickable-icon' + (this.renderCardNodes ? ' is-active' : ''),
+		});
+		setIcon(renderToggle, 'layout-template'); // icon for 'card' view
+		renderToggle.setAttribute('title', 'Toggle Card Rendering');
+		if (this.renderCardNodes) renderToggle.style.color = 'var(--interactive-accent)';
+		renderToggle.addEventListener('click', () => {
+			this.renderCardNodes = !this.renderCardNodes;
+			if (this.renderCardNodes) {
+				renderToggle.style.color = 'var(--interactive-accent)';
+				renderToggle.addClass('is-active');
+			} else {
+				renderToggle.style.color = '';
+				renderToggle.removeClass('is-active');
+			}
+			this.refresh();
 		});
 
 		// Related Toggle
@@ -136,6 +177,24 @@ export class LocalGraphView extends ItemView {
 	private centeredCardId: string | null = null;
 	// ...
 
+	// Public method to explicitly set context (robustness)
+	async setContext(filePath: string, cardId?: string | null) {
+		console.log('[Arete Graph] Explicit context set:', filePath, cardId);
+		this.currentFilePath = filePath;
+		this.centeredCardId = cardId || null;
+		await this.refresh();
+	}
+
+	private getFallbackFile(): TFile | null {
+		// Try to find *any* markdown file if we are lost
+		const leaves = this.app.workspace.getLeavesOfType('markdown');
+		if (leaves.length > 0) {
+			const view = leaves[0].view as any;
+			if (view.file instanceof TFile) return view.file;
+		}
+		return null;
+	}
+
 	async refresh() {
 		console.log('[Arete Graph] Refreshing...');
 		const canvas = this.container.querySelector('.arete-graph-canvas') as HTMLElement;
@@ -144,18 +203,48 @@ export class LocalGraphView extends ItemView {
 			return;
 		}
 
-		// 1. Get Data
+		// 1. Get Data Resolution Strategy
+		// Priority:
+		// 1. Explicit Active File (if markdown)
+		// 2. Persisted currentFilePath
+		// 3. Fallback to any open markdown file
+
+		let targetPath: string | null = null;
+
 		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) {
-			console.log('[Arete Graph] No active file');
-			this.renderEmpty(canvas, 'No active file');
+		if (activeFile && activeFile.extension === 'md') {
+			targetPath = activeFile.path;
+			this.currentFilePath = targetPath; // Update persistence
+		} else if (this.currentFilePath) {
+			targetPath = this.currentFilePath;
+		} else {
+			// Fallback
+			const fallback = this.getFallbackFile();
+			if (fallback) {
+				targetPath = fallback.path;
+				this.currentFilePath = targetPath;
+				console.log('[Arete Graph] Using fallback file:', targetPath);
+			}
+		}
+
+		if (!targetPath) {
+			console.log('[Arete Graph] No active file resolveable');
+			this.renderEmpty(canvas, 'No active file selected.');
 			return;
 		}
-		console.log('[Arete Graph] Active file:', activeFile.path);
 
-		const cache = this.app.metadataCache.getFileCache(activeFile);
+		const file = this.app.vault.getAbstractFileByPath(targetPath);
+		if (!(file instanceof TFile)) {
+			this.renderEmpty(canvas, 'File not found: ' + targetPath);
+			return;
+		}
+
+		console.log('[Arete Graph] Rendering for:', targetPath);
+
+		const cache = this.app.metadataCache.getFileCache(file);
 		const cards = cache?.frontmatter?.cards;
-		
+		const filePath = targetPath; // Alias for consistent usage below
+
 		if (!cards || !Array.isArray(cards) || cards.length === 0) {
 			console.log('[Arete Graph] No cards found in frontmatter');
 			this.renderEmpty(canvas, 'No Arete cards found in this file.');
@@ -165,16 +254,35 @@ export class LocalGraphView extends ItemView {
 
 		// determine center card:
 		let targetCardId = this.centeredCardId;
-		
+
+		// 1. Check central context first if no explicit target set
+		if (!targetCardId && this.plugin.getCardContext(filePath)) {
+			targetCardId = this.plugin.getCardContext(filePath) || null;
+		}
+
 		// Verify if targetCardId still exists in file
 		const cardExists = targetCardId && cards.find((c: any) => c.id === targetCardId);
-		
+
 		if (!cardExists) {
-			const firstCard = cards.find((c: any) => c.id);
-			if (firstCard) {
-				targetCardId = firstCard.id;
-				this.centeredCardId = targetCardId;
-				console.log('[Arete Graph] Defaulting to first card:', targetCardId);
+			// 2. Check context again (maybe file changed but context is fresh?)
+			const contextId = this.plugin.getCardContext(filePath);
+			if (contextId && cards.find((c: any) => c.id === contextId)) {
+				targetCardId = contextId;
+			} else {
+				// 3. Fallback to first card
+				const firstCard = cards.find((c: any) => c.id);
+				if (firstCard) {
+					targetCardId = firstCard.id;
+					// Update context to match default
+					this.centeredCardId = targetCardId;
+					this.plugin.setCardContext(filePath, targetCardId);
+					console.log('[Arete Graph] Defaulting to first card:', targetCardId);
+				}
+			}
+		} else {
+			// If we found a valid target, ensure context is synced
+			if (targetCardId) {
+				this.plugin.setCardContext(filePath, targetCardId);
 			}
 		}
 
@@ -186,7 +294,7 @@ export class LocalGraphView extends ItemView {
 
 		// Force rebuild graph to ensure fresh data
 		await this.resolver.buildGraph();
-		
+
 		// Use resolver to get structured data
 		const localGraph = this.resolver.getLocalGraph(targetCardId, this.depth);
 		if (!localGraph) {
@@ -198,7 +306,13 @@ export class LocalGraphView extends ItemView {
 		const { nodes, links } = this.transformData(localGraph);
 		console.log(`[Arete Graph] Transformed: ${nodes.length} nodes, ${links.length} links`);
 
+		if (nodes.length === 0) {
+			this.renderEmpty(canvas, 'Graph is empty (No nodes found).');
+			return;
+		}
+
 		// 3. Render D3
+		// new Notice(`Graph: Rendering ${nodes.length} nodes...`);
 		this.renderD3Graph(canvas, nodes, links);
 	}
 
@@ -209,17 +323,14 @@ export class LocalGraphView extends ItemView {
 			cls: 'arete-graph-empty-msg',
 		}).style.padding = '20px';
 	}
-	
+
 	// Helper to transform LocalGraphResult to D3 format
 	transformData(graph: LocalGraphResult): { nodes: GraphNode[]; links: GraphLink[] } {
 		const nodes: Map<string, GraphNode> = new Map();
 		const links: GraphLink[] = [];
 
 		// Helper to add node
-		const addNode = (
-			nodeData: any,
-			group: 'center' | 'prereq' | 'dependent' | 'related',
-		) => {
+		const addNode = (nodeData: any, group: 'center' | 'prereq' | 'dependent' | 'related') => {
 			if (!nodes.has(nodeData.id)) {
 				nodes.set(nodeData.id, {
 					id: nodeData.id,
@@ -234,7 +345,7 @@ export class LocalGraphView extends ItemView {
 
 		// 1. Add All Nodes
 		addNode(graph.center, 'center');
-		
+
 		graph.prerequisites.forEach((n) => addNode(n, 'prereq'));
 		graph.dependents.forEach((n) => addNode(n, 'dependent'));
 
@@ -260,7 +371,9 @@ export class LocalGraphView extends ItemView {
 			});
 		} else {
 			// Fallback for types safety if links missing (shouldn't happen with new resolver)
-			console.warn('[Arete Graph] No links provided by resolver, graph may look disconnected.');
+			console.warn(
+				'[Arete Graph] No links provided by resolver, graph may look disconnected.',
+			);
 		}
 
 		return {
@@ -271,8 +384,25 @@ export class LocalGraphView extends ItemView {
 
 	renderD3Graph(container: HTMLElement, nodes: GraphNode[], links: GraphLink[]) {
 		container.empty();
+
+		// Setup Tooltip Container if not exists
+		if (!this.tooltipContainer) {
+			this.tooltipContainer = this.container.createDiv({ cls: 'arete-graph-tooltip' });
+			this.tooltipContainer.style.position = 'absolute';
+			this.tooltipContainer.style.display = 'none';
+			this.tooltipContainer.style.zIndex = '1000';
+			this.tooltipContainer.style.zIndex = '1000';
+			this.tooltipContainer.style.pointerEvents = 'none'; // Don't block mouse
+		}
 		const width = container.clientWidth;
 		const height = container.clientHeight;
+
+		if (width === 0 || height === 0) {
+			console.warn('[Arete Graph] Container has 0 dimensions. Waiting for resize.');
+			// Retry once after a delay
+			setTimeout(() => this.refresh(), 100);
+			return;
+		}
 
 		const svg = d3
 			.select(container)
@@ -280,35 +410,51 @@ export class LocalGraphView extends ItemView {
 			.attr('width', '100%')
 			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
-		
+
 		this.svg = svg;
 		const g = svg.append('g');
 
 		// Zoom
-		const zoom = d3.zoom<SVGSVGElement, unknown>()
+		const zoom = d3
+			.zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 4])
 			.on('zoom', (event) => g.attr('transform', event.transform));
 		svg.call(zoom);
 
 		// Simulation
-		this.simulation = d3.forceSimulation(nodes)
-			.force('link', d3.forceLink(links).id((d: any) => d.id).distance(150))
-			.force('charge', d3.forceManyBody().strength(-600))
+		this.simulation = d3
+			.forceSimulation(nodes)
+			.force(
+				'link',
+				d3
+					.forceLink(links)
+					.id((d: any) => d.id)
+					.distance(this.renderCardNodes ? 250 : 150),
+			)
+			.force('charge', d3.forceManyBody().strength(this.renderCardNodes ? -2000 : -600))
 			.force('center', d3.forceCenter(width / 2, height / 2))
-			.force('collide', d3.forceCollide().radius(40));
+			.force('collide', d3.forceCollide().radius(this.renderCardNodes ? 120 : 40));
 
 		// Arrows
-		svg.append('defs').append('marker')
-			.attr('id', 'arrow').attr('viewBox', '0 -5 10 10')
-			.attr('refX', 20).attr('refY', 0)
-			.attr('markerWidth', 6).attr('markerHeight', 6)
+		svg.append('defs')
+			.append('marker')
+			.attr('id', 'arrow')
+			.attr('viewBox', '0 -5 10 10')
+			.attr('refX', 20)
+			.attr('refY', 0)
+			.attr('markerWidth', 6)
+			.attr('markerHeight', 6)
 			.attr('orient', 'auto')
-			.append('path').attr('d', 'M0,-5L10,0L0,5')
+			.append('path')
+			.attr('d', 'M0,-5L10,0L0,5')
 			.attr('fill', 'var(--text-muted)');
 
 		// Links
-		const link = g.append('g').selectAll('line')
-			.data(links).join('line')
+		const link = g
+			.append('g')
+			.selectAll('line')
+			.data(links)
+			.join('line')
 			.attr('stroke', 'var(--text-muted)')
 			.attr('stroke-opacity', 0.6)
 			.attr('stroke-width', (d) => (d.type === 'requires' ? 2 : 1))
@@ -316,44 +462,166 @@ export class LocalGraphView extends ItemView {
 			.attr('marker-end', (d) => (d.type === 'requires' ? 'url(#arrow)' : null));
 
 		// Drag
-		const dragBehavior = d3.drag<any, any>()
+		const dragBehavior = d3
+			.drag<any, any>()
 			.on('start', (event, d) => {
 				if (!event.active) this.simulation?.alphaTarget(0.3).restart();
-				d.fx = d.x; d.fy = d.y;
+				d.fx = d.x;
+				d.fy = d.y;
 			})
-			.on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+			.on('drag', (event, d) => {
+				d.fx = event.x;
+				d.fy = event.y;
+			})
 			.on('end', (event, d) => {
 				if (!event.active) this.simulation?.alphaTarget(0);
-				d.fx = null; d.fy = null;
+				d.fx = null;
+				d.fy = null;
 			});
 
-		// Nodes
-		const node = g.append('g').selectAll('circle')
-			.data(nodes).join('circle')
-			.attr('r', (d) => d.group === 'center' ? 10 : 6)
-			.attr('fill', (d) => {
-				if (d.group === 'center') return 'var(--interactive-accent)';
-				if (d.group === 'prereq') return 'var(--text-normal)';
-				return 'var(--text-muted)';
-			})
-			.attr('stroke', 'var(--background-primary)')
-			.attr('stroke-width', 2)
-			.style('cursor', 'pointer')
-			.call(dragBehavior);
+		// Nodes Group
+		const nodeGroup = g
+			.append('g')
+			.selectAll('.node')
+			.data(nodes)
+			.join('g')
+			.attr('class', 'node')
+			.call(dragBehavior as any);
 
-		// Labels
-		const labels = g.append('g').selectAll('text')
-			.data(nodes).join('text')
-			.text((d) => d.title.length > 25 ? d.title.slice(0, 23) + '...' : d.title)
-			.attr('font-size', '10px')
-			.attr('dx', 15).attr('dy', 4)
-			.attr('fill', 'var(--text-muted)')
-			.style('pointer-events', 'none');
+		if (this.renderCardNodes) {
+			// --- Card Mode ---
+			const app = this.app;
+			const component = this.tooltipComponent;
+
+			nodeGroup.each(function (d) {
+				const group = d3.select(this);
+
+				// Card Container (ForeignObject)
+				const fo = group
+					.append('foreignObject')
+					.attr('width', 200)
+					.attr('height', 150)
+					.attr('x', -100)
+					.attr('y', -75);
+
+				const div = fo
+					.append('xhtml:div')
+					.style('width', '100%')
+					.style('height', '100%')
+					.style('overflow', 'hidden') // Hide overflow for cleanliness
+					.style('background', 'var(--background-primary)')
+					.style('border', '1px solid var(--background-modifier-border)')
+					.style('border-radius', '8px')
+					.style('font-size', '10px')
+					.style('padding', '8px')
+					.style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)')
+					.classed('arete-card-preview', true); // Apply preview styling class
+
+				// Fetch Real Card Data
+				// We have d.filePath and d.id
+				const file = app.vault.getAbstractFileByPath(d.filePath);
+				if (file instanceof TFile) {
+					const cache = app.metadataCache.getFileCache(file);
+					const cards = cache?.frontmatter?.cards || [];
+					const card = cards.find((c: any) => c.id === d.id);
+
+					if (card) {
+						// Async render the card content
+						CardRenderer.render(
+							app,
+							div.node() as HTMLElement,
+							card,
+							d.filePath,
+							component,
+						);
+					} else {
+						// Fallback if card not found in cache
+						div.html(
+							`<div style="font-weight:bold;margin-bottom:4px;color:red">Card Not Found</div><div>${d.id}</div>`,
+						);
+					}
+				} else {
+					div.html(
+						`<div style="font-weight:bold;margin-bottom:4px;color:red">File Not Found</div><div>${d.filePath}</div>`,
+					);
+				}
+			});
+		} else {
+			// --- Dot Mode ---
+			nodeGroup
+				.append('circle')
+				.attr('r', (d) => (d.group === 'center' ? 10 : 6))
+				.attr('fill', (d) => {
+					if (d.group === 'center') return 'var(--interactive-accent)';
+					if (d.group === 'prereq') return 'var(--text-normal)';
+					return 'var(--text-muted)';
+				})
+				.attr('stroke', 'var(--background-primary)')
+				.attr('stroke-width', 2)
+				.style('cursor', 'pointer');
+
+			// Labels
+			nodeGroup
+				.append('text')
+				.text((d) => (d.title.length > 25 ? d.title.slice(0, 23) + '...' : d.title))
+				.attr('font-size', '10px')
+				.attr('dx', 15)
+				.attr('dy', 4)
+				.attr('fill', 'var(--text-muted)')
+				.style('pointer-events', 'none');
+
+			// Hover Tooltip
+			nodeGroup
+				.on('mouseover', async (event, d) => {
+					if (this.tooltipContainer) {
+						this.tooltipContainer.style.display = 'block';
+						this.tooltipContainer.style.left = event.pageX + 10 + 'px';
+						this.tooltipContainer.style.top = event.pageY + 10 + 'px';
+
+						// Populate tooltip
+						this.tooltipContainer.empty();
+						const cardDiv = this.tooltipContainer.createDiv({
+							cls: 'arete-card-preview',
+						});
+						cardDiv.style.width = '300px';
+						cardDiv.style.maxHeight = '300px';
+						cardDiv.style.overflow = 'auto';
+
+						// Re-construct basic card object for display
+						// In a real scenario we'd want the full card from cache
+						const cardMock = {
+							id: d.id,
+							Front: d.title,
+							// We'd need to fetch more data for full preview
+							// For now showing ID and Title is a start
+						};
+
+						await CardRenderer.render(
+							this.app,
+							cardDiv,
+							cardMock,
+							d.filePath,
+							this.tooltipComponent,
+						);
+					}
+				})
+				.on('mousemove', (event) => {
+					if (this.tooltipContainer) {
+						this.tooltipContainer.style.left = event.clientX + 15 + 'px';
+						this.tooltipContainer.style.top = event.clientY + 15 + 'px';
+					}
+				})
+				.on('mouseout', () => {
+					if (this.tooltipContainer) {
+						this.tooltipContainer.style.display = 'none';
+					}
+				});
+		}
 
 		// Click Interaction
-		node.on('click', async (event, d) => {
+		nodeGroup.on('click', async (event, d) => {
 			event.stopPropagation(); // prevent zoom click
-			
+
 			// If node is in same file, re-center graph
 			const activeFile = this.app.workspace.getActiveFile();
 			if (activeFile && d.filePath === activeFile.path) {
@@ -366,13 +634,16 @@ export class LocalGraphView extends ItemView {
 			}
 		});
 
-		node.append('title').text((d) => `${d.title}\n(${d.id})`);
+		nodeGroup.append('title').text((d) => `${d.title}\n(${d.id})`);
 
 		this.simulation.on('tick', () => {
-			link.attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
-				.attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y);
-			node.attr('cx', (d: any) => d.x).attr('cy', (d: any) => d.y);
-			labels.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
+			link.attr('x1', (d: any) => d.source.x)
+				.attr('y1', (d: any) => d.source.y)
+				.attr('x2', (d: any) => d.target.x)
+				.attr('y2', (d: any) => d.target.y);
+
+			// Update group positions (handles both circles and cards)
+			nodeGroup.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
 		});
 	}
 
@@ -394,14 +665,11 @@ export class LocalGraphView extends ItemView {
 			d.fy = null;
 		}
 
-		return d3
-			.drag()
-			.on('start', dragstarted)
-			.on('drag', dragged)
-			.on('end', dragended);
+		return d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended);
 	}
 
 	async openFile(filePath: string) {
+		this.currentFilePath = filePath;
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (file instanceof TFile) {
 			await this.app.workspace.getLeaf().openFile(file);
@@ -410,5 +678,13 @@ export class LocalGraphView extends ItemView {
 
 	async onClose() {
 		if (this.simulation) this.simulation.stop();
+		this.tooltipComponent.unload();
+	}
+
+	async focusCard(cardId: string) {
+		console.log('[Arete Graph] Focusing card via direct call:', cardId);
+		this.centeredCardId = cardId;
+		// Ensure active file is correct or refresh uses current context
+		await this.refresh();
 	}
 }
