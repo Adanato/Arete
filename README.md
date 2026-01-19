@@ -6,49 +6,27 @@
 [![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
 [![License](https://img.shields.io/github/license/Adanato/obsidian_2_anki)](https://github.com/Adanato/obsidian_2_anki/blob/main/LICENSE)
 
-`arete` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**.
-
-```mermaid
-graph TD
-    subgraph "Obsidian Vault"
-        MD["Markdown Files"]
-        Media["Images/Files"]
-    end
-
-    subgraph "Sync Component (Arete)"
-        CLI["Python CLI / Server"]
-        Plugin["Obsidian Plugin (GUI wrapper)"]
-        Cache[("SQLite Cache")]
-    end
-
-    subgraph "Anki"
-        AC["AnkiConnect / Direct DB"]
-        CollectionMedia["collection.media (Filesystem)"]
-        Cards["Anki Decks"]
-    end
-
-    MD --> Plugin
-    Plugin -- "Invokes" --> CLI
-    CLI <--> Cache
-    CLI -- "Pushes Notes" --> AC
-    CLI -- "Copies Media" --> CollectionMedia
-    AC --> Cards
-```
+`arete` is a robust, fast, and feature-rich tool that adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of Truth**. It allows you to maintain complex study materials in your vault while keeping Anki perfectly in sync.
 
 ---
 
-## 📚 Documentation
-- **[CLI Guide](./docs/cli_guide.md)**: Command-line usage, configuration, and syntax.
-- **[Obsidian Plugin Guide](./docs/plugin_guide.md)**: Installation and usage of the Obsidian plugin.
-- **[Architecture](./docs/ARCHITECTURE.md)**: Deep dive into how it works.
-- **[Troubleshooting](./docs/troubleshooting.md)**: Common fixes for WSL, networking, and sync issues.
+## 🚀 Key Features
+
+- ⚡ **Turbocharged Sync**: SQLite caching skips unchanged files for near-instant updates.
+- 📐 **Topological Sort**: Build filtered study queues that respect prerequisite dependencies.
+- 🧬 **FSRS Support**: Native difficulty and retention analysis for modern memory schedulers.
+- 🧹 **Orphan Management**: Automatically prunes deleted cards from your Anki collection.
+- 🩹 **Self-Healing**: Automatically repairs duplicate IDs or broken internal references.
+- 📸 **Rich Media**: Full synchronization of images, SVGs, and other attachments.
+- 💻 **Cross-Platform**: First-class support for macOS, Linux, and Windows (including WSL).
 
 ---
 
-## Quick Start
+## 📦 Quick Start
 
 ### 1. Install CLI
-`arete` requires [uv](https://github.com/astral-sh/uv) for dependency management.
+`arete` requires [uv](https://github.com/astral-sh/uv) for high-performance dependency management.
+
 ```bash
 git clone https://github.com/Adanato/obsidian_2_anki
 cd obsidian_2_anki
@@ -56,28 +34,31 @@ uv sync
 ```
 
 ### 2. Install Plugin
-Download the latest release from [Releases](https://github.com/Adanato/obsidian_2_anki/releases) and place them in `.obsidian/plugins/arete`.
+Download the latest release from the [Releases](https://github.com/Adanato/obsidian_2_anki/releases) page and place the files in your plugin folder:
+`.obsidian/plugins/arete/`
 
 ### 3. Initialize & Sync
 ```bash
-uv run arete init   # Set up your vault path
-uv run arete sync   # First sync (will scan and link cards)
+uv run arete init   # Interactive setup wizard
+uv run arete sync   # Your first sync
 ```
 
-## Key Features
-- ⚡ **Near-Instant Sync**: SQLite caching skips unchanged files.
-- 📐 **Topological Sort**: Generate filtered decks that respect prerequisite dependencies.
-- 🧬 **FSRS Support**: Native difficulty and retention analysis for modern schedulers.
-- 🧹 **Prune Mode**: Automatically removes cards from Anki that you've deleted in Obsidian.
-- 🩹 **Self-Healing**: Fixes duplicate IDs or broken links automatically.
-- 📸 **Media Support**: Full synchronization of local images and attachments.
-- 💻 **WSL Friendly**: Specialized bridge for Windows Subsystem for Linux users.
+---
 
-## Upgrading to v2.0
-If you are coming from `o2a` or an older version of `arete`, run:
+## 📚 Documentation
+
+- [**CLI Guide**](./docs/cli_guide.md): Command-line options, configuration, and syntax.
+- [**Obsidian Plugin Guide**](./docs/plugin_guide.md): How to use the GUI and Gutter features.
+- [**Architecture**](./docs/ARCHITECTURE.md): Technical deep-dive into the core logic.
+- [**Troubleshooting**](./docs/troubleshooting.md): Common fixes for WSL and networking.
+
+---
+
+## 🔄 Upgrading to v2.0
+Upgrading from a legacy version? `arete` includes a migration tool to normalize your metadata:
 ```bash
 uv run arete migrate
 ```
 
-## License
+## 📄 License
 MIT
