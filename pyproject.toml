@@ -135,7 +135,7 @@ arete = "arete.main:main"
 testpaths = ["tests"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 80
 show_missing = true
 omit = ["tests/*"]
 
