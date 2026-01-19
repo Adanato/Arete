@@ -1,10 +1,10 @@
 site_name: Arete
 site_description: "Pro-grade synchronization from Obsidian to Anki with topological study queues and FSRS analytics."
 site_author: "Adam Nguyen"
-site_url: "https://adanato.github.io/obsidian_2_anki/"
+site_url: "https://adanato.github.io/Arete/"
 
-repo_name: "Adanato/obsidian_2_anki"
-repo_url: "https://github.com/Adanato/obsidian_2_anki"
+repo_name: "Adanato/Arete"
+repo_url: "https://github.com/Adanato/Arete"
 
 theme:
   name: material
