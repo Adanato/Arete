@@ -188,11 +188,17 @@ class MarkdownParser:
                     self.logger.debug(f"[cache-hit] {md_path} card#{idx}: skipping")
                     continue
 
+                # Construct per-card tag list (base + arete ID for reverse lookup)
+                card_tags = list(base_tags)  # Copy to avoid mutating shared list
+                card_id = sanitize(card.get("id", "")).strip()
+                if card_id:
+                    card_tags.append(card_id)  # ID already has arete_ prefix
+
                 note_obj = AnkiNote(
                     model=model,
                     deck=deck_this,
                     fields=fields,
-                    tags=base_tags,
+                    tags=card_tags,
                     start_line=start_line,
                     end_line=start_line,  # Frontmatter cards are single-block usually
                     nid=nid,
