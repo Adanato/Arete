@@ -72,13 +72,21 @@ async def test_gui_browse_polling(adapter):
         mock_client = MagicMock()
         mock_client.post = AsyncMock(return_value=mock_resp)
 
-        with patch(
-            "httpx.AsyncClient",
-            return_value=MagicMock(__aenter__=AsyncMock(return_value=mock_client)),
+        with (
+            patch(
+                "httpx.AsyncClient",
+                return_value=MagicMock(__aenter__=AsyncMock(return_value=mock_client)),
+            ),
+            patch("os.startfile", create=True) as mock_startfile,
         ):
+            import sys
+
             res = await adapter.gui_browse("test query")
             assert res is True
-            mock_run.assert_called()
+            if sys.platform == "win32":
+                mock_startfile.assert_called()
+            else:
+                mock_run.assert_called()
 
 
 @pytest.mark.asyncio

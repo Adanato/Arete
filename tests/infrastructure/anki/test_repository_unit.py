@@ -24,7 +24,7 @@ def test_resolve_collection_path_explicit_profile(repo):
     # Mock existence of prefs db
     with patch.object(Path, "exists", return_value=True):
         path = repo._resolve_collection_path()
-    assert path == Path("/tmp/anki/User1/collection.anki2")
+    assert path == Path("/tmp/anki") / "User1" / "collection.anki2"
 
 
 @patch("arete.infrastructure.anki.repository.sqlite3")
@@ -44,7 +44,7 @@ def test_resolve_collection_path_auto(mock_sqlite, repo):
     with patch.object(Path, "exists", return_value=True):
         path = repo._resolve_collection_path()
 
-    assert path == Path("/tmp/anki/UserAuto/collection.anki2")
+    assert path == Path("/tmp/anki") / "UserAuto" / "collection.anki2"
     assert repo.profile_name == "UserAuto"
 
 
@@ -56,7 +56,7 @@ def test_context_manager(mock_col, repo):
     with patch.object(repo, "_resolve_collection_path", return_value=Path("/tmp/c.anki2")):
         with repo as r:
             assert r.col is mock_instance
-            mock_col.assert_called_with("/tmp/c.anki2")
+            mock_col.assert_called_with(str(Path("/tmp/c.anki2")))
 
         # Exit
         # mock_instance.save.assert_called_once()  # Deprecated in modern Anki
