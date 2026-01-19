@@ -1,20 +1,12 @@
 import { EditorView, gutter, GutterMarker, Decoration, DecorationSet } from '@codemirror/view';
 import { RangeSetBuilder, StateField, StateEffect } from '@codemirror/state';
+import { syntaxTree } from '@codemirror/language';
+import { parseYaml } from 'obsidian';
 import type { AnkiCardStats } from '@/domain/stats';
+import { CardVisualsService } from '@/application/services/CardVisualsService';
 
-interface CardRange {
-	index: number;
-	startLine: number;
-	endLine: number;
-	nid: number | null;
-	cid: number | null;
-}
-
-interface ParseResult {
-	ranges: CardRange[];
-	frontmatterEndLine: number | null;
-	hasCards: boolean;
-}
+// Re-use interfaces from service
+import { CardRange } from '@/application/services/CardParserService';
 
 // Effect to trigger card highlight
 export const highlightCardEffect = StateEffect.define<{ cardIndex: number } | null>();
@@ -66,6 +58,7 @@ class CardGutterMarker extends GutterMarker {
 	totalLines: number;
 	stats: AnkiCardStats | null;
 	algorithm: 'fsrs' | 'sm2';
+	isSynced: boolean;
 	onClick: () => void;
 
 	constructor(
@@ -76,6 +69,7 @@ class CardGutterMarker extends GutterMarker {
 		totalLines: number,
 		stats: AnkiCardStats | null,
 		algorithm: 'fsrs' | 'sm2',
+		isSynced: boolean,
 		onClick: () => void,
 	) {
 		super();
@@ -86,6 +80,7 @@ class CardGutterMarker extends GutterMarker {
 		this.totalLines = totalLines;
 		this.stats = stats;
 		this.algorithm = algorithm;
+		this.isSynced = isSynced;
 		this.onClick = onClick;
 	}
 
@@ -98,139 +93,55 @@ class CardGutterMarker extends GutterMarker {
 		marker.style.width = '100%';
 		marker.style.minWidth = '20px';
 
-		if (this.isStart) {
-			marker.classList.add('arete-gutter-start');
-		}
-		if (this.isEnd) {
-			marker.classList.add('arete-gutter-end');
-		}
+		if (this.isStart) marker.classList.add('arete-gutter-start');
+		if (this.isEnd) marker.classList.add('arete-gutter-end');
+		if (this.isSynced) marker.classList.add('arete-gutter-synced');
 
-		// 1. Setup Container for Info (Index + Stats)
-		// We use a single container at the top-right to stack items vertically
+		// 1. Resolve Visuals from Service (UI Separation)
+		const visuals = CardVisualsService.getGutterVisuals(this.stats, this.algorithm, this.isSynced);
+		marker.title = visuals.tooltip;
+
 		if (this.isStart) {
 			const infoContainer = document.createElement('div');
-			infoContainer.style.position = 'absolute';
-			infoContainer.style.top = '0';
-			infoContainer.style.right = '6px';
-			infoContainer.style.display = 'flex';
-			infoContainer.style.flexDirection = 'column';
-			infoContainer.style.alignItems = 'flex-end';
-			infoContainer.style.gap = '2px'; // 2px vertical spacing
-			infoContainer.style.zIndex = '2';
-			infoContainer.style.pointerEvents = 'none'; // Pass clicks to marker
+			infoContainer.className = 'arete-gutter-info-container';
 
 			// Index Badge
 			const badge = document.createElement('span');
 			badge.className = 'arete-gutter-badge';
 			badge.textContent = String(this.index + 1);
-			badge.style.fontSize = '9px';
-			badge.style.lineHeight = '10px';
-			badge.style.fontWeight = 'bold';
-			badge.style.color = 'var(--text-muted)';
-			badge.style.position = 'static'; // Reset absolute as it's flex now
 			infoContainer.appendChild(badge);
 
-			// Stats (if available)
-			if (this.stats) {
-				// Difficulty
-				let diffText = '';
-				let diffColor = 'var(--text-muted)';
-
-				if (this.algorithm === 'fsrs') {
-					if (
-						this.stats.difficulty !== undefined &&
-						this.stats.difficulty !== null &&
-						this.stats.difficulty > 0
-					) {
-						// difficulty is already 1-10 scale from backend
-						diffText = `${this.stats.difficulty.toFixed(1)}`;
-						if (this.stats.difficulty > 9) diffColor = 'var(--color-red)';
-						else if (this.stats.difficulty > 5) diffColor = 'var(--color-orange)';
-						else diffColor = 'var(--color-green)';
-					} else {
-						diffText = 'D:?';
-					}
-				} else {
-					if (this.stats.ease && this.stats.ease > 0) {
-						diffText = `E:${Math.round(this.stats.ease / 10)}%`;
-					} else {
-						diffText = 'E:?';
-					}
-				}
-
+			// Stats (Difficulty / Lapses)
+			if (visuals.diffText) {
 				const diffSpan = document.createElement('span');
-				diffSpan.textContent = diffText;
-				diffSpan.style.fontSize = '8px';
-				diffSpan.style.lineHeight = '9px';
-				diffSpan.style.fontWeight = 'bold';
-				diffSpan.style.color = diffColor;
+				diffSpan.textContent = visuals.diffText;
+				diffSpan.style.color = visuals.diffColor;
 				infoContainer.appendChild(diffSpan);
+			}
 
-				// Lapses
-				if (this.stats.lapses > 0) {
-					const lapseSpan = document.createElement('span');
-					lapseSpan.textContent = `${this.stats.lapses}L`;
-					lapseSpan.style.fontSize = '8px';
-					lapseSpan.style.lineHeight = '9px';
-					lapseSpan.style.fontWeight = 'bold';
-
-					let lapseColor = 'var(--color-orange)';
-					if (this.stats.lapses > 5) lapseColor = 'var(--color-red)';
-					lapseSpan.style.color = lapseColor;
-
-					infoContainer.appendChild(lapseSpan);
-				}
-
-				// Tooltip on the container or marker
-				const tooltipLines = [];
-				if (this.stats.difficulty)
-					tooltipLines.push(`Difficulty: ${this.stats.difficulty.toFixed(1)}/10`);
-				if (this.stats.ease)
-					tooltipLines.push(`Ease: ${Math.round(this.stats.ease / 10)}%`);
-				if (this.stats.lapses) tooltipLines.push(`Lapses: ${this.stats.lapses}`);
-				marker.title = tooltipLines.join('\n');
+			if (visuals.lapseText) {
+				const lapseSpan = document.createElement('span');
+				lapseSpan.textContent = visuals.lapseText;
+				lapseSpan.style.color = visuals.lapseColor;
+				infoContainer.appendChild(lapseSpan);
 			}
 
 			marker.appendChild(infoContainer);
 		}
 
-		// Add the colored bar
+		// 2. Add the colored health bar
 		const bar = document.createElement('div');
 		bar.className = 'arete-gutter-bar';
-		bar.style.position = 'absolute';
-		bar.style.right = '0';
-		bar.style.top = '0';
-		bar.style.width = '3px';
-		bar.style.height = '100%';
-		bar.style.marginTop = '-1px';
-		bar.style.paddingBottom = '1px';
-		bar.style.transition = 'width 0.15s ease-out, box-shadow 0.15s ease-out';
 
-		// Color logic
-		let barColor = 'var(--interactive-accent)';
-		let shadowColor = 'var(--interactive-accent)';
-
-		if (
-			this.stats &&
-			(this.stats.lapses > 5 || (this.stats.difficulty && this.stats.difficulty > 0.9))
-		) {
-			barColor = 'var(--color-red)';
-			shadowColor = 'var(--color-red)';
-		} else if (this.stats && this.stats.difficulty && this.stats.difficulty > 0.5) {
-			barColor = 'var(--color-orange)';
-			shadowColor = 'var(--color-orange)';
-		}
-
-		// Last line: fade
 		if (this.isEnd) {
-			bar.style.background = `linear-gradient(to bottom, ${barColor}, transparent)`;
+			bar.style.background = `linear-gradient(to bottom, ${visuals.barColor}, transparent)`;
 		} else {
-			bar.style.backgroundColor = barColor;
+			bar.style.backgroundColor = visuals.barColor;
 		}
 
 		marker.appendChild(bar);
 
-		// Helper to update all segments of this card
+		// Helper to update all segments of this card (Sync/Hover logic)
 		const setCardState = (hover: boolean, active: boolean) => {
 			document
 				.querySelectorAll(`.arete-gutter-marker[data-card-index="${this.index}"]`)
@@ -240,21 +151,18 @@ class CardGutterMarker extends GutterMarker {
 					else el.classList.remove('arete-gutter-hover');
 
 					if (active) el.classList.add('arete-gutter-active');
+					else el.classList.remove('arete-gutter-active');
 
 					const isActive = el.classList.contains('arete-gutter-active');
 					const isHover = el.classList.contains('arete-gutter-hover');
 
 					if (isActive || isHover) {
 						if (b) {
-							b.style.width = '6px';
-							b.style.boxShadow = `0 0 10px ${shadowColor}`;
-							b.style.zIndex = '10';
+							b.style.boxShadow = `0 0 10px ${visuals.shadowColor}`;
 						}
 					} else {
 						if (b) {
-							b.style.width = '3px';
 							b.style.boxShadow = 'none';
-							b.style.zIndex = '0';
 						}
 					}
 				});
@@ -266,6 +174,13 @@ class CardGutterMarker extends GutterMarker {
 		marker.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
+			
+			// Debug Notice
+			const msg = this.stats 
+				? `Card ${this.index + 1}: NID ${this.stats.noteId}, Diff: ${this.stats.difficulty}`
+				: `Card ${this.index + 1}: No stats found.`;
+			new (require('obsidian').Notice)(msg);
+
 			document.querySelectorAll('.arete-gutter-marker.arete-gutter-active').forEach((el) => {
 				el.classList.remove('arete-gutter-active');
 				const b = el.querySelector('.arete-gutter-bar') as HTMLElement;
@@ -292,124 +207,16 @@ function findLastContentLine(lines: string[], startLine: number, endLine: number
 	return startLine; // Fallback to start if all blank
 }
 
-// Parse YAML to find card ranges and frontmatter end
-function parseCardRanges(text: string): ParseResult {
-	const lines = text.split('\n');
-	const ranges: CardRange[] = [];
-	let frontmatterEndLine: number | null = null;
-
-	let inFrontmatter = false;
-	let inCards = false;
-	let currentCard: {
-		startLine: number;
-		index: number;
-		nid: number | null;
-		cid: number | null;
-	} | null = null;
-	let cardIndex = 0;
-
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		const trimmed = line.trim();
-
-		// Detect frontmatter boundaries
-		if (i === 0 && trimmed === '---') {
-			inFrontmatter = true;
-			continue;
-		}
-		if (inFrontmatter && trimmed === '---') {
-			// End of frontmatter
-			frontmatterEndLine = i;
-			if (currentCard) {
-				ranges.push({
-					index: currentCard.index,
-					startLine: currentCard.startLine,
-					endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
-					nid: currentCard.nid,
-					cid: currentCard.cid,
-				});
-			}
-			break;
-		}
-
-		if (!inFrontmatter) continue;
-
-		// Detect cards: key
-		if (trimmed === 'cards:' || trimmed.startsWith('cards:')) {
-			inCards = true;
-			continue;
-		}
-
-		if (!inCards) continue;
-
-		// Detect new card (starts with "- " possibly with leading whitespace)
-		if (
-			trimmed.startsWith('- ') &&
-			(trimmed.includes('model:') || trimmed.includes('Front:') || trimmed.includes('front:'))
-		) {
-			// Close previous card
-			if (currentCard) {
-				ranges.push({
-					index: currentCard.index,
-					startLine: currentCard.startLine,
-					endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
-					nid: currentCard.nid,
-					cid: currentCard.cid,
-				});
-			}
-			// Start new card
-			currentCard = { startLine: i, index: cardIndex, nid: null, cid: null };
-			cardIndex++;
-		}
-
-		// Parse NID and CID in current card
-		if (currentCard) {
-			const nidMatch = trimmed.match(/^nid:\s*['"]?(\d+)['"]?/);
-			if (nidMatch) {
-				currentCard.nid = parseInt(nidMatch[1]);
-			}
-			const cidMatch = trimmed.match(/^cid:\s*['"]?(\d+)['"]?/);
-			if (cidMatch) {
-				currentCard.cid = parseInt(cidMatch[1]);
-			}
-		}
-
-		// Detect end of cards section
-		if (
-			inCards &&
-			currentCard &&
-			!line.startsWith(' ') &&
-			!line.startsWith('-') &&
-			trimmed.includes(':') &&
-			trimmed.length > 0
-		) {
-			ranges.push({
-				index: currentCard.index,
-				startLine: currentCard.startLine,
-				endLine: findLastContentLine(lines, currentCard.startLine, i - 1),
-				nid: currentCard.nid,
-				cid: currentCard.cid,
-			});
-			currentCard = null;
-			inCards = false;
-		}
-	}
-
-	return {
-		ranges,
-		frontmatterEndLine,
-		hasCards: ranges.length > 0,
-	};
-}
+import { CardParserService, ParseResult } from '@/application/services/CardParserService';
 
 // State field to track card ranges
 const cardRangesField = StateField.define<ParseResult>({
 	create(state) {
-		return parseCardRanges(state.doc.toString());
+		return CardParserService.parseCards(state.doc.toString());
 	},
 	update(result, tr) {
 		if (tr.docChanged) {
-			return parseCardRanges(tr.state.doc.toString());
+			return CardParserService.parseCards(tr.state.doc.toString());
 		}
 		return result;
 	},
@@ -453,7 +260,7 @@ const cardHighlightField = StateField.define<DecorationSet>({
 // Create the gutter extension
 export function createCardGutter(
 	onCardClick: (cardIndex: number) => void,
-	getCardStats: (nid: number | null, cid: number | null) => AnkiCardStats | null = () => null,
+	getCardStats: (nid: number | null, cid: number | null, view: EditorView) => AnkiCardStats | null = () => null,
 	algorithm: 'fsrs' | 'sm2' = 'fsrs',
 ) {
 	return [
@@ -487,7 +294,7 @@ export function createCardGutter(
 						// Try to get stats using CID or NID
 						let stats = null;
 						if (range.nid || range.cid) {
-							stats = getCardStats(range.nid, range.cid);
+							stats = getCardStats(range.nid, range.cid, view);
 						}
 
 						builder.add(
@@ -501,6 +308,7 @@ export function createCardGutter(
 								totalLines,
 								stats,
 								algorithm,
+								!!range.nid,
 								() => onCardClick(range.index),
 							),
 						);

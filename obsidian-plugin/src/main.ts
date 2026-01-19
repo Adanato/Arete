@@ -6,6 +6,7 @@ import {
 	FileSystemAdapter,
 	TFile,
 	WorkspaceLeaf,
+	editorInfoField,
 } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import * as path from 'path';
@@ -26,7 +27,7 @@ import { LinkCheckerService } from '@application/services/LinkCheckerService';
 import { LeechService } from '@application/services/LeechService';
 import { ServerManager } from '@application/services/ServerManager';
 import { AreteClient } from '@infrastructure/arete/AreteClient';
-import { DependencyEditorView, DEPENDENCY_EDITOR_VIEW_TYPE } from '@presentation/views/DependencyEditorView';
+
 import { LocalGraphView, LOCAL_GRAPH_VIEW_TYPE } from '@presentation/views/LocalGraphView';
 import { DependencyResolver } from '@application/services/DependencyResolver';
 import {
@@ -129,7 +130,6 @@ export default class AretePlugin extends Plugin {
 			this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
 			this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
 			this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
-			this.registerView(DEPENDENCY_EDITOR_VIEW_TYPE, (leaf) => new DependencyEditorView(leaf, this));
 			this.registerView(LOCAL_GRAPH_VIEW_TYPE, (leaf) => new LocalGraphView(leaf, this));
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
@@ -157,10 +157,6 @@ export default class AretePlugin extends Plugin {
 
 		this.addRibbonIcon('bot', 'Arete AI Assistant', (evt: MouseEvent) => {
 			this.activateChatView();
-		});
-
-		this.addRibbonIcon('git-branch', 'Arete Dependencies', (evt: MouseEvent) => {
-			this.activateDependencyEditorView();
 		});
 
 		this.addRibbonIcon('network', 'Arete Local Graph', (evt: MouseEvent) => {
@@ -255,14 +251,6 @@ export default class AretePlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'arete-open-dependencies',
-			name: 'Open Dependency Editor',
-			callback: () => {
-				this.activateDependencyEditorView();
-			},
-		});
-
-		this.addCommand({
 			id: 'arete-open-local-graph',
 			name: 'Open Local Graph',
 			callback: () => {
@@ -323,20 +311,34 @@ export default class AretePlugin extends Plugin {
 					this.highlightCardLines(cardIndex);
 					this.activateYamlEditorView(cardIndex);
 				},
-				(nid, cid) => {
-					// Lookup enriched stats for this card from StatsService cache
-					const activeFile = this.app.workspace.getActiveFile();
-					if (!activeFile) return null;
-					const conceptStats = this.statsService.getCache().concepts[activeFile.path];
+				(nid: number | null, cid: number | null, view: EditorView) => {
+					const info = view.state.field(editorInfoField);
+					const file = info?.file;
+					if (!file) {
+						if (view.state.field(require('obsidian').MarkdownView)) console.warn('[Arete Gutter] No file in editorInfoField');
+						return null;
+					}
+					
+					const cache = this.statsService.getCache();
+					const conceptStats = cache.concepts[file.path];
+					
+					// DEBUG: Log first 10 cards and the requested NID
+					if (nid) {
+						console.log(`[Arete Debug] Looking up NID: ${nid} (type: ${typeof nid}) for file: ${file.name}`);
+						if (conceptStats?.cardStats) {
+							const keys = Object.keys(conceptStats.cardStats);
+							if (!conceptStats.cardStats[nid]) {
+								console.warn(`[Arete Debug] KEY NOT FOUND. Available keys sample: ${keys.slice(0, 5).join(', ')}`);
+								console.warn(`[Arete Debug] Type of search key: ${typeof nid}, Type of first available key: ${typeof keys[0]}`);
+							}
+						}
+					}
+
 					if (!conceptStats || !conceptStats.cardStats) return null;
 
-					// Try to find by CID first, then by NID
-					if (cid && conceptStats.cardStats[cid]) {
-						return conceptStats.cardStats[cid];
-					}
-					if (nid && conceptStats.cardStats[nid]) {
-						return conceptStats.cardStats[nid];
-					}
+					if (cid && conceptStats.cardStats[cid]) return conceptStats.cardStats[cid];
+					if (nid && conceptStats.cardStats[nid]) return conceptStats.cardStats[nid];
+					
 					return null;
 				},
 				this.settings.stats_algorithm,
@@ -458,25 +460,7 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
-	async activateDependencyEditorView() {
-		const { workspace } = this.app;
-		let leaf = workspace.getLeavesOfType(DEPENDENCY_EDITOR_VIEW_TYPE)[0];
 
-		if (!leaf) {
-			const rightLeaf = workspace.getRightLeaf(false);
-			if (rightLeaf) {
-				await rightLeaf.setViewState({
-					type: DEPENDENCY_EDITOR_VIEW_TYPE,
-					active: true,
-				});
-			}
-			leaf = workspace.getLeavesOfType(DEPENDENCY_EDITOR_VIEW_TYPE)[0];
-		}
-
-		if (leaf) {
-			workspace.revealLeaf(leaf);
-		}
-	}
 
 	async activateLocalGraphView() {
 		const { workspace } = this.app;
