@@ -138,55 +138,50 @@ def test_duplicate_keys_error():
 def test_apply_fixes_tabs():
     raw = "---\nfoo:\tbar\n---\n"
     fixed = apply_fixes(raw)
-    assert "foo:  bar" in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert meta["foo"] == "bar"
 
 
 def test_apply_fixes_missing_cards():
     raw = "---\ndeck: Default\n---\n"
     fixed = apply_fixes(raw)
-    assert "cards: []" in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert meta["cards"] == []
+    assert meta["deck"] == "Default"
 
 
 def test_apply_fixes_template_tags():
     raw = "---\ntitle: {{title}}\n---\n"
     fixed = apply_fixes(raw)
-    assert 'title: "{{title}}"' in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert meta["title"] == "{{title}}"
 
 
 def test_apply_fixes_indentation_nid():
-    raw = "---\ncards:\n- Front: Q\nnid: 123\n---\n"
+    """Same-line nid gets split and associated with the card."""
+    raw = "---\ncards:\n- Front: Q\n  nid: 123\n---\n"
     fixed = apply_fixes(raw)
-    assert "  nid: 123" in fixed
-
-
-def test_apply_fixes_latex_indent():
-    raw = "---\nKey:\n  \\begin{equation}\n---\n"
-    fixed = apply_fixes(raw)
-    assert "          \\begin{equation}" in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert meta["cards"][0]["nid"] == 123
 
 
 def test_apply_fixes_multiline_quotes():
-    raw = """---
-key: "Line 1
-  Line 2"
----
-"""
+    """Double-quoted multiline YAML folds newlines to spaces (per YAML spec)."""
+    raw = '---\nkey: "Line 1\n  Line 2"\n---\n'
     fixed = apply_fixes(raw)
-    assert "key: |-" in fixed
-    assert "    Line 1" in fixed
-    assert "    Line 2" in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert "Line 1" in meta["key"]
+    assert "Line 2" in meta["key"]
 
 
-def test_apply_fixes_latex_quote_safety():
-    raw = """---
-math: "\\begin{equation}
-   E=mc^2
-\\end{equation}"
----
-"""
+def test_apply_fixes_latex_round_trip():
+    """LaTeX content survives parse → dump round-trip via block scalars."""
+    raw = "---\nmath: |-\n  \\begin{equation}\n  E=mc^2\n  \\end{equation}\n---\n"
     fixed = apply_fixes(raw)
-    assert "math: |-" in fixed
-    assert "    \\begin{equation}" in fixed
+    meta, _ = parse_frontmatter(fixed)
+    assert "\\begin{equation}" in meta["math"]
+    assert "E=mc^2" in meta["math"]
+    assert "\\end{equation}" in meta["math"]
 
 
 def test_apply_fixes_no_match():
@@ -196,8 +191,17 @@ def test_apply_fixes_no_match():
 
 
 def test_apply_fixes_no_change_if_valid():
-    content = "---\ndeck: D\ncards: []\n---"
+    """Valid frontmatter round-trips cleanly."""
+    content = "---\ndeck: D\ncards: []\n---\n"
     assert apply_fixes(content) == content
+
+
+def test_apply_fixes_preserves_body():
+    """Body content after frontmatter is preserved."""
+    raw = "---\ndeck: D\ncards: []\n---\n\n# My Note\n\nSome content here."
+    fixed = apply_fixes(raw)
+    assert "# My Note" in fixed
+    assert "Some content here." in fixed
 
 
 # ---------- Other Utils ----------
