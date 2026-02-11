@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from arete.application.graph_resolver import build_graph, topological_sort
+from arete.domain.constants import DEFAULT_MAX_QUEUE_SIZE, DEFAULT_PREREQ_DEPTH
 from arete.domain.graph import DependencyGraph
 
 logger = logging.getLogger(__name__)
@@ -32,8 +33,8 @@ class WeakPrereqCriteria:
 def build_simple_queue(
     vault_root: Path,
     due_card_ids: list[str],
-    depth: int = 2,
-    max_cards: int = 50,
+    depth: int = DEFAULT_PREREQ_DEPTH,
+    max_cards: int = DEFAULT_MAX_QUEUE_SIZE,
 ) -> "QueueBuildResult":
     """Build a simple study queue from due cards.
 
@@ -105,8 +106,8 @@ class QueueBuildResult:
 def build_dependency_queue(
     vault_root: Path,
     due_card_ids: list[str],
-    depth: int = 2,
-    max_nodes: int = 50,
+    depth: int = DEFAULT_PREREQ_DEPTH,
+    max_nodes: int = DEFAULT_MAX_QUEUE_SIZE,
     include_related: bool = False,
     weak_criteria: WeakPrereqCriteria | None = None,
     card_stats: dict[str, dict] | None = None,

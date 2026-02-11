@@ -17,6 +17,7 @@ from arete.application.utils.media import build_filename_index
 from arete.application.vault_service import VaultService
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
+from arete.domain.constants import CONSUMER_BATCH_SIZE
 from arete.infrastructure.persistence.cache import ContentCache
 
 
@@ -101,8 +102,8 @@ async def run_pipeline(
 
             batch = [first_item]
 
-            # Non-blocking peek for more items to batch them (up to 50)
-            while len(batch) < 50:
+            # Non-blocking peek for more items to batch them
+            while len(batch) < CONSUMER_BATCH_SIZE:
                 try:
                     next_item = work_q.get_nowait()
                     if next_item is None:
@@ -226,7 +227,6 @@ async def _prune_orphans(
 
     anki_decks = await bridge.get_deck_names()
 
-    protected_decks = set(valid_decks)
     protected_decks = set(valid_decks)
     for d in valid_decks:
         deck_obj = AnkiDeck(name=d)

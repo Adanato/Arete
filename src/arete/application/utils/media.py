@@ -7,6 +7,7 @@ from urllib.parse import unquote
 
 from arete.application.utils.consts import MARKDOWN_IMG_RE, WIKILINK_IMG_RE
 from arete.application.utils.fs import file_md5
+from arete.domain.constants import MEDIA_DIR_NAMES
 
 
 def unique_media_name(dest_dir: Path, src: Path) -> str:
@@ -39,8 +40,7 @@ def _copy_to_anki_media(src: Path, anki_media_dir: Path, logger: logging.Logger)
 
 def build_filename_index(vault_root: Path, logger: logging.Logger) -> dict[str, list[Path]]:
     idx: dict[str, list[Path]] = {}
-    roots = ["attachments", "attach", "assets", ".assets", "images", "img", "media"]
-    for root in roots:
+    for root in MEDIA_DIR_NAMES:
         base = vault_root / root
         if base.is_dir():
             for dirpath, _, filenames in os.walk(base):
