@@ -7,6 +7,8 @@ from arete.mcp_server import _get_stats, read_resource
 
 @pytest.mark.asyncio
 async def test_get_stats_success():
+    from arete.domain.stats.models import LearningStats
+
     # Patch the SOURCE modules because _get_stats imports them locally
     with patch("arete.application.config.resolve_config"):
         with patch("arete.application.factory.get_anki_bridge", new_callable=AsyncMock):
@@ -14,14 +16,8 @@ async def test_get_stats_success():
                 # Setup service mock
                 mock_service_instance = MockService.return_value
 
-                # Mock get_learning_insights return value (Pydantic model-like)
-                mock_insights = MagicMock()
-                mock_insights.dict.return_value = {
-                    "total_cards": 100,
-                    "media_files": 50,
-                    "missing_media": 0,
-                    "leeches": [],
-                }
+                # Return a real dataclass so dataclasses.asdict() works
+                mock_insights = LearningStats(total_cards=100)
                 mock_service_instance.get_learning_insights = AsyncMock(return_value=mock_insights)
 
                 # Execute

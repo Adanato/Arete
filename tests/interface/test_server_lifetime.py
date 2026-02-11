@@ -15,15 +15,6 @@ async def test_lifespan():
         pass
 
 
-@patch("os.kill")
-@patch("time.sleep")
-def test_shutdown_endpoint(mock_sleep, mock_kill):
-    with patch("threading.Thread") as mock_thread:
-        mock_thread.side_effect = lambda target: MagicMock(start=lambda: target())
-        # The shutdown endpoint is tested via test_shutdown_api below
-        pass
-
-
 def test_shutdown_api():
     with patch("threading.Thread") as mock_thread:
         response = client.post("/shutdown")

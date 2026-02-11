@@ -1,10 +1,16 @@
-from unittest.mock import ANY, patch
+"""Tests for cross-platform behavior of config open and logs commands."""
+
+from pathlib import Path
+from unittest.mock import ANY, MagicMock, patch
 
 from typer.testing import CliRunner
 
 from arete.interface.cli import app
 
 runner = CliRunner()
+
+
+# --- Config Open ---
 
 
 def test_config_open_create_if_missing():
@@ -43,6 +49,24 @@ def test_config_open_linux():
         mock_run.assert_called_with(["xdg-open", ANY])
 
 
+# --- Logs ---
+
+
+def test_logs_darwin():
+    with patch("arete.interface.cli.resolve_config") as mock_conf:
+        mock_config = MagicMock()
+        mock_config.log_dir = Path("/tmp/logs")
+        mock_conf.return_value = mock_config
+
+        with patch("sys.platform", "darwin"), patch("subprocess.run") as mock_sub:
+            result = runner.invoke(app, ["logs"])
+            assert result.exit_code == 0
+            mock_sub.assert_called_once()
+            call_args = mock_sub.call_args[0][0]
+            assert call_args[0] == "open"
+            assert str(call_args[1]) == str(Path("/tmp/logs"))
+
+
 def test_logs_mkdir_and_open_win32():
     with patch("arete.interface.cli.resolve_config") as mock_conf:
         mock_conf.return_value.log_dir.exists.return_value = False
@@ -62,11 +86,3 @@ def test_logs_linux():
             result = runner.invoke(app, ["logs"])
             assert result.exit_code == 0
             mock_run.assert_called()
-
-
-def test_humanize_error_extra_cases():
-    from arete.interface.cli import humanize_error
-
-    assert "Syntax Error" in humanize_error("did not find expected key")
-    assert "Duplicate Key" in humanize_error("found duplicate key")
-    assert "Syntax Error" in humanize_error("scanner error")

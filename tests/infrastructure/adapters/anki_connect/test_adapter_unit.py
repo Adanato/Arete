@@ -12,33 +12,23 @@ def adapter():
 
 @pytest.mark.asyncio
 async def test_is_responsive(adapter):
-    with patch("httpx.AsyncClient") as mock_client_cls:
-        # Mock the context manager return value
-        mock_instance = mock_client_cls.return_value
-        mock_client = AsyncMock()
-        mock_instance.__aenter__.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"result": 6}
+    mock_client.post.return_value = mock_resp
 
-        # Configure post response
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"result": 6}
-
-        # post is an async method
-        mock_client.post.return_value = mock_resp
-
-        assert await adapter.is_responsive() is True
+    adapter._client = mock_client
+    assert await adapter.is_responsive() is True
 
 
 @pytest.mark.asyncio
 async def test_is_responsive_fail(adapter):
-    with patch("httpx.AsyncClient") as mock_client_cls:
-        mock_instance = mock_client_cls.return_value
-        mock_client = AsyncMock()
-        mock_instance.__aenter__.return_value = mock_client
+    mock_client = AsyncMock()
+    mock_client.post.side_effect = Exception("Conn Error")
 
-        mock_client.post.side_effect = Exception("Conn Error")
-
-        assert await adapter.is_responsive() is False
+    adapter._client = mock_client
+    assert await adapter.is_responsive() is False
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from arete.application.stats_service import LearningStats, NoteInsight, StatsService
+from arete.application.stats_service import StatsService
+from arete.domain.stats.models import LearningStats, NoteInsight
 
 
 @pytest.fixture
