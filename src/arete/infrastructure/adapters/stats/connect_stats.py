@@ -23,6 +23,7 @@ class ConnectStatsRepository(StatsRepository):
 
     def __init__(self, url: str = "http://127.0.0.1:8765"):
         self.url = url
+        self._client: httpx.AsyncClient | None = None
 
     async def get_card_stats(self, nids: list[int]) -> list[CardStatsAggregate]:
         """Fetch comprehensive stats for cards belonging to the given note IDs."""
@@ -142,15 +143,23 @@ class ConnectStatsRepository(StatsRepository):
         """Invoke an AnkiConnect action."""
         payload = {"action": action, "version": 6, "params": params}
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(self.url, json=payload, timeout=30.0)
-            response.raise_for_status()
-            data = response.json()
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
 
-            if data.get("error"):
-                raise RuntimeError(f"AnkiConnect error: {data['error']}")
+        response = await self._client.post(self.url, json=payload)
+        response.raise_for_status()
+        data = response.json()
 
-            return data.get("result")
+        if data.get("error"):
+            raise RuntimeError(f"AnkiConnect error: {data['error']}")
+
+        return data.get("result")
+
+    async def close(self) -> None:
+        """Close the underlying HTTP client."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
     async def get_deck_params(self, deck_names: list[str]) -> dict[str, dict]:
         """Fetch FSRS parameters for the given decks via AnkiConnect.

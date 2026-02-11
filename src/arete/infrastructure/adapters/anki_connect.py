@@ -3,11 +3,19 @@ import json
 import logging
 import os
 import platform
+import re
 import shutil
 from typing import Any
 
 import httpx
 
+from arete.domain.constants import (
+    CHUNK_SIZE,
+    FSRS_DIFFICULTY_SCALE,
+    REQUEST_TIMEOUT,
+    RESPONSIVENESS_TIMEOUT,
+    SEARCH_TRUNCATE_LEN,
+)
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 
@@ -16,6 +24,7 @@ class AnkiConnectAdapter(AnkiBridge):
     """Adapter for communicating with Anki via the AnkiConnect add-on (HTTP API)."""
 
     def __init__(self, url: str = "http://127.0.0.1:8765"):
+        """Initialize with AnkiConnect URL, auto-detecting WSL bridge if needed."""
         self.logger = logging.getLogger(__name__)
         self._known_decks = set()
         self._model_fields_cache = {}
@@ -79,14 +88,15 @@ class AnkiConnectAdapter(AnkiBridge):
     async def is_responsive(self) -> bool:
         """Check if AnkiConnect is reachable and has the expected API version."""
         try:
-            # We can check version
-            # Use a short timeout for responsiveness check
             payload = {"action": "version", "version": 6}
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(self.url, json=payload, timeout=2.0)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return int(data.get("result", 0)) >= 6
+            if self._client is None:
+                self._client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
+            resp = await self._client.post(
+                self.url, json=payload, timeout=RESPONSIVENESS_TIMEOUT
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return int(data.get("result", 0)) >= 6
             return False
         except Exception:
             return False
@@ -108,6 +118,7 @@ class AnkiConnectAdapter(AnkiBridge):
 
     async def ensure_model_has_source_field(self, model_name: str) -> bool:
         """Ensure the note model has the _obsidian_source field.
+
         This enables backwards compatibility for existing cards.
         """
         cache_key = f"_source_field_{model_name}"
@@ -154,155 +165,21 @@ class AnkiConnectAdapter(AnkiBridge):
         return list(await asyncio.gather(*tasks))
 
     async def _sync_single_note(self, item: WorkItem) -> UpdateItem:
+        """Sync a single work item, routing to update or add/heal paths."""
         note = item.note
         try:
-            # Fields are already HTML from parser
-            # Skip _obsidian_source from being treated as content field if model is strict
-            html_fields = {}
-            for k, v in note.fields.items():
-                # _obsidian_source is passed through as-is (it's plain text anyway)
-                html_fields[k] = v
+            html_fields = dict(note.fields)
 
             target_nid = None
             info = None
             if note.nid:
-                # check existence
                 info = await self._invoke("notesInfo", notes=[int(note.nid)])
                 if info and info[0].get("noteId"):
                     target_nid = int(note.nid)
 
             if target_nid:
-                # UPDATE
-                await self._invoke(
-                    "updateNoteFields", note={"id": target_nid, "fields": html_fields}
-                )
-
-                # Update Tags
-                if info and "tags" in info[0]:
-                    current_tags = set(info[0]["tags"])
-                    new_tags = set(note.tags)
-
-                    to_add = list(new_tags - current_tags)
-                    to_remove = list(current_tags - new_tags)
-
-                    if to_add:
-                        await self._invoke("addTags", notes=[target_nid], tags=" ".join(to_add))
-                    if to_remove:
-                        await self._invoke(
-                            "removeTags", notes=[target_nid], tags=" ".join(to_remove)
-                        )
-
-                # Move cards if needed
-                if info and "cards" in info[0]:
-                    cids = info[0]["cards"]
-                    await self._invoke("changeDeck", cards=cids, deck=note.deck)
-                else:
-                    self.logger.warning(
-                        f"[anki] Cannot move cards for nid={target_nid}. Info missing cards: {info}"
-                    )
-
-                self.logger.debug(
-                    f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}"
-                )
-                return UpdateItem(
-                    source_file=item.source_file,
-                    source_index=item.source_index,
-                    new_nid=str(target_nid),
-                    new_cid=None,
-                    ok=True,
-                    note=note,
-                )
-
-            else:
-                # ADD / HEAL
-                # Proactive Healing: Check if content already exists to avoid creation
-                import re
-
-                first_field_val = list(html_fields.values())[0]
-                # Clean for search query
-                cleaned_val = re.sub(r"<[^>]+>", "", first_field_val)
-                cleaned_val = cleaned_val.translate(
-                    str.maketrans({"\r": " ", "\n": " ", "\t": " ", "\v": " ", "\f": " "})
-                ).strip()
-                cleaned_val = cleaned_val.replace("\\", "\\\\").replace('"', '\\"')
-                if len(cleaned_val) > 100:
-                    cleaned_val = cleaned_val[:100]
-
-                existing_nid = None
-                if cleaned_val:
-                    query = f'"deck:{note.deck}" "{cleaned_val}"'
-                    try:
-                        candidates = await self._invoke("findNotes", query=query)
-                        if candidates and len(candidates) >= 1:
-                            existing_nid = candidates[0]
-                            self.logger.info(
-                                " -> Healed! matched existing note ID via proactive search: "
-                                f"{existing_nid}"
-                            )
-                    except Exception as e_search:
-                        self.logger.warning(f"Healing search failed: {e_search}")
-
-                if existing_nid:
-                    new_id = existing_nid
-                    # We might want to update fields even if we found it?
-                    # Ideally yes, let's treat it as an update now that we found it.
-                    await self._invoke(
-                        "updateNoteFields", note={"id": new_id, "fields": html_fields}
-                    )
-                else:
-                    # CREATE
-                    params = {
-                        "note": {
-                            "deckName": note.deck,
-                            "modelName": note.model,
-                            "fields": html_fields,
-                            "tags": note.tags,
-                            "options": {
-                                "allowDuplicate": False,
-                                "duplicateScope": "deck",
-                            },
-                        }
-                    }
-                    new_id = await self._invoke("addNote", **params)
-                    if not new_id:
-                        raise Exception("addNote returned null ID")
-
-                # FETCH CID Logic
-                new_cid_val = None
-                try:
-                    info_new = await self._invoke("notesInfo", notes=[new_id])
-                    if info_new and info_new[0].get("cards"):
-                        new_cid_val = str(info_new[0]["cards"][0])
-                except Exception as e_cid:
-                    self.logger.warning(f"Failed to fetch CID for nid={new_id}: {e_cid}")
-
-                # Post-creation: Populate 'nid' field if it exists in the model
-                try:
-                    if note.model not in self._model_fields_cache:
-                        self._model_fields_cache[note.model] = await self._invoke(
-                            "modelFieldNames", modelName=note.model
-                        )
-                    model_fields = self._model_fields_cache[note.model]
-                    if "nid" in model_fields:
-                        await self._invoke(
-                            "updateNoteFields",
-                            note={"id": new_id, "fields": {"nid": str(new_id)}},
-                        )
-                except Exception as e_field:
-                    self.logger.warning(f"Failed to populate 'nid' field: {e_field}")
-
-                self.logger.info(
-                    f"[create] {item.source_file} #{item.source_index} -> "
-                    f"nid={new_id} cid={new_cid_val}"
-                )
-                return UpdateItem(
-                    source_file=item.source_file,
-                    source_index=item.source_index,
-                    new_nid=str(new_id),
-                    new_cid=new_cid_val,
-                    ok=True,
-                    note=note,
-                )
+                return await self._update_existing_note(item, note, html_fields, target_nid, info)
+            return await self._add_or_heal_note(item, note, html_fields)
 
         except Exception as e:
             msg = f"ERR file={item.source_file} card={item.source_index} error={e}"
@@ -316,6 +193,138 @@ class AnkiConnectAdapter(AnkiBridge):
                 error=str(e),
                 note=note,
             )
+
+    async def _update_existing_note(
+        self, item: WorkItem, note: Any, html_fields: dict, target_nid: int, info: Any
+    ) -> UpdateItem:
+        """Update fields, tags, and deck for an existing note."""
+        await self._invoke(
+            "updateNoteFields", note={"id": target_nid, "fields": html_fields}
+        )
+
+        if info and "tags" in info[0]:
+            current_tags = set(info[0]["tags"])
+            new_tags = set(note.tags)
+            to_add = list(new_tags - current_tags)
+            to_remove = list(current_tags - new_tags)
+            if to_add:
+                await self._invoke("addTags", notes=[target_nid], tags=" ".join(to_add))
+            if to_remove:
+                await self._invoke(
+                    "removeTags", notes=[target_nid], tags=" ".join(to_remove)
+                )
+
+        if info and "cards" in info[0]:
+            await self._invoke("changeDeck", cards=info[0]["cards"], deck=note.deck)
+        else:
+            self.logger.warning(
+                f"[anki] Cannot move cards for nid={target_nid}. Info missing cards: {info}"
+            )
+
+        self.logger.debug(
+            f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}"
+        )
+        return UpdateItem(
+            source_file=item.source_file,
+            source_index=item.source_index,
+            new_nid=str(target_nid),
+            new_cid=None,
+            ok=True,
+            note=note,
+        )
+
+    async def _add_or_heal_note(
+        self, item: WorkItem, note: Any, html_fields: dict
+    ) -> UpdateItem:
+        """Add a new note or heal by matching existing content."""
+        existing_nid = await self._find_existing_note(note, html_fields)
+
+        if existing_nid:
+            new_id = existing_nid
+            await self._invoke(
+                "updateNoteFields", note={"id": new_id, "fields": html_fields}
+            )
+        else:
+            params = {
+                "note": {
+                    "deckName": note.deck,
+                    "modelName": note.model,
+                    "fields": html_fields,
+                    "tags": note.tags,
+                    "options": {"allowDuplicate": False, "duplicateScope": "deck"},
+                }
+            }
+            new_id = await self._invoke("addNote", **params)
+            if not new_id:
+                raise Exception("addNote returned null ID")
+
+        new_cid_val = await self._fetch_cid(new_id)
+        await self._populate_nid_field(note, new_id)
+
+        self.logger.info(
+            f"[create] {item.source_file} #{item.source_index} -> "
+            f"nid={new_id} cid={new_cid_val}"
+        )
+        return UpdateItem(
+            source_file=item.source_file,
+            source_index=item.source_index,
+            new_nid=str(new_id),
+            new_cid=new_cid_val,
+            ok=True,
+            note=note,
+        )
+
+    async def _find_existing_note(self, note: Any, html_fields: dict) -> int | None:
+        """Search for an existing note by first-field content (proactive healing)."""
+        first_field_val = list(html_fields.values())[0]
+        cleaned_val = re.sub(r"<[^>]+>", "", first_field_val)
+        cleaned_val = cleaned_val.translate(
+            str.maketrans({"\r": " ", "\n": " ", "\t": " ", "\v": " ", "\f": " "})
+        ).strip()
+        cleaned_val = cleaned_val.replace("\\", "\\\\").replace('"', '\\"')
+        if len(cleaned_val) > SEARCH_TRUNCATE_LEN:
+            cleaned_val = cleaned_val[:SEARCH_TRUNCATE_LEN]
+
+        if not cleaned_val:
+            return None
+
+        query = f'"deck:{note.deck}" "{cleaned_val}"'
+        try:
+            candidates = await self._invoke("findNotes", query=query)
+            if candidates and len(candidates) >= 1:
+                self.logger.info(
+                    " -> Healed! matched existing note ID via proactive search: "
+                    f"{candidates[0]}"
+                )
+                return candidates[0]
+        except Exception as e_search:
+            self.logger.warning(f"Healing search failed: {e_search}")
+        return None
+
+    async def _fetch_cid(self, nid: int) -> str | None:
+        """Fetch the first card ID for a note."""
+        try:
+            info_new = await self._invoke("notesInfo", notes=[nid])
+            if info_new and info_new[0].get("cards"):
+                return str(info_new[0]["cards"][0])
+        except Exception as e_cid:
+            self.logger.warning(f"Failed to fetch CID for nid={nid}: {e_cid}")
+        return None
+
+    async def _populate_nid_field(self, note: Any, nid: int) -> None:
+        """Populate the 'nid' field on the Anki note if the model has one."""
+        try:
+            if note.model not in self._model_fields_cache:
+                self._model_fields_cache[note.model] = await self._invoke(
+                    "modelFieldNames", modelName=note.model
+                )
+            if "nid" in self._model_fields_cache[note.model]:
+                await self._invoke(
+                    "updateNoteFields",
+                    note={"id": nid, "fields": {"nid": str(nid)}},
+                )
+        except Exception as e_field:
+            self.logger.warning(f"Failed to populate 'nid' field: {e_field}")
 
     async def _invoke(self, action: str, **params) -> Any:
         payload = {"action": action, "version": 6, "params": params}
@@ -331,8 +340,9 @@ class AnkiConnectAdapter(AnkiBridge):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
+                stdin_data = json.dumps(payload).encode("utf-8")
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(input=json.dumps(payload).encode("utf-8")), timeout=30
+                    proc.communicate(input=stdin_data), timeout=REQUEST_TIMEOUT
                 )
                 if proc.returncode != 0:
                     raise Exception(f"curl.exe failed: {stderr.decode('utf-8')}")
@@ -341,7 +351,7 @@ class AnkiConnectAdapter(AnkiBridge):
             else:
                 # Standard httpx (Async) - Reuse client
                 if self._client is None:
-                    self._client = httpx.AsyncClient(timeout=30.0)
+                    self._client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
 
                 resp = await self._client.post(self.url, json=payload)
                 resp.raise_for_status()
@@ -440,84 +450,125 @@ class AnkiConnectAdapter(AnkiBridge):
         return True
 
     async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
-        from arete.application.stats_service import StatsService
+        from arete.domain.constants import MAX_PROBLEMATIC_NOTES
+        from arete.domain.stats.models import LearningStats, NoteInsight
 
-        service = StatsService(self)
-        service = StatsService(self)
-        return await service.get_learning_insights(lapse_threshold=lapse_threshold)
+        # Find leech cards directly via AnkiConnect
+        leech_cids = await self._invoke("findCards", query=f"prop:lapses>={lapse_threshold}")
+        all_cids = await self._invoke("findCards", query="")
+
+        if not leech_cids:
+            return LearningStats(total_cards=len(all_cids))
+
+        infos = await self._invoke("cardsInfo", cards=leech_cids)
+
+        # Aggregate by note: keep max lapses per note
+        nid_map: dict[int, dict] = {}
+        for info in infos:
+            nid = info.get("note")
+            lapses = info.get("lapses", 0)
+            if nid not in nid_map or lapses > nid_map[nid]["lapses"]:
+                fields = info.get("fields", {})
+                note_name = "Unknown"
+                if "_obsidian_source" in fields:
+                    note_name = fields["_obsidian_source"].get("value", "Unknown")
+                elif fields:
+                    first_key = next(iter(fields))
+                    note_name = fields[first_key].get("value", "Unknown")
+                # Strip HTML
+                import re
+
+                note_name = re.sub("<[^<]+?>", "", note_name).strip()
+
+                nid_map[nid] = {
+                    "note_name": note_name,
+                    "lapses": lapses,
+                    "deck": info.get("deckName", "Unknown"),
+                }
+
+        problematic = sorted(nid_map.values(), key=lambda x: x["lapses"], reverse=True)
+        notes = [
+            NoteInsight(
+                note_name=n["note_name"],
+                issue=f"{n['lapses']} lapses",
+                lapses=n["lapses"],
+                deck=n["deck"],
+            )
+            for n in problematic[:MAX_PROBLEMATIC_NOTES]
+        ]
+
+        return LearningStats(total_cards=len(all_cids), problematic_notes=notes)
 
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
         """Fetch stats via AnkiConnect."""
-        all_stats = []
         if not nids:
             return []
 
-        CHUNK_SIZE = 500
+        all_stats: list[AnkiCardStats] = []
         for i in range(0, len(nids), CHUNK_SIZE):
             chunk = nids[i : i + CHUNK_SIZE]
-
             try:
-                # 1. Find Cards
-                query = " OR ".join([f"nid:{n}" for n in chunk])
-                card_ids = await self._invoke("findCards", query=query)
-                if not card_ids:
-                    continue
-
-                # 2. Get Info
-                infos = await self._invoke("cardsInfo", cards=card_ids)
-
-                # 3. Get FSRS (Custom Action check)
-                fsrs_map = {}
-                try:
-                    fsrs_results = await self._invoke("getFSRSStats", cards=card_ids)
-                    if fsrs_results and isinstance(fsrs_results, list):
-                        for item in fsrs_results:
-                            if (
-                                "cardId" in item
-                                and "difficulty" in item
-                                and item["difficulty"] is not None
-                            ):
-                                fsrs_map[item["cardId"]] = item["difficulty"] / 10.0
-                except Exception:
-                    # Ignore if FSRS action missing
-                    pass
-
-                for info in infos:
-                    cid = info.get("cardId")
-                    difficulty = fsrs_map.get(cid)
-                    if difficulty is None:
-                        difficulty = info.get("difficulty")  # Standard field fallback
-
-                    # Front? info usually has fields, not rendered front.
-                    # We could try to extract from fields if needed, but for now leave None
-                    # or grab first field.
-                    front = None
-                    fields = info.get("fields", {})
-                    if fields:
-                        # Grab first field value
-                        first_key = list(fields.keys())[0]
-                        front = fields[first_key].get("value")
-
-                    all_stats.append(
-                        AnkiCardStats(
-                            card_id=cid,
-                            note_id=info.get("note"),
-                            lapses=info.get("lapses", 0),
-                            ease=info.get("factor", 0),
-                            difficulty=difficulty,
-                            deck_name=info.get("deckName", "Unknown"),
-                            interval=info.get("interval", 0),
-                            due=info.get("due", 0),
-                            reps=info.get("reps", 0),
-                            average_time=0,
-                            front=front,
-                        )
-                    )
-
+                chunk_stats = await self._fetch_stats_chunk(chunk)
+                all_stats.extend(chunk_stats)
             except Exception as e:
                 self.logger.error(f"Failed to fetch card stats chunk: {e}")
-
         return all_stats
+
+    async def _fetch_stats_chunk(self, chunk: list[int]) -> list[AnkiCardStats]:
+        """Fetch card stats for a single chunk of NIDs."""
+        query = " OR ".join([f"nid:{n}" for n in chunk])
+        card_ids = await self._invoke("findCards", query=query)
+        if not card_ids:
+            return []
+
+        infos = await self._invoke("cardsInfo", cards=card_ids)
+        fsrs_map = await self._fetch_fsrs_map(card_ids)
+
+        return [self._build_card_stat(info, fsrs_map) for info in infos]
+
+    async def _fetch_fsrs_map(self, card_ids: list[int]) -> dict[int, float]:
+        """Fetch FSRS difficulty scores, returning empty dict on failure."""
+        try:
+            fsrs_results = await self._invoke("getFSRSStats", cards=card_ids)
+            if not fsrs_results or not isinstance(fsrs_results, list):
+                return {}
+            return {
+                item["cardId"]: item["difficulty"] / FSRS_DIFFICULTY_SCALE
+                for item in fsrs_results
+                if "cardId" in item
+                and "difficulty" in item
+                and item["difficulty"] is not None
+            }
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _build_card_stat(info: dict, fsrs_map: dict[int, float]) -> AnkiCardStats:
+        """Build an AnkiCardStats from a single cardsInfo entry."""
+        cid = info.get("cardId")
+        difficulty = fsrs_map.get(cid)
+        if difficulty is None:
+            difficulty = info.get("difficulty")
+
+        front = None
+        fields = info.get("fields", {})
+        if fields:
+            first_key = next(iter(fields))
+            front = fields[first_key].get("value")
+
+        return AnkiCardStats(
+            card_id=cid,
+            note_id=info.get("note"),
+            lapses=info.get("lapses", 0),
+            ease=info.get("factor", 0),
+            difficulty=difficulty,
+            deck_name=info.get("deckName", "Unknown"),
+            interval=info.get("interval", 0),
+            due=info.get("due", 0),
+            reps=info.get("reps", 0),
+            average_time=0,
+            front=front,
+        )
 
     async def suspend_cards(self, cids: list[int]) -> bool:
         if not cids:
@@ -580,14 +631,11 @@ class AnkiConnectAdapter(AnkiBridge):
     async def create_topo_deck(
         self, deck_name: str, cids: list[int], reschedule: bool = True
     ) -> bool:
-        """AnkiConnect doesn't easily support the low-level 'due' manipulation
-        required for topological sorting since it goes through the API.
+        """Return False; AnkiConnect lacks low-level 'due' manipulation for topo sort.
 
-        We could try to create a filtered deck via 'createDeck' (config?),
-        but manipulating the 'due' column directly is not exposed.
-
-        For now, we return False to indicate this backend doesn't support it,
-        or we could implement a best-effort (unordered) filtered deck.
+        AnkiConnect doesn't expose the ability to manipulate the 'due' column
+        directly, which is required for topological sorting. A future
+        implementation could use a best-effort (unordered) filtered deck.
         """
         self.logger.warning("create_topo_deck is not fully supported via AnkiConnect yet.")
         # Future: Use 'addCustomOne' or similar if available?
