@@ -89,8 +89,8 @@ async def test_sync_notes_healing_failure(adapter, sample_note):
 @pytest.mark.asyncio
 @respx.mock
 async def test_sync_notes_healing_success(adapter, sample_note):
-    """Simulate "addNote" failing with "duplicate".
-    Then "findNotes" returns a valid ID (healing success).
+    """Dict-comparison healing: findNotes returns candidates, notesInfo returns
+    matching fields, so we heal by updating the existing note.
     """
 
     def side_effect(request):
@@ -98,15 +98,21 @@ async def test_sync_notes_healing_success(adapter, sample_note):
         action = data["action"]
         if action == "createDeck":
             return Response(200, json={"result": 1, "error": None})
-        if action == "addNote":
-            return Response(
-                200, json={"result": None, "error": "cannot create note because it is a duplicate"}
-            )
         if action == "findNotes":
-            # Return valid ID -> healing works
             return Response(200, json={"result": [123999], "error": None})
         if action == "notesInfo":
-            return Response(200, json={"result": [{"cards": [999]}], "error": None})
+            notes = data.get("params", {}).get("notes", [])
+            if 123999 in notes:
+                return Response(200, json={"result": [
+                    {
+                        "noteId": 123999,
+                        "fields": {"Front": {"value": "Front"}, "Back": {"value": "Back"}},
+                        "cards": [999],
+                    }
+                ], "error": None})
+            return Response(200, json={"result": [], "error": None})
+        if action == "updateNoteFields":
+            return Response(200, json={"result": None, "error": None})
         return Response(200, json={"result": None, "error": None})
 
     respx.post("http://mock-anki:8765").mock(side_effect=side_effect)

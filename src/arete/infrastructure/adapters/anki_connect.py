@@ -14,7 +14,6 @@ from arete.domain.constants import (
     FSRS_DIFFICULTY_SCALE,
     REQUEST_TIMEOUT,
     RESPONSIVENESS_TIMEOUT,
-    SEARCH_TRUNCATE_LEN,
 )
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
@@ -161,8 +160,10 @@ class AnkiConnectAdapter(AnkiBridge):
             except Exception as e:
                 self.logger.warning(f"Failed to ensure source field for '{model_name}': {e}")
 
-        tasks = [self._sync_single_note(item) for item in work_items]
-        return list(await asyncio.gather(*tasks))
+        results = []
+        for item in work_items:
+            results.append(await self._sync_single_note(item))
+        return results
 
     async def _sync_single_note(self, item: WorkItem) -> UpdateItem:
         """Sync a single work item, routing to update or add/heal paths."""
@@ -274,31 +275,51 @@ class AnkiConnectAdapter(AnkiBridge):
             note=note,
         )
 
-    async def _find_existing_note(self, note: Any, html_fields: dict) -> int | None:
-        """Search for an existing note by first-field content (proactive healing)."""
-        first_field_val = list(html_fields.values())[0]
-        cleaned_val = re.sub(r"<[^>]+>", "", first_field_val)
-        cleaned_val = cleaned_val.translate(
-            str.maketrans({"\r": " ", "\n": " ", "\t": " ", "\v": " ", "\f": " "})
-        ).strip()
-        cleaned_val = cleaned_val.replace("\\", "\\\\").replace('"', '\\"')
-        if len(cleaned_val) > SEARCH_TRUNCATE_LEN:
-            cleaned_val = cleaned_val[:SEARCH_TRUNCATE_LEN]
+    @staticmethod
+    def _normalize_field(value: str) -> str:
+        """Normalize a field value for comparison: strip HTML, cloze markers, whitespace."""
+        text = re.sub(r"<[^>]+>", "", value)
+        text = re.sub(r"\{\{c\d+::", "", text).replace("}}", "")
+        return " ".join(text.split()).strip().lower()
 
-        if not cleaned_val:
+    async def _find_existing_note(self, note: Any, html_fields: dict) -> int | None:
+        """Find an existing Anki note by comparing field values directly.
+
+        Queries all notes in the same deck+model, fetches their fields,
+        and compares the first field value after normalization.
+        """
+        first_field_name = next(iter(html_fields))
+        our_value = self._normalize_field(html_fields[first_field_name])
+        if not our_value:
             return None
 
-        query = f'"deck:{note.deck}" "{cleaned_val}"'
+        query = f'"deck:{note.deck}" "note:{note.model}"'
         try:
-            candidates = await self._invoke("findNotes", query=query)
-            if candidates and len(candidates) >= 1:
-                self.logger.info(
-                    " -> Healed! matched existing note ID via proactive search: "
-                    f"{candidates[0]}"
-                )
-                return candidates[0]
-        except Exception as e_search:
-            self.logger.warning(f"Healing search failed: {e_search}")
+            candidate_nids = await self._invoke("findNotes", query=query)
+        except Exception as e:
+            self.logger.warning(f"Healing query failed: {e}")
+            return None
+
+        if not candidate_nids:
+            return None
+
+        # Fetch fields in chunks to avoid overwhelming AnkiConnect
+        for i in range(0, len(candidate_nids), CHUNK_SIZE):
+            chunk = candidate_nids[i : i + CHUNK_SIZE]
+            try:
+                infos = await self._invoke("notesInfo", notes=chunk)
+            except Exception as e:
+                self.logger.warning(f"Healing notesInfo failed: {e}")
+                continue
+
+            for info in infos:
+                anki_fields = info.get("fields", {})
+                anki_val = anki_fields.get(first_field_name, {}).get("value", "")
+                if self._normalize_field(anki_val) == our_value:
+                    nid = info["noteId"]
+                    self.logger.info(f" -> Healed! matched existing note: {nid}")
+                    return nid
+
         return None
 
     async def _fetch_cid(self, nid: int) -> str | None:

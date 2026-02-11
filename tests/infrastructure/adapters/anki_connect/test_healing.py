@@ -10,222 +10,235 @@ from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 @pytest.fixture
 def adapter():
     a = AnkiConnectAdapter("http://localhost:8765")
-    # Use setattr to bypass strict type checks on assignment
     setattr(a, "_invoke", AsyncMock())  # noqa: B010
     setattr(a, "ensure_deck", AsyncMock(return_value=True))  # noqa: B010
     return a
 
 
-@pytest.mark.asyncio
-async def test_healing_search_sanitization(adapter):
-    """Verify that when a duplicate error occurs, the search query used to find the existing note
-    is properly sanitized (newlines removed, quotes escaped).
-    """
+def _make_work_item(fields, model="Basic", deck="TestDeck"):
     note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": 'Line 1\nLine 2\rLine 3 "Quotes"', "Back": "Answer"},
+        model=model,
+        deck=deck,
+        fields=fields,
         tags=[],
         start_line=1,
         end_line=5,
         source_file=Path("test.md"),
         source_index=1,
     )
-    work_item = WorkItem(note=note, source_file=Path("test.md"), source_index=1)
-
-    # 2. Mock _invoke behaviors
-    async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("cannot create note because it is a duplicate")
-        if action == "findNotes":
-            return [12345]
-        if action == "notesInfo":
-            return [{"noteId": 12345, "cards": [98765]}]
-        return None
-
-    adapter._invoke.side_effect = side_effect
-
-    # 3. Run sync_notes
-    await adapter.sync_notes([work_item])
-
-    found_query = None
-    for c in adapter._invoke.call_args_list:
-        if c[0][0] == "findNotes":
-            found_query = c[1]["query"]
-            break
-
-    assert found_query is not None, "findNotes was never called"
-
-    # Verify sanitization
-    assert "\n" not in found_query
-    assert "\r" not in found_query
-    assert '\\"' in found_query
-    assert 'Line 1 Line 2 Line 3 \\"Quotes\\"' in found_query
+    return WorkItem(note=note, source_file=Path("test.md"), source_index=1)
 
 
 @pytest.mark.asyncio
-async def test_healing_search_robustness(adapter):
-    """Verify handling of vertical tabs and literal backslashes (common in MathJax)."""
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": "Math: \\rho and \\v space\vhere", "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
+async def test_healing_via_dict_comparison(adapter):
+    """Verify that healing finds an existing note by comparing field values."""
+    work_item = _make_work_item({"Front": "What is a claim?", "Back": "Answer"})
 
     async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("duplicate")
         if action == "findNotes":
-            return [1]
+            return [100, 200, 300]
         if action == "notesInfo":
-            return [{"noteId": 1, "cards": [1]}]
-
-    adapter._invoke.side_effect = side_effect
-    await adapter.sync_notes([work_item])
-
-    found_query = None
-    for c in adapter._invoke.call_args_list:
-        if c[0][0] == "findNotes":
-            found_query = c[1]["query"]
-            break
-
-    assert found_query is not None
-    assert "\v" not in found_query
-    assert "\\\\rho" in found_query or "\\rho" in found_query
-    assert "space here" in found_query
-
-
-@pytest.mark.asyncio
-async def test_healing_search_query_limit(adapter):
-    """Verify that very long fields are truncated in the search query."""
-    long_text = "A" * 200
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": long_text, "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
-
-    async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("duplicate")
-        if action == "findNotes":
-            return [1]
-        if action == "notesInfo":
-            return [{"noteId": 1, "cards": [1]}]
-
-    adapter._invoke.side_effect = side_effect
-    await adapter.sync_notes([work_item])
-
-    found_query = None
-    for c in adapter._invoke.call_args_list:
-        if c[0][0] == "findNotes":
-            found_query = c[1]["query"]
-            break
-
-    assert found_query is not None
-
-    assert len(found_query) < 200
-    # Field part truncated to 100 chars
-    assert "A" * 80 in found_query
-    assert "A" * 150 not in found_query
-
-
-@pytest.mark.asyncio
-async def test_healing_search_quote_hell(adapter):
-    """Verify handling of mixed double quotes and literal backslashes typical in code blocks."""
-    raw = 'print("Hello \\"World\\"") \n path = "C:\\\\User"'
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": raw, "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
-
-    async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("duplicate")
-        if action == "findNotes":
-            return [1]
-        if action == "notesInfo":
-            return [{"noteId": 1, "cards": [1]}]
-
-    adapter._invoke.side_effect = side_effect
-    await adapter.sync_notes([work_item])
-
-    found_query = None
-    for c in adapter._invoke.call_args_list:
-        if c[0][0] == "findNotes":
-            found_query = c[1]["query"]
-            break
-
-    assert found_query is not None
-    assert '\\"Hello' in found_query
-    assert "C:\\\\\\\\User" in found_query or "C:\\\\User" in found_query
-
-
-@pytest.mark.asyncio
-async def test_healing_failure_propagates_error(adapter):
-    """Verify that if the search fails to find a candidate, original Duplicate error is raised."""
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": "Q", "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
-
-    async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("cannot create note because it is a duplicate")
-        if action == "findNotes":
-            return []
+            return [
+                {"noteId": 100, "fields": {"Front": {"value": "Unrelated"}, "Back": {"value": "X"}}},
+                {"noteId": 200, "fields": {"Front": {"value": "What is a claim?"}, "Back": {"value": "Old"}}},
+                {"noteId": 300, "fields": {"Front": {"value": "Other"}, "Back": {"value": "Y"}}},
+            ]
+        if action == "updateNoteFields":
+            return None
+        if action == "cardsInfo":
+            return [{"cardId": 999}]
         return None
 
     adapter._invoke.side_effect = side_effect
     results = await adapter.sync_notes([work_item])
 
     assert len(results) == 1
+    assert results[0].ok is True
+    assert results[0].new_nid == "200"
+
+
+@pytest.mark.asyncio
+async def test_healing_cloze_normalization(adapter):
+    """Verify that cloze markers are stripped during comparison."""
+    work_item = _make_work_item(
+        {"Text": "The {{c1::sun}} rises in the {{c2::east}}.", "Back Extra": ""},
+        model="Cloze",
+    )
+
+    async def side_effect(action, **kwargs):
+        if action == "findNotes":
+            return [500]
+        if action == "notesInfo":
+            # Anki stores the cloze syntax in the field
+            return [
+                {
+                    "noteId": 500,
+                    "fields": {
+                        "Text": {"value": "<!-- arete markdown -->\n<p>The {{c1::sun}} rises in the {{c2::east}}.</p>"},
+                        "Back Extra": {"value": ""},
+                    },
+                    "cards": [501],
+                }
+            ]
+        if action == "updateNoteFields":
+            return None
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
+    assert len(results) == 1
+    assert results[0].ok is True
+    assert results[0].new_nid == "500"
+
+
+@pytest.mark.asyncio
+async def test_healing_html_normalization(adapter):
+    """Verify that HTML tags are stripped during comparison."""
+    work_item = _make_work_item({"Front": "<b>Bold</b> question?", "Back": "A"})
+
+    async def side_effect(action, **kwargs):
+        if action == "findNotes":
+            return [700]
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 700,
+                    "fields": {
+                        "Front": {"value": "<div><b>Bold</b> question?</div>"},
+                        "Back": {"value": "A"},
+                    },
+                    "cards": [701],
+                }
+            ]
+        if action == "updateNoteFields":
+            return None
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
+    assert results[0].ok is True
+    assert results[0].new_nid == "700"
+
+
+@pytest.mark.asyncio
+async def test_healing_no_match_falls_through_to_add(adapter):
+    """When no existing note matches, addNote is called."""
+    work_item = _make_work_item({"Front": "Brand new card", "Back": "A"})
+
+    call_log = []
+
+    async def side_effect(action, **kwargs):
+        call_log.append(action)
+        if action == "findNotes":
+            return [800]
+        if action == "notesInfo":
+            if 800 in kwargs.get("notes", []):
+                return [
+                    {"noteId": 800, "fields": {"Front": {"value": "Different card"}, "Back": {"value": "B"}}}
+                ]
+            if 900 in kwargs.get("notes", []):
+                return [{"noteId": 900, "cards": [901]}]
+            return []
+        if action == "addNote":
+            return 900
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
+    assert results[0].ok is True
+    assert results[0].new_nid == "900"
+    assert "addNote" in call_log
+
+
+@pytest.mark.asyncio
+async def test_healing_empty_candidates(adapter):
+    """When findNotes returns empty, addNote is called."""
+    work_item = _make_work_item({"Front": "Q", "Back": "A"})
+
+    async def side_effect(action, **kwargs):
+        if action == "findNotes":
+            return []
+        if action == "addNote":
+            return 1001
+        if action == "notesInfo":
+            return [{"noteId": 1001, "cards": [2002]}]
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
+    assert results[0].ok is True
+    assert results[0].new_nid == "1001"
+    assert results[0].new_cid == "2002"
+
+
+@pytest.mark.asyncio
+async def test_healing_query_failure_falls_through(adapter):
+    """If findNotes raises, we still try addNote."""
+    work_item = _make_work_item({"Front": "Q", "Back": "A"})
+
+    call_log = []
+
+    async def side_effect(action, **kwargs):
+        call_log.append(action)
+        if action == "findNotes":
+            raise Exception("search broken")
+        if action == "addNote":
+            return 1001
+        if action == "notesInfo":
+            return [{"noteId": 1001, "cards": [2002]}]
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
+    assert results[0].ok is True
+    assert "addNote" in call_log
+
+
+@pytest.mark.asyncio
+async def test_healing_duplicate_error_propagates_when_no_match(adapter):
+    """If addNote says duplicate but healing can't find the note, error propagates."""
+    work_item = _make_work_item({"Front": "Q", "Back": "A"})
+
+    async def side_effect(action, **kwargs):
+        if action == "findNotes":
+            return []  # No candidates found
+        if action == "addNote":
+            raise Exception("cannot create note because it is a duplicate")
+        return None
+
+    adapter._invoke.side_effect = side_effect
+    results = await adapter.sync_notes([work_item])
+
     assert results[0].ok is False
     assert "duplicate" in results[0].error
 
 
 @pytest.mark.asyncio
+async def test_normalize_field():
+    """Verify _normalize_field strips HTML, cloze markers, and normalizes whitespace."""
+    norm = AnkiConnectAdapter._normalize_field
+
+    assert norm("Hello World") == "hello world"
+    assert norm("<b>Bold</b>") == "bold"
+    assert norm("{{c1::answer}} is {{c2::correct}}") == "answer is correct"
+    assert norm("<!-- comment -->\n<p>Text</p>") == "text"
+    assert norm("  lots   of    spaces  ") == "lots of spaces"
+    assert norm("Mixed: {{c1::cloze}} and <em>html</em>") == "mixed: cloze and html"
+
+
+@pytest.mark.asyncio
 async def test_cid_fetching_on_create(adapter):
     """Verify that after a successful addNote, we fetch the CID."""
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": "Q", "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
+    work_item = _make_work_item({"Front": "Q", "Back": "A"})
 
     async def side_effect(action, **kwargs):
+        if action == "findNotes":
+            return []
         if action == "addNote":
             return 1001
         if action == "notesInfo":
@@ -237,46 +250,36 @@ async def test_cid_fetching_on_create(adapter):
     adapter._invoke.side_effect = side_effect
     results = await adapter.sync_notes([work_item])
 
-    assert len(results) == 1
-    res = results[0]
-
-    assert res.ok is True
-    assert res.new_nid == "1001"
-    assert res.new_cid == "2002"
+    assert results[0].ok is True
+    assert results[0].new_nid == "1001"
+    assert results[0].new_cid == "2002"
 
 
 @pytest.mark.asyncio
 async def test_cid_fetching_on_heal(adapter):
     """Verify that after healing, we also fetch the CID."""
-    note = AnkiNote(
-        model="Basic",
-        deck="TestDeck",
-        fields={"Front": "DuplicateQ", "Back": "A"},
-        tags=[],
-        start_line=1,
-        end_line=1,
-        source_file=Path("x"),
-        source_index=1,
-    )
-    work_item = WorkItem(note, Path("x"), 1)
+    work_item = _make_work_item({"Front": "DuplicateQ", "Back": "A"})
 
     async def side_effect(action, **kwargs):
-        if action == "addNote":
-            raise Exception("duplicate message")
         if action == "findNotes":
             return [5555]
         if action == "notesInfo":
             if kwargs.get("notes") == [5555]:
-                return [{"noteId": 5555, "cards": [6666]}]
+                return [
+                    {
+                        "noteId": 5555,
+                        "fields": {"Front": {"value": "DuplicateQ"}, "Back": {"value": "old"}},
+                        "cards": [6666],
+                    }
+                ]
             return []
+        if action == "updateNoteFields":
+            return None
         return None
 
     adapter._invoke.side_effect = side_effect
     results = await adapter.sync_notes([work_item])
 
-    assert len(results) == 1
-    res = results[0]
-
-    assert res.ok is True
-    assert res.new_nid == "5555"
-    assert res.new_cid == "6666"
+    assert results[0].ok is True
+    assert results[0].new_nid == "5555"
+    assert results[0].new_cid == "6666"
