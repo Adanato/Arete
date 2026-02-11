@@ -5,26 +5,9 @@ Wraps AnkiBridge to provide learning statistics.
 import logging
 from typing import Any
 
-from pydantic import BaseModel
+from arete.domain.stats.models import LearningStats
 
 logger = logging.getLogger(__name__)
-
-
-class NoteInsight(BaseModel):
-    """Insight for a specific note."""
-
-    note_name: str
-    issue: str  # e.g., "3 leeches", "high lapse rate"
-    lapses: int
-    deck: str
-
-
-class LearningStats(BaseModel):
-    """Aggregate learning statistics."""
-
-    total_cards: int
-    retention_rate: float | None = None
-    problematic_notes: list[NoteInsight] = []
 
 
 class StatsService:

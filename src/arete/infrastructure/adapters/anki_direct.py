@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
-if TYPE_CHECKING:
-    pass
-
+from arete.domain.constants import (
+    BROWSE_INITIAL_DELAY,
+    BROWSE_POLL_ATTEMPTS,
+    BROWSE_POLL_INTERVAL,
+    FSRS_DIFFICULTY_SCALE,
+    MAX_PROBLEMATIC_NOTES,
+)
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 from arete.infrastructure.anki.repository import AnkiRepository
@@ -16,13 +21,12 @@ class AnkiDirectAdapter(AnkiBridge):
     """Direct Python adapter for Anki using the 'anki' library."""
 
     def __init__(self, anki_base: Path | None):
+        """Initialize with path to the Anki base directory."""
         self.anki_base = anki_base
         self.logger = logging.getLogger(__name__)
 
     async def get_model_names(self) -> list[str]:
-        # TODO: Implement in repository if needed.
-        # For now return empty as fallback or implement properly.
-        # Direct access means we CAN easily get this.
+        """Return all model names from the Anki collection."""
         with AnkiRepository(self.anki_base) as repo:
             if repo.col:
                 return [m["name"] for m in repo.col.models.all()]
@@ -238,9 +242,7 @@ class AnkiDirectAdapter(AnkiBridge):
         return False
 
     async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
-        import re
-
-        from arete.application.stats_service import LearningStats, NoteInsight
+        from arete.domain.stats.models import LearningStats, NoteInsight
 
         total_cards = 0
         problematic_notes = []
@@ -296,7 +298,10 @@ class AnkiDirectAdapter(AnkiBridge):
         # Sort and limit
         problematic_notes.sort(key=lambda x: x.lapses, reverse=True)
 
-        return LearningStats(total_cards=total_cards, problematic_notes=problematic_notes[:5])
+        return LearningStats(
+            total_cards=total_cards,
+            problematic_notes=problematic_notes[:MAX_PROBLEMATIC_NOTES],
+        )
 
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
         """Direct DB implementation of fetching card stats."""
@@ -332,7 +337,7 @@ class AnkiDirectAdapter(AnkiBridge):
                             # or memory_state
                             # memory_state.difficulty is 1-10 normally
                             if hasattr(card.memory_state, "difficulty"):
-                                difficulty = card.memory_state.difficulty / 10.0  # Normalize to 0-1
+                                difficulty = card.memory_state.difficulty / FSRS_DIFFICULTY_SCALE
 
                         try:
                             note = repo.col.get_note(card.nid)
@@ -398,7 +403,7 @@ class AnkiDirectAdapter(AnkiBridge):
             return model.get("css", "")
 
     async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
-        """Return { "Card 1": {"Front": "...", "Back": "..."} }"""
+        """Return template map, e.g. ``{"Card 1": {"Front": ..., "Back": ...}}``."""
         with AnkiRepository(self.anki_base) as repo:
             if not repo.col:
                 return {}
@@ -413,7 +418,8 @@ class AnkiDirectAdapter(AnkiBridge):
 
     async def gui_browse(self, query: str) -> bool:
         """Open the Anki browser.
-        Launches Anki first, waits 3s, then uses AnkiConnect to apply the search query.
+
+        Launch Anki first, wait for startup, then use AnkiConnect to apply the search query.
         """
         import asyncio
         import os
@@ -459,16 +465,17 @@ class AnkiDirectAdapter(AnkiBridge):
         except Exception:
             pass
 
-        # 2. Wait 1 second per user request to allow Anki to settle
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(BROWSE_INITIAL_DELAY)
 
         # 3. Poll AnkiConnect to finish the job (Type into search bar)
-        for i in range(40):  # 20s total polling
+        for i in range(BROWSE_POLL_ATTEMPTS):
             if await _try_ankiconnect():
                 if i > 0:
-                    self.logger.debug(f"AnkiConnect ready after {i * 0.5}s of polling")
+                    self.logger.debug(
+                        f"AnkiConnect ready after {i * BROWSE_POLL_INTERVAL}s of polling"
+                    )
                 return True
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(BROWSE_POLL_INTERVAL)
 
         self.logger.error("Anki launched but search query could not be applied via AnkiConnect.")
         return False

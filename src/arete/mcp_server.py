@@ -195,6 +195,8 @@ async def _get_status() -> list[TextContent]:
 
 async def _get_stats(args: dict[str, Any]) -> list[TextContent]:
     """Fetch learning insights from Anki."""
+    import dataclasses
+
     from arete.application.config import resolve_config
     from arete.application.factory import get_anki_bridge
     from arete.application.stats_service import StatsService
@@ -209,8 +211,7 @@ async def _get_stats(args: dict[str, Any]) -> list[TextContent]:
 
         import json
 
-        # Return as JSON string for the agent to parse/summarize
-        return [TextContent(type="text", text=json.dumps(insights.dict(), indent=2))]
+        return [TextContent(type="text", text=json.dumps(dataclasses.asdict(insights), indent=2))]
     except Exception as e:
         logger.exception("Failed to get stats in MCP")
         return [TextContent(type="text", text=f"Error retrieving stats: {e}")]
