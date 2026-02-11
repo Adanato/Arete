@@ -125,15 +125,15 @@ class DirectStatsRepository(StatsRepository):
             if has_data:
                 col_subset += ", data"
 
-            cid_str = ",".join(str(c) for c in cids)
-            query = f"SELECT {col_subset} FROM revlog WHERE cid IN ({cid_str}) ORDER BY id ASC"
+            placeholders = ",".join("?" * len(cids))
+            query = f"SELECT {col_subset} FROM revlog WHERE cid IN ({placeholders}) ORDER BY id ASC"
 
             try:
                 import json
 
                 if repo.col.db is None:
                     return []
-                for row in repo.col.db.execute(query):
+                for row in repo.col.db.execute(query, *cids):
                     # Indices:
                     # 0: id, 1: cid, 2: ease, 3: ivl, 4: lastIvl, 5: time, 6: type
                     # 7: data (if exists) via 'col_subset' length logic?
@@ -212,8 +212,8 @@ class DirectStatsRepository(StatsRepository):
                 return {}
 
             dist: dict[int, int] = {}
-            query = f"SELECT ease, COUNT(*) FROM revlog WHERE cid = {cid} GROUP BY ease"
-            for rating, count in repo.col.db.execute(query):
+            query = "SELECT ease, COUNT(*) FROM revlog WHERE cid = ? GROUP BY ease"
+            for rating, count in repo.col.db.execute(query, cid):
                 dist[rating] = count
             return dist
         except Exception:
@@ -224,7 +224,7 @@ class DirectStatsRepository(StatsRepository):
         try:
             if repo.col is None or repo.col.db is None:
                 return None
-            result = repo.col.db.scalar(f"SELECT MAX(id) FROM revlog WHERE cid = {cid}")
+            result = repo.col.db.scalar("SELECT MAX(id) FROM revlog WHERE cid = ?", cid)
             if result:
                 return result // 1000  # Convert ms to seconds
         except Exception:
@@ -237,7 +237,7 @@ class DirectStatsRepository(StatsRepository):
             if repo.col is None or repo.col.db is None:
                 return 0
             # time limit is usually capped at 60s (60000ms) in revlog logic but here we just avg
-            result = repo.col.db.scalar(f"SELECT AVG(time) FROM revlog WHERE cid = {cid}")
+            result = repo.col.db.scalar("SELECT AVG(time) FROM revlog WHERE cid = ?", cid)
             return int(result) if result else 0
         except Exception:
             pass
