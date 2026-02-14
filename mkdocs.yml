@@ -33,7 +33,7 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Home: INDEX.md
+  - Home: index.md
   - User Guide:
     - CLI Usage: CLI.md
     - Obsidian Plugin: PLUGIN.md
@@ -42,9 +42,11 @@ nav:
   - Developer Reference:
     - Contributing: CONTRIBUTING.md
     - Architecture: ARCHITECTURE.md
-    - Publishing: PUBLISHING.md
+    - Publishing: publishing.md
     - Plans:
       - v2.0.0 Plan: plans/v2_0_0.md
+      - v2.1.0 Plan: plans/v2_1_0.md
+      - v2.1.0 Analysis: plans/v2_1_0_analysis.md
       - v3.0.0 Plan (Agentic): plans/v3_0_0.md
   - Internal Walkthroughs:
     - Dependency Graph: walkthroughs/dependency-graph.md
