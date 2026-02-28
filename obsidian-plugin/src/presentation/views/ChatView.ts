@@ -1,6 +1,5 @@
 import { ItemView, WorkspaceLeaf, setIcon, Notice, MarkdownRenderer } from 'obsidian';
 import AretePlugin from '@/main';
-import { AgentResponse } from '@application/services/AgentService';
 
 export const CHAT_VIEW_TYPE = 'arete-chat-view';
 

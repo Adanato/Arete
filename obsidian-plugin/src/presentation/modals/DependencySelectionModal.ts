@@ -6,7 +6,6 @@ import {
 	MarkdownRenderer,
 	Notice,
 	SearchComponent,
-	ButtonComponent,
 	Component,
 } from 'obsidian';
 import { CardRenderer } from '@/presentation/renderers/CardRenderer';
@@ -129,7 +128,7 @@ export class DependencySelectionModal extends Modal {
 		}
 
 		this.items = cards
-			.map((c: any, idx: number) => {
+			.map((c: any) => {
 				if (!c.id) return null;
 				// Clean up Front text for label (remove markdown for readability)
 				const rawFront = c.Front || c.front || 'Untitled Card';

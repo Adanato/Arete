@@ -29,6 +29,7 @@ import { ServerManager } from '@application/services/ServerManager';
 import { AreteClient } from '@infrastructure/arete/AreteClient';
 
 import { LocalGraphView, LOCAL_GRAPH_VIEW_TYPE } from '@presentation/views/LocalGraphView';
+import { GlobalGraphView, GLOBAL_GRAPH_VIEW_TYPE } from '@presentation/views/GlobalGraphView';
 import { DependencyResolver } from '@application/services/DependencyResolver';
 import {
 	createCardGutter,
@@ -131,6 +132,7 @@ export default class AretePlugin extends Plugin {
 			this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
 			this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 			this.registerView(LOCAL_GRAPH_VIEW_TYPE, (leaf) => new LocalGraphView(leaf, this));
+			this.registerView(GLOBAL_GRAPH_VIEW_TYPE, (leaf) => new GlobalGraphView(leaf, this));
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
 			new Notice('Arete Plugin failed to initialize! Check console.');
@@ -163,6 +165,10 @@ export default class AretePlugin extends Plugin {
 			this.activateLocalGraphView();
 		});
 
+		this.addRibbonIcon('globe', 'Arete Global Graph', (_evt: MouseEvent) => {
+			this.activateGlobalGraphView();
+		});
+
 		// 3. Commands
 		this.addCommand({
 			id: 'arete-sync',
@@ -176,7 +182,7 @@ export default class AretePlugin extends Plugin {
 		this.addCommand({
 			id: 'arete-check-file',
 			name: 'Check Current File',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
+			editorCallback: (_editor: Editor, view: MarkdownView) => {
 				if (view.file) {
 					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
 					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
@@ -255,6 +261,14 @@ export default class AretePlugin extends Plugin {
 			name: 'Open Local Graph',
 			callback: () => {
 				this.activateLocalGraphView();
+			},
+		});
+
+		this.addCommand({
+			id: 'arete-open-global-graph',
+			name: 'Open Global Graph',
+			callback: () => {
+				this.activateGlobalGraphView();
 			},
 		});
 
@@ -518,6 +532,16 @@ export default class AretePlugin extends Plugin {
 				}
 			}
 		}
+	}
+
+	async activateGlobalGraphView() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(GLOBAL_GRAPH_VIEW_TYPE)[0];
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.setViewState({ type: GLOBAL_GRAPH_VIEW_TYPE, active: true });
+		}
+		workspace.revealLeaf(leaf);
 	}
 
 	onunload() {

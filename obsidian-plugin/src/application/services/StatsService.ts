@@ -13,7 +13,6 @@ export type {
 
 import type {
 	AnkiCardStats,
-	ProblematicCard,
 	ConceptStats,
 	StatsNode,
 	StatsCache,

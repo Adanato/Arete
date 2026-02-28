@@ -1,11 +1,8 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice, MarkdownView, TFile, Menu } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Notice, MarkdownView, TFile } from 'obsidian';
 import AretePlugin from '@/main';
-import { ConceptStats, ProblematicCard, StatsNode } from '@application/services/StatsService';
-import type { AnkiCardStats } from '@/domain/stats';
+import { ConceptStats, StatsNode } from '@application/services/StatsService';
 import { CardStatsModal } from '@/presentation/modals/CardStatsModal';
 import { BrokenReference } from '@application/services/LinkCheckerService';
-
-import { LeechCard } from '@application/services/LeechService';
 
 export const DASHBOARD_VIEW_TYPE = 'arete-stats-view';
 
@@ -906,11 +903,9 @@ export class DashboardView extends ItemView {
 		if (view) {
 			const editor = view.editor;
 			const content = editor.getValue();
-			// Improved robust finding: normalize newlines and spaces
+			// Normalize newlines and spaces for robust matching
 			const cleanFront = frontText.trim().replace(/\s+/g, ' ');
-			// This is still hard because Markdown vs HTML in Anki.
-			// Naive search for now.
-			const index = content.indexOf(frontText.split('\n')[0]); // Try finding first line
+			const index = content.indexOf(cleanFront.split(' ')[0]); // Try finding first token
 			if (index >= 0) {
 				const pos = editor.offsetToPos(index);
 				editor.setCursor(pos);

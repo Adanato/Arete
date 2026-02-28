@@ -7,12 +7,9 @@ export class ServerManager {
 	app: App;
 	settings: AretePluginSettings;
 	private serverProcess: ChildProcess | null = null;
-	private manifest: any;
-
-	constructor(app: App, settings: AretePluginSettings, manifest: any) {
+	constructor(app: App, settings: AretePluginSettings, _manifest: any) {
 		this.app = app;
 		this.settings = settings;
-		this.manifest = manifest;
 	}
 
 	private startPromise: Promise<void> | null = null;

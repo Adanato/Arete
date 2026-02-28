@@ -5,7 +5,7 @@
  * that mimics Obsidian's native graph view behavior.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice, TFile, Component } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, TFile, Component } from 'obsidian';
 import * as d3 from 'd3';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ForceGraph3D = require('3d-force-graph');
@@ -38,7 +38,7 @@ export class LocalGraphView extends ItemView {
 	private depth = 2;
 	private showRelated = true;
 	private simulation: d3.Simulation<GraphNode, GraphLink> | null = null;
-	private svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+	private _svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
 	private tooltipContainer: HTMLElement | null = null;
 	private tooltipComponent: Component = new Component();
 	private renderCardNodes = false;
@@ -459,7 +459,7 @@ export class LocalGraphView extends ItemView {
 			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
 
-		this.svg = svg;
+		this._svg = svg;
 		const g = svg.append('g');
 
 		// Zoom

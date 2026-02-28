@@ -8,7 +8,7 @@
  * 4. Send the queue to Anki as a filtered deck
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import type AretePlugin from '@/main';
 
 export const QUEUE_BUILDER_VIEW_TYPE = 'arete-queue-builder';

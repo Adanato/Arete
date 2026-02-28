@@ -216,7 +216,7 @@ export class AreteClient {
 		return res.ok;
 	}
 
-	async getCardInfo(cardIds: number[]): Promise<any[]> {
+	async getCardInfo(_cardIds: number[]): Promise<any[]> {
 		return [];
 	}
 
