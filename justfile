@@ -123,6 +123,26 @@ coverage:
     just build-obsidian
     @echo "✅ All QA checks passed!"
 
+# Integration tests with full Docker lifecycle (start -> test -> stop)
+test-anki *args:
+    #!/usr/bin/env bash
+    set -e
+    cleanup() { just docker-down; }
+    trap cleanup EXIT
+    just docker-up
+    just wait-for-anki
+    {{PYTEST}} {{TESTS}}/integration {{args}}
+
+# Integration tests with Docker lifecycle for Mac/OrbStack
+mac-test-anki *args:
+    #!/usr/bin/env bash
+    set -e
+    cleanup() { just docker-down; }
+    trap cleanup EXIT
+    just mac-docker-up
+    just wait-for-anki
+    {{PYTEST}} {{TESTS}}/integration {{args}}
+
 # --- System ---
 
 # Clean up build artifacts and caches

@@ -5,7 +5,6 @@ import {
 	Plugin,
 	FileSystemAdapter,
 	TFile,
-	WorkspaceLeaf,
 	editorInfoField,
 } from 'obsidian';
 import { EditorView } from '@codemirror/view';
@@ -15,13 +14,12 @@ import { AretePluginSettings, DEFAULT_SETTINGS } from '@domain/settings';
 
 import { CardYamlEditorView, YAML_EDITOR_VIEW_TYPE } from '@presentation/views/CardYamlEditorView';
 import { DashboardView, DASHBOARD_VIEW_TYPE } from '@presentation/views/DashboardView';
-import { ChatView, CHAT_VIEW_TYPE } from '@presentation/views/ChatView';
 import { AreteSettingTab } from '@presentation/settings/SettingTab';
 import { SyncService } from '@application/services/SyncService';
 import { CheckService } from '@application/services/CheckService';
-import { AgentService } from '@application/services/AgentService';
 import { TemplateRenderer } from '@application/services/TemplateRenderer';
-import { StatsService, StatsCache } from '@application/services/StatsService';
+import { StatsService } from '@application/services/StatsService';
+import { StatsCache, ConceptStats } from '@/domain/stats';
 import { GraphService } from '@application/services/GraphService';
 import { LinkCheckerService } from '@application/services/LinkCheckerService';
 import { LeechService } from '@application/services/LeechService';
@@ -29,6 +27,7 @@ import { ServerManager } from '@application/services/ServerManager';
 import { AreteClient } from '@infrastructure/arete/AreteClient';
 
 import { LocalGraphView, LOCAL_GRAPH_VIEW_TYPE } from '@presentation/views/LocalGraphView';
+import { GlobalGraphView, GLOBAL_GRAPH_VIEW_TYPE } from '@presentation/views/GlobalGraphView';
 import { DependencyResolver } from '@application/services/DependencyResolver';
 import {
 	createCardGutter,
@@ -46,7 +45,6 @@ export default class AretePlugin extends Plugin {
 	linkCheckerService: LinkCheckerService;
 	leechService: LeechService;
 	serverManager: ServerManager;
-	agentService: AgentService;
 	dependencyResolver: DependencyResolver;
 	areteClient: AreteClient;
 	templateRenderer: TemplateRenderer;
@@ -64,22 +62,18 @@ export default class AretePlugin extends Plugin {
 			console.log('[Arete] Settings loaded:', this.settings);
 
 			// Initialize Services
-			// Initialize Services
 			this.areteClient = new AreteClient(this.settings);
 			this.templateRenderer = new TemplateRenderer(this.app, this.areteClient);
 			this.templateRenderer.setMode(this.settings.renderer_mode);
-			this.syncService = new SyncService(this.app, this.settings, (msg: string) => {
-				console.log(msg); // Default logger
-			});
+			this.syncService = new SyncService(this.app, this.settings, this.manifest);
 			this.checkService = new CheckService(this.app, this.settings);
-			this.statsService = new StatsService(this.app, this.settings, this.statsCache);
+			this.statsService = new StatsService(this.app, this.settings, this.areteClient, this.statsCache);
 			this.graphService = new GraphService(this.app, this.settings);
 
 			// Initialize New Dashboard Services
 			this.linkCheckerService = new LinkCheckerService(this.app, this);
-			this.leechService = new LeechService(this.app, this.areteClient);
-			this.serverManager = new ServerManager(this.app, this.settings, this.manifest);
-			this.agentService = new AgentService(this.settings);
+			this.leechService = new LeechService(this.areteClient);
+			this.serverManager = new ServerManager(this.app, this.settings);
 			this.dependencyResolver = new DependencyResolver(this.app, this.settings);
 
 			// Start Server (background) if enabled
@@ -93,32 +87,7 @@ export default class AretePlugin extends Plugin {
 				console.log('[Arete] Refreshing stats on startup...');
 				this.statsService
 					.refreshStats()
-					.then(async (results) => {
-						// Updated to receive results
-						console.log('[Arete] Stats refresh complete, notifying views...');
-
-						// 1. Update Graph Tags (if enabled)
-						if (this.settings.graph_coloring_enabled) {
-							console.log('[Arete] Updating Graph Tags...');
-							for (const concept of results) {
-								const file = this.app.vault.getAbstractFileByPath(concept.filePath);
-								if (file instanceof TFile) {
-									await this.graphService.updateGraphTags(file, concept);
-								}
-							}
-							new Notice('Graph tags updated.');
-						}
-
-						// 2. Refresh YAML Editor
-						const yamlLeaf =
-							this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
-						if (yamlLeaf) {
-							const view = yamlLeaf.view as CardYamlEditorView;
-							if (view.renderToolbar) {
-								view.renderToolbar();
-							}
-						}
-					})
+					.then((results) => this.onStatsRefreshed(results))
 					.catch((err) => {
 						console.error('[Arete] Failed to auto-refresh stats:', err);
 					});
@@ -129,8 +98,8 @@ export default class AretePlugin extends Plugin {
 			// Register Views
 			this.registerView(YAML_EDITOR_VIEW_TYPE, (leaf) => new CardYamlEditorView(leaf, this));
 			this.registerView(DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
-			this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 			this.registerView(LOCAL_GRAPH_VIEW_TYPE, (leaf) => new LocalGraphView(leaf, this));
+			this.registerView(GLOBAL_GRAPH_VIEW_TYPE, (leaf) => new GlobalGraphView(leaf, this));
 		} catch (e) {
 			console.error('[Arete] Failed to initialize plugin services:', e);
 			new Notice('Arete Plugin failed to initialize! Check console.');
@@ -155,12 +124,12 @@ export default class AretePlugin extends Plugin {
 			this.activateDashboardView();
 		});
 
-		this.addRibbonIcon('bot', 'Arete AI Assistant', (_evt: MouseEvent) => {
-			this.activateChatView();
-		});
-
 		this.addRibbonIcon('network', 'Arete Local Graph', (_evt: MouseEvent) => {
 			this.activateLocalGraphView();
+		});
+
+		this.addRibbonIcon('globe', 'Arete Global Graph', (_evt: MouseEvent) => {
+			this.activateGlobalGraphView();
 		});
 
 		// 3. Commands
@@ -176,7 +145,7 @@ export default class AretePlugin extends Plugin {
 		this.addCommand({
 			id: 'arete-check-file',
 			name: 'Check Current File',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
+			editorCallback: (_editor: Editor, view: MarkdownView) => {
 				if (view.file) {
 					const vaultAdapter = this.app.vault.adapter as FileSystemAdapter;
 					const basePath = vaultAdapter.getBasePath ? vaultAdapter.getBasePath() : null;
@@ -259,31 +228,20 @@ export default class AretePlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: 'arete-open-global-graph',
+			name: 'Open Global Graph',
+			callback: () => {
+				this.activateGlobalGraphView();
+			},
+		});
+
+		this.addCommand({
 			id: 'arete-sync-stats',
 			name: 'Sync Stats (Refresh Anki Data)',
 			callback: async () => {
 				new Notice('Refreshing Arete stats...');
 				const results = await this.statsService.refreshStats();
-
-				// Post-refresh updates (Graph Tags + YAML Editor)
-				if (this.settings.graph_coloring_enabled) {
-					for (const concept of results) {
-						const file = this.app.vault.getAbstractFileByPath(concept.filePath);
-						if (file instanceof TFile) {
-							await this.graphService.updateGraphTags(file, concept);
-						}
-					}
-					new Notice('Graph tags updated.');
-				}
-
-				// Refresh YAML Toolbar
-				const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
-				if (yamlLeaf) {
-					const view = yamlLeaf.view as CardYamlEditorView;
-					if (view.renderToolbar) {
-						view.renderToolbar();
-					}
-				}
+				await this.onStatsRefreshed(results);
 				new Notice('Stats refreshed.');
 			},
 		});
@@ -409,22 +367,6 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
-	async activateChatView() {
-		const { workspace } = this.app;
-
-		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(CHAT_VIEW_TYPE);
-
-		if (leaves.length > 0) {
-			leaf = leaves[0];
-		} else {
-			leaf = workspace.getRightLeaf(false);
-			await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
-		}
-
-		workspace.revealLeaf(leaf);
-	}
-
 	async activateDashboardView() {
 		const { workspace } = this.app;
 		let leaf = workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0];
@@ -520,6 +462,16 @@ export default class AretePlugin extends Plugin {
 		}
 	}
 
+	async activateGlobalGraphView() {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(GLOBAL_GRAPH_VIEW_TYPE)[0];
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.setViewState({ type: GLOBAL_GRAPH_VIEW_TYPE, active: true });
+		}
+		workspace.revealLeaf(leaf);
+	}
+
 	onunload() {
 		if (this.statusBarItem) {
 			this.statusBarItem.empty();
@@ -572,10 +524,27 @@ export default class AretePlugin extends Plugin {
 		return `${days}d ago`;
 	}
 
-	// Notification helper with severity-based duration
-	notify(message: string, severity: 'info' | 'success' | 'warning' | 'error' = 'info') {
-		const durations = { info: 4000, success: 3000, warning: 6000, error: 10000 };
-		new Notice(message, durations[severity]);
+	/**
+	 * Post-refresh hook: update graph tags and YAML toolbar after stats refresh.
+	 */
+	private async onStatsRefreshed(results: ConceptStats[]): Promise<void> {
+		if (this.settings.graph_coloring_enabled) {
+			for (const concept of results) {
+				const file = this.app.vault.getAbstractFileByPath(concept.filePath);
+				if (file instanceof TFile) {
+					await this.graphService.updateGraphTags(file, concept);
+				}
+			}
+			new Notice('Graph tags updated.');
+		}
+
+		const yamlLeaf = this.app.workspace.getLeavesOfType(YAML_EDITOR_VIEW_TYPE)[0];
+		if (yamlLeaf) {
+			const view = yamlLeaf.view as CardYamlEditorView;
+			if (view.renderToolbar) {
+				view.renderToolbar();
+			}
+		}
 	}
 
 	// Delegate to SyncService

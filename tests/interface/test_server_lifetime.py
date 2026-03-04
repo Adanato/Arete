@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from arete.server import app, lifespan
+from arete.interface.http_server import app, lifespan
 
 client = TestClient(app)
 
@@ -12,15 +12,6 @@ client = TestClient(app)
 async def test_lifespan():
     app_mock = MagicMock()
     async with lifespan(app_mock):
-        pass
-
-
-@patch("os.kill")
-@patch("time.sleep")
-def test_shutdown_endpoint(mock_sleep, mock_kill):
-    with patch("threading.Thread") as mock_thread:
-        mock_thread.side_effect = lambda target: MagicMock(start=lambda: target())
-        # The shutdown endpoint is tested via test_shutdown_api below
         pass
 
 

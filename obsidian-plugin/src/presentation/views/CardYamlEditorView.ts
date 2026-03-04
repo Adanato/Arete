@@ -4,19 +4,14 @@ import {
 	MarkdownView,
 	Menu,
 	setIcon,
-	MarkdownRenderer,
 	Notice,
-	requestUrl,
 	parseYaml,
-	stringifyYaml,
 } from 'obsidian';
 import { EditorView, lineNumbers, keymap } from '@codemirror/view';
 import { EditorState, Annotation } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { yaml } from '@codemirror/lang-yaml';
 import type AretePlugin from '@/main';
-import { ProblematicCard } from '@application/services/StatsService';
-import type { AnkiCardStats } from '@/domain/stats';
 import { CardStatsModal } from '@/presentation/modals/CardStatsModal';
 import { DependencyField } from '@/presentation/components/DependencyField';
 import { CardRenderer } from '@/presentation/renderers/CardRenderer';

@@ -227,19 +227,46 @@ def _extract_frontmatter_bounds(md_text: str) -> tuple[str, int, int] | None:
 
 
 # ---------- Build apy editor-note text ----------
-def apply_fixes(md_text: str) -> str:
-    """Attempts to fix common frontmatter issues safely.
-    1. Tabs -> Spaces
-    2. Missing 'cards' list
-    3. Skip leading empty blocks (requested: 'skip empty --- bruh')
-    4. Indentation for nid/cid (ensure not at 0)
-    5. Template tags ({{title}} -> "{{title}}")
-    6. LaTeX lines under-indented (starts with \\)
-    7. Quoted backslashes (double quotes -> single quotes)
-    8. nid/cid on same line as field
-    9. Unclosed quotes on mapping fields
+def _preprocess_frontmatter_text(fm_text: str) -> str:
+    """Minimal text fixes to make broken YAML parseable.
+
+    Only fixes syntax issues that would prevent ``yaml.load`` from succeeding.
+    All *formatting* (block scalars, indentation, quote styles) is handled by
+    the ``_LiteralDumper`` round-trip in ``apply_fixes``.
     """
-    # a. Robust empty dashes skip at the VERY START
+    # Tabs → spaces (YAML spec forbids tabs for indentation)
+    if "\t" in fm_text:
+        fm_text = fm_text.replace("\t", "  ")
+
+    # Quote bare template tags: {{title}} → "{{title}}" (YAML flow-mapping syntax)
+    fm_text = re.sub(r"(:\s*)\{\{(.*?)\}\}", r'\1"{{\2}}"', fm_text)
+
+    # Split same-line metadata: "content  nid: '123'" → separate lines
+    fm_text = re.sub(r"([^\n])\s+(nid|cid):", r"\1\n  \2:", fm_text)
+
+    # Fix invalid block scalar start: `| '...` → `'...`
+    fm_text = re.sub(r"(\|[-+]?)\s*(['\"])", r"\2", fm_text)
+
+    return fm_text
+
+
+def _fix_frontmatter_dict(meta: dict) -> dict:
+    """Structural fixes on the parsed frontmatter dict."""
+    # Add missing cards list when deck/model present
+    has_deck_or_model = "deck" in meta or "model" in meta
+    if has_deck_or_model and "cards" not in meta:
+        meta["cards"] = []
+    return meta
+
+
+def apply_fixes(md_text: str) -> str:
+    """Fix common frontmatter issues via parse → fix dict → dump.
+
+    Phase 1: Minimal text pre-processing (make broken YAML parseable).
+    Phase 2: Parse to dict, fix structure, dump with _LiteralDumper
+             (handles block scalars, indentation, quote styles automatically).
+    """
+    # Strip leading empty frontmatter blocks
     md_text = md_text.lstrip()
     while re.match(r"^---\s*\n(\s*\n)*---\s*\n", md_text):
         md_text = re.sub(r"^---\s*\n(\s*\n)*---\s*\n", "", md_text, count=1)
@@ -250,110 +277,23 @@ def apply_fixes(md_text: str) -> str:
         return md_text
 
     original_fm, fm_start, fm_end = bounds
-    new_fm = original_fm
 
-    # 1. Fix Tabs
-    if "\t" in new_fm:
-        new_fm = new_fm.replace("\t", "  ")
+    # Phase 1: text-level pre-processing
+    preprocessed_fm = _preprocess_frontmatter_text(original_fm)
 
-    # 2. Fix Missing Cards
-    has_deck_or_model = "deck:" in new_fm or "model:" in new_fm
-    has_cards = "cards:" in new_fm
+    # Apply text fixes if needed
+    if preprocessed_fm != original_fm:
+        md_text = md_text[:fm_start] + preprocessed_fm + md_text[fm_end:]
 
-    if has_deck_or_model and not has_cards:
-        if not new_fm.endswith("\n"):
-            new_fm += "\n"
-        new_fm += "cards: []\n"
+    # Phase 2: parse → fix dict → dump
+    meta, body = parse_frontmatter(md_text)
 
-    # 3. Fix Template Tags ({{title}} -> "{{title}}")
-    new_fm = re.sub(r"(:\s*)\{\{(.*?)\}\}", r'\1"{{\2}}"', new_fm)
+    if not meta or "__yaml_error__" in meta:
+        return md_text  # Can't parse; return with text fixes only
 
-    # 4. Same-line metadata (Active Recall case)
-    # If we see "content  nid: '123'", split it.
-    new_fm = re.sub(r"([^\n])\s+(nid|cid):", r"\1\n  \2:", new_fm)
+    meta = _fix_frontmatter_dict(meta)
 
-    # 5. Modernize Quoted Fields (Groups.md case)
-    # If a field starts with a quote but doesn't end with one on the same line,
-    # or if it contains multiple lines, convert to a block scalar |- for safety.
-    lines = new_fm.split("\n")
-    fixed_lines = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        # Match Key: 'content or - Key: 'content
-        m_q = re.match(r'^(\s*(?:-\s*)?[A-Za-z]+:\s*([\'"]))(.*)$', line)
-        if m_q and i < len(lines):
-            prefix, quote, content = m_q.groups()
-            # If the quote is unclosed OR it's a known problematic LaTeX field
-            # and it doesn't end neatly on this line...
-            if not content.strip().endswith(quote) or ("\\" in content and len(content) > 50):
-                # We have a multiline/problematic quoted field! Convert to |-
-                key_prefix = prefix[: prefix.find(":") + 1]
-                fixed_lines.append(f"{key_prefix} |-")
-
-                # Push the first line's content (strip the opening quote)
-                first_content = content.strip().lstrip(quote)
-                if first_content:
-                    # If it ends with the quote, strip it and stop here
-                    if first_content.endswith(quote):
-                        fixed_lines.append(f"    {first_content[:-1]}")
-                        i += 1
-                        continue
-                    fixed_lines.append(f"    {first_content}")
-
-                # Consume subsequent lines
-                i += 1
-                while i < len(lines):
-                    next_line = lines[i]
-                    # SAFETY: If we hit metadata (nid/cid), stop consuming!
-                    if re.match(r"^\s*(nid|cid):", next_line):
-                        # Don't increment i, let the outer loop handle it
-                        break
-
-                    # If this line ends with the closing quote, strip it and stop
-                    if next_line.strip().endswith(quote):
-                        last_content = next_line.strip()[:-1]
-                        if last_content:
-                            fixed_lines.append(f"    {last_content}")
-                        i += 1  # Successfully consumed the closing quote line
-                        break
-
-                    fixed_lines.append(f"    {next_line.strip()}")
-                    i += 1
-                continue
-
-        fixed_lines.append(line)
-        i += 1
-    new_fm = "\n".join([line for line in fixed_lines if line is not None])
-
-    # 6. Fix nid/cid indentation
-    new_fm = re.sub(r"^[ ]{0,1}(nid|cid):", r"  \1:", new_fm, flags=re.MULTILINE)
-
-    # 7. LaTeX lines under-indented (Groups.md case)
-    new_fm = re.sub(r"^[ ]{0,3}(\\)", r"          \1", new_fm, flags=re.MULTILINE)
-
-    # 8. Convert double quotes to single quotes for strings with backslashes (ura-02 case)
-    # This identifies "..." strings that treat \ as escape, which breaks LaTeX/WikiLinks.
-    # We use a robust regex that handles escaped quotes: "(?:[^"\\]|\\.)*"
-    def quote_fix(match):
-        prefix, content = match.groups()
-        # If the content has backslashes (like LaTeX) but NO unescaped double-quotes
-        # conversion to single quotes is safer as it treats \ literally.
-        # But if it HAS double quotes (likely escaped), we must leave it as is or fix differently.
-        # Check for unescaped double quotes inside content
-        if "\\" in content and '"' not in content:
-            return f"{prefix}'{content}'"
-        return match.group(0)
-
-    new_fm = re.sub(r'(\s*-\s*|\s*[A-Za-z]+:\s*)"((?:[^"\\]|\\.)*)"', quote_fix, new_fm)
-
-    # 9. Fix invalid block scalar start (common math error: Back: | '...)
-    new_fm = re.sub(r'(\|[-+]?)\s*([\'"])', r"\2", new_fm)
-
-    if new_fm != original_fm:
-        md_text = md_text[:fm_start] + new_fm + md_text[fm_end:]
-
-    return md_text
+    return rebuild_markdown_with_frontmatter(meta, body)
 
 
 def fix_mathjax_escapes(md_text: str) -> str:

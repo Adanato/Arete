@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer, TFile } from 'obsidian';
+import { App, Component, MarkdownRenderer } from 'obsidian';
 
 export class CardRenderer {
 	static async render(

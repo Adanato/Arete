@@ -3,7 +3,7 @@
 **Arete** is a robust, fast, and feature-rich tool designed to synchronize your [Obsidian](https://obsidian.md/) vault to [Anki](https://apps.ankiweb.net/).
 
 [![CI](https://github.com/Adanato/Arete/actions/workflows/ci.yml/badge.svg)](https://github.com/Adanato/Arete/actions/workflows/ci.yml)
-[![Coverage](coverage.svg)](htmlcov/index.html)
+[![Coverage](coverage.svg)](coverage.svg)
 [![PyPI](https://img.shields.io/pypi/v/arete)](https://pypi.org/project/arete/)
 [![License](https://img.shields.io/github/license/Adanato/Arete)](https://github.com/Adanato/Arete/blob/main/LICENSE)
 
@@ -36,7 +36,7 @@ It adheres to a strict **One-Way Sync** philosophy: **Obsidian is the Source of 
 
 ```bash
 git clone https://github.com/Adanato/Arete
-cd obsidian_2_anki
+cd Arete
 uv sync
 ```
 
@@ -54,5 +54,5 @@ uv sync
 
 3.  **Migrate** (if coming from v1):
     ```bash
-    uv run arete migrate
+    uv run arete vault migrate
     ```

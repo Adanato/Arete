@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
-if TYPE_CHECKING:
-    pass
-
+from arete.domain.constants import (
+    BROWSE_INITIAL_DELAY,
+    BROWSE_POLL_ATTEMPTS,
+    BROWSE_POLL_INTERVAL,
+    FSRS_DIFFICULTY_SCALE,
+    MAX_PROBLEMATIC_NOTES,
+)
 from arete.domain.interfaces import AnkiBridge
 from arete.domain.models import AnkiCardStats, AnkiDeck, UpdateItem, WorkItem
 from arete.infrastructure.anki.repository import AnkiRepository
@@ -16,13 +21,12 @@ class AnkiDirectAdapter(AnkiBridge):
     """Direct Python adapter for Anki using the 'anki' library."""
 
     def __init__(self, anki_base: Path | None):
+        """Initialize with path to the Anki base directory."""
         self.anki_base = anki_base
         self.logger = logging.getLogger(__name__)
 
     async def get_model_names(self) -> list[str]:
-        # TODO: Implement in repository if needed.
-        # For now return empty as fallback or implement properly.
-        # Direct access means we CAN easily get this.
+        """Return all model names from the Anki collection."""
         with AnkiRepository(self.anki_base) as repo:
             if repo.col:
                 return [m["name"] for m in repo.col.models.all()]
@@ -138,24 +142,29 @@ class AnkiDirectAdapter(AnkiBridge):
                 return repo.col.decks.all_names()
         return []
 
-    async def get_due_cards(self, deck_name: str | None = None) -> list[int]:
-        """Get all cards due today from Anki, optionally filtered by deck.
+    async def get_due_cards(
+        self, deck_name: str | None = None, include_new: bool = False
+    ) -> list[int]:
+        """Get cards due today (and optionally new cards) from Anki.
 
         Args:
             deck_name: Optional deck name (supports nested, e.g., "Math::Calculus")
+            include_new: If True, also include new (unreviewed) cards.
 
         Returns:
-            List of Anki note IDs (nids) that are due
+            List of Anki note IDs (nids)
 
         """
         with AnkiRepository(self.anki_base) as repo:
             if not repo.col:
                 return []
 
-            # Build Anki search query
-            query = "is:due"
-            if deck_name:
-                query = f'deck:"{deck_name}" {query}'
+            deck_filter = f'deck:"{deck_name}" ' if deck_name else ""
+            query = (
+                f"{deck_filter}(is:due OR is:new)"
+                if include_new
+                else f"{deck_filter}(is:due)"
+            )
 
             nids = repo.find_notes(query)
             return nids
@@ -238,9 +247,7 @@ class AnkiDirectAdapter(AnkiBridge):
         return False
 
     async def get_learning_insights(self, lapse_threshold: int = 3) -> Any:
-        import re
-
-        from arete.application.stats_service import LearningStats, NoteInsight
+        from arete.domain.stats.models import LearningStats, NoteInsight
 
         total_cards = 0
         problematic_notes = []
@@ -296,7 +303,10 @@ class AnkiDirectAdapter(AnkiBridge):
         # Sort and limit
         problematic_notes.sort(key=lambda x: x.lapses, reverse=True)
 
-        return LearningStats(total_cards=total_cards, problematic_notes=problematic_notes[:5])
+        return LearningStats(
+            total_cards=total_cards,
+            problematic_notes=problematic_notes[:MAX_PROBLEMATIC_NOTES],
+        )
 
     async def get_card_stats(self, nids: list[int]) -> list[AnkiCardStats]:
         """Direct DB implementation of fetching card stats."""
@@ -332,7 +342,7 @@ class AnkiDirectAdapter(AnkiBridge):
                             # or memory_state
                             # memory_state.difficulty is 1-10 normally
                             if hasattr(card.memory_state, "difficulty"):
-                                difficulty = card.memory_state.difficulty / 10.0  # Normalize to 0-1
+                                difficulty = card.memory_state.difficulty / FSRS_DIFFICULTY_SCALE
 
                         try:
                             note = repo.col.get_note(card.nid)
@@ -398,7 +408,7 @@ class AnkiDirectAdapter(AnkiBridge):
             return model.get("css", "")
 
     async def get_model_templates(self, model_name: str) -> dict[str, dict[str, str]]:
-        """Return { "Card 1": {"Front": "...", "Back": "..."} }"""
+        """Return template map, e.g. ``{"Card 1": {"Front": ..., "Back": ...}}``."""
         with AnkiRepository(self.anki_base) as repo:
             if not repo.col:
                 return {}
@@ -413,7 +423,8 @@ class AnkiDirectAdapter(AnkiBridge):
 
     async def gui_browse(self, query: str) -> bool:
         """Open the Anki browser.
-        Launches Anki first, waits 3s, then uses AnkiConnect to apply the search query.
+
+        Launch Anki first, wait for startup, then use AnkiConnect to apply the search query.
         """
         import asyncio
         import os
@@ -459,16 +470,17 @@ class AnkiDirectAdapter(AnkiBridge):
         except Exception:
             pass
 
-        # 2. Wait 1 second per user request to allow Anki to settle
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(BROWSE_INITIAL_DELAY)
 
         # 3. Poll AnkiConnect to finish the job (Type into search bar)
-        for i in range(40):  # 20s total polling
+        for i in range(BROWSE_POLL_ATTEMPTS):
             if await _try_ankiconnect():
                 if i > 0:
-                    self.logger.debug(f"AnkiConnect ready after {i * 0.5}s of polling")
+                    self.logger.debug(
+                        f"AnkiConnect ready after {i * BROWSE_POLL_INTERVAL}s of polling"
+                    )
                 return True
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(BROWSE_POLL_INTERVAL)
 
         self.logger.error("Anki launched but search query could not be applied via AnkiConnect.")
         return False
@@ -511,8 +523,6 @@ class AnkiDirectAdapter(AnkiBridge):
 
         return cids_ordered
 
-    # Removed unused create_filtered_deck stub
-
     async def create_topo_deck(
         self, deck_name: str, cids: list[int], reschedule: bool = True
     ) -> bool:
@@ -527,96 +537,37 @@ class AnkiDirectAdapter(AnkiBridge):
             # 1. Get/Create Dynamic Deck
             did = repo.col.decks.id(deck_name, create=False)
             if did:
-                # If it exists but is not dynamic, we might have an issue.
-                # Assuming users use unique names for queues.
-                # Check if dyn
                 deck = repo.col.decks.get(did)
                 if not deck or not deck.get("dyn"):
-                    # Delete standard deck? No, too dangerous. Error out.
                     self.logger.error(f"Deck {deck_name} exists and is not a filtered deck.")
                     return False
+                # Empty existing filtered deck before rebuilding
+                repo.col.sched.empty_filtered_deck(did)
             else:
                 did = repo.col.decks.new_filtered(deck_name)
 
-            # 2. Configure Deck Search
-            # We want to pull EXACTLY these cards.
-            # Query: "cid:1 OR cid:2 ..."
-            # Note: Max query length limits? Anki handles large queries okay usually.
-
-            # Reset the deck config
+            # 2. Configure search terms
             deck = repo.col.decks.get(did)
             if not deck:
                 return False
 
-            # We use a single search term
             query = " OR ".join([f"cid:{cid}" for cid in cids])
-
-            # "terms" is a list of [search, limit, order]
-            # order=0 (Random), 1 (Oldest), etc.
-            # We'll use order=0 initially, then manually sort.
             deck["terms"] = [[query, len(cids), 0]]
-
-            # "resched": True/False.
-            # If False, they return to home deck after review.
-            # If True, reviewing them updates their actual scheduling.
-            # Usually for Study Queue we WANT rescheduling (it's real study).
             deck["resched"] = reschedule
-
             repo.col.decks.save(deck)
 
-            # 3. Rebuild (Pull cards)
-            # This pulls them into the deck.
+            # 3. Rebuild (pull cards into filtered deck)
             repo.col.sched.rebuild_filtered_deck(did)
 
-            # 4. Enforce Topological Order
-            # Rebuild pulls them in whatever order. We must REPOSITION them.
-            # In V3 scheduler, filtered deck cards are sorted by 'due'.
-            # We can use col.sched.sort_cards(cids, start=1) ?
-            # Or manually update 'due' field for these cards to 0, 1, 2...
-
-            # Note: cids list is in correct Topo Order.
-            # We want the first cid to be due=0, second due=1...
-            # Note: 'due' in filtered decks is a large integer usually?
-            # Actually for dyn decks, 'due' is the order.
-
-            # repo.col.sched.set_due_date(cids, "0") # This sets them to today?
-
-            # We can manually update db?
-            # Or use 'reposition'.
-            # repo.col.sched.reposition_cards(cids, 0, 1, False, False)
-            # Wait, reposition works on 'new' queue.
-            # For 'rev' queue cards inside dyn deck, 'due' is somewhat complex.
-
-            # Let's try explicit update.
-            # Cards in dyn deck: odid != 0.
-            # queue: 0=new, 1=lrn, 2=rev.
-            # In dyn deck, queue might be different depending on state.
-
-            # SIMPLIFICATION:
-            # We will rely on Anki's "Order Added"? No.
-            # We will iterate and set 'due' directly.
-
-            # But wait, Anki's rebuild might not include ALL cards if they are suspended/buried?
-            # Ensure query includes 'is:suspended' if we want to force them?
-
-            try:
-                # Update 'due' to force order.
-                # For dyn decks, lower 'due' = shown first (usually).
-                # We need to act on the CARD objects.
-
-                for i, cid in enumerate(cids):
-                    # cast cid to CardId if needed, though get_card usually takes int in runtime
-                    # but type checker wants CardId
+            # 4. Enforce topological order via due values
+            for i, cid in enumerate(cids):
+                try:
                     card = repo.col.get_card(cast(Any, cid))
-                    # verify it is in our deck
                     if card.did == did:
-                        card.due = i + 1000  # just to be safe and ordered
-                        # Actually due needs to be consistent.
-                        # Simple integer increment is fine for Dyn decks (Rev/New) usually.
+                        card.due = i + 1000
                         repo.col.update_card(card)
-
-            except Exception as e:
-                self.logger.warning(f"Failed to force order: {e}")
+                except Exception:
+                    pass  # Card may not have been pulled (suspended, etc.)
 
             return True
 

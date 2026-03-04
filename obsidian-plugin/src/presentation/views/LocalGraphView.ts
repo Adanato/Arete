@@ -5,7 +5,7 @@
  * that mimics Obsidian's native graph view behavior.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice, TFile, Component } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, TFile, Component } from 'obsidian';
 import * as d3 from 'd3';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ForceGraph3D = require('3d-force-graph');
@@ -38,7 +38,7 @@ export class LocalGraphView extends ItemView {
 	private depth = 2;
 	private showRelated = true;
 	private simulation: d3.Simulation<GraphNode, GraphLink> | null = null;
-	private svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+	private _svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
 	private tooltipContainer: HTMLElement | null = null;
 	private tooltipComponent: Component = new Component();
 	private renderCardNodes = false;
@@ -459,7 +459,7 @@ export class LocalGraphView extends ItemView {
 			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
 
-		this.svg = svg;
+		this._svg = svg;
 		const g = svg.append('g');
 
 		// Zoom
@@ -700,27 +700,6 @@ export class LocalGraphView extends ItemView {
 		});
 	}
 
-	drag(simulation: d3.Simulation<GraphNode, GraphLink>) {
-		function dragstarted(event: any, d: any) {
-			if (!event.active) simulation.alphaTarget(0.3).restart();
-			d.fx = d.x;
-			d.fy = d.y;
-		}
-
-		function dragged(event: any, d: any) {
-			d.fx = event.x;
-			d.fy = event.y;
-		}
-
-		function dragended(event: any, d: any) {
-			if (!event.active) simulation.alphaTarget(0);
-			d.fx = null;
-			d.fy = null;
-		}
-
-		return d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended);
-	}
-
 	async openFile(filePath: string) {
 		this.currentFilePath = filePath;
 		const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -732,13 +711,6 @@ export class LocalGraphView extends ItemView {
 	async onClose() {
 		if (this.simulation) this.simulation.stop();
 		this.tooltipComponent.unload();
-	}
-
-	async focusCard(cardId: string) {
-		console.log('[Arete Graph] Focusing card via direct call:', cardId);
-		this.centeredCardId = cardId;
-		// Ensure active file is correct or refresh uses current context
-		await this.refresh();
 	}
 
 	/**
