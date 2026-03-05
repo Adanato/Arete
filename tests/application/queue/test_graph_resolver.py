@@ -4,17 +4,20 @@ from pathlib import Path
 
 import pytest
 
-from arete.application.queue.graph_resolver import (
-    build_graph,
-    detect_cycles,
-    find_connected_components,
-    find_isolated_nodes,
-    get_local_graph,
-    topological_sort,
-)
 from arete.application.queue.builder import (
     WeakPrereqCriteria,
     build_dependency_queue,
+)
+from arete.application.queue.graph_resolver import (
+    build_graph,
+    check_graph_health,
+    detect_cycles,
+    filter_graph_by_deck,
+    find_connected_components,
+    find_isolated_nodes,
+    get_local_graph,
+    get_subgraph_for_files,
+    topological_sort,
 )
 from arete.domain.graph import CardNode, DependencyGraph
 
@@ -118,7 +121,9 @@ cards:
         # Case 2: cards is not a list
         (tmp_path / "not_list.md").write_text("---\narete: true\ncards: not-a-list\n---\n")
         # Case 3: card is not a dict
-        (tmp_path / "card_not_dict.md").write_text("---\narete: true\ncards:\n  - not_a_dict\n---\n")
+        (tmp_path / "card_not_dict.md").write_text(
+            "---\narete: true\ncards:\n  - not_a_dict\n---\n"
+        )
         # Case 4: card fields is not a dict (tests line 53)
         (tmp_path / "fields_not_dict.md").write_text(
             "---\narete: true\ncards:\n  - id: c1\n    fields: string\n---\n"
@@ -356,7 +361,7 @@ class TestFindConnectedComponents:
 
         components = find_connected_components(graph)
         assert len(components) == 2
-        component_sets = [comp for comp in components]
+        component_sets = list(components)
         assert {"a", "b"} in component_sets
         assert {"x", "y"} in component_sets
 
@@ -528,3 +533,195 @@ cards:
         visited = set()
         result = _collect_prereqs(graph, "a", depth=5, visited=visited)
         assert "a" in result
+
+
+# ---------------------------------------------------------------------------
+# check_graph_health
+# ---------------------------------------------------------------------------
+
+
+class TestCheckGraphHealth:
+    """Tests for the check_graph_health high-level analysis function."""
+
+    def _make_vault(self, tmp_path: Path, cards_yaml: str) -> Path:
+        md = f"---\narete: true\ndeck: TestDeck\ncards:\n{cards_yaml}---\n"
+        (tmp_path / "test.md").write_text(md)
+        return tmp_path
+
+    def test_healthy_graph(self, tmp_path: Path):
+        self._make_vault(
+            tmp_path,
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n",
+        )
+        result = check_graph_health(tmp_path)
+        assert result.ok is True
+        assert result.total_nodes == 2
+        assert result.total_edges == 1
+        assert len(result.cycles) == 0
+        assert len(result.unresolved_refs) == 0
+
+    def test_cycle_detected(self, tmp_path: Path):
+        self._make_vault(
+            tmp_path,
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n    deps:\n      requires: [arete_A]\n",
+        )
+        result = check_graph_health(tmp_path)
+        assert result.ok is False
+        assert len(result.cycles) == 1
+        cycle_ids = {e.card_id for e in result.cycles[0]}
+        assert cycle_ids == {"arete_A", "arete_B"}
+
+    def test_unresolved_refs(self, tmp_path: Path):
+        self._make_vault(
+            tmp_path,
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_MISSING]\n",
+        )
+        result = check_graph_health(tmp_path)
+        assert result.ok is False
+        assert len(result.unresolved_refs) == 1
+        assert result.unresolved_refs[0].card_id == "arete_A"
+        assert "arete_MISSING" in result.unresolved_refs[0].missing_refs
+
+    def test_isolated_nodes(self, tmp_path: Path):
+        self._make_vault(
+            tmp_path,
+            "  - id: arete_A\n    Front: A\n  - id: arete_B\n    Front: B\n",
+        )
+        result = check_graph_health(tmp_path)
+        assert result.ok is True
+        assert len(result.isolated_nodes) == 2
+
+    def test_roots_count(self, tmp_path: Path):
+        self._make_vault(
+            tmp_path,
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n",
+        )
+        result = check_graph_health(tmp_path)
+        # arete_B is a root: has dependents (A depends on it) but no prerequisites
+        assert result.roots == 1
+
+    def test_empty_vault(self, tmp_path: Path):
+        result = check_graph_health(tmp_path)
+        assert result.ok is True
+        assert result.total_nodes == 0
+
+
+# ---------------------------------------------------------------------------
+# filter_graph_by_deck
+# ---------------------------------------------------------------------------
+
+
+class TestFilterGraphByDeck:
+    def test_filters_by_file_deck(self, tmp_path: Path):
+        md = "---\narete: true\ndeck: Math\ncards:\n  - id: arete_A\n    Front: A\n---\n"
+        (tmp_path / "math.md").write_text(md)
+        md2 = "---\narete: true\ndeck: History\ncards:\n  - id: arete_B\n    Front: B\n---\n"
+        (tmp_path / "history.md").write_text(md2)
+
+        graph = build_graph(tmp_path)
+        filtered = filter_graph_by_deck(graph, "Math")
+        assert "arete_A" in filtered.nodes
+        assert "arete_B" not in filtered.nodes
+
+    def test_filters_by_card_deck_override(self, tmp_path: Path):
+        md = (
+            "---\narete: true\ndeck: General\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deck: SpecialDeck\n"
+            "  - id: arete_B\n    Front: B\n"
+            "---\n"
+        )
+        (tmp_path / "mixed.md").write_text(md)
+
+        graph = build_graph(tmp_path)
+        filtered = filter_graph_by_deck(graph, "Special")
+        assert "arete_A" in filtered.nodes
+        assert "arete_B" not in filtered.nodes
+
+    def test_preserves_edges(self, tmp_path: Path):
+        md = (
+            "---\narete: true\ndeck: Math\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n"
+            "---\n"
+        )
+        (tmp_path / "math.md").write_text(md)
+
+        graph = build_graph(tmp_path)
+        filtered = filter_graph_by_deck(graph, "Math")
+        assert filtered.get_prerequisites("arete_A") == ["arete_B"]
+
+
+# ---------------------------------------------------------------------------
+# get_subgraph_for_files
+# ---------------------------------------------------------------------------
+
+
+class TestGetSubgraphForFiles:
+    def test_basic_subgraph(self, tmp_path: Path):
+        md = (
+            "---\narete: true\ndeck: Test\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n"
+            "---\n"
+        )
+        f = tmp_path / "test.md"
+        f.write_text(md)
+
+        result = get_subgraph_for_files(tmp_path, [str(f)])
+        assert result.batch_cards == 2
+        assert result.external_deps == 0
+        assert len(result.nodes) == 2
+
+    def test_external_deps(self, tmp_path: Path):
+        md1 = (
+            "---\narete: true\ndeck: Test\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "---\n"
+        )
+        md2 = "---\narete: true\ndeck: Test\ncards:\n  - id: arete_B\n    Front: B\n---\n"
+        f1 = tmp_path / "a.md"
+        f2 = tmp_path / "b.md"
+        f1.write_text(md1)
+        f2.write_text(md2)
+
+        # Only include a.md in batch — arete_B is external
+        result = get_subgraph_for_files(tmp_path, [str(f1)])
+        assert result.batch_cards == 1
+        assert result.external_deps == 1
+        assert result.external_nodes[0].id == "arete_B"
+
+    def test_empty_batch(self, tmp_path: Path):
+        result = get_subgraph_for_files(tmp_path, [str(tmp_path / "nope.md")])
+        assert result.batch_cards == 0
+        assert result.nodes == []
+
+    def test_node_details(self, tmp_path: Path):
+        md = (
+            "---\narete: true\ndeck: Test\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n"
+            "---\n"
+        )
+        f = tmp_path / "test.md"
+        f.write_text(md)
+
+        result = get_subgraph_for_files(tmp_path, [str(f)])
+        node_a = next(n for n in result.nodes if n.id == "arete_A")
+        assert node_a.requires == ["arete_B"]
+        assert node_a.basename == "test"
+
+    def test_cycles_in_batch(self, tmp_path: Path):
+        md = (
+            "---\narete: true\ndeck: Test\ncards:\n"
+            "  - id: arete_A\n    Front: A\n    deps:\n      requires: [arete_B]\n"
+            "  - id: arete_B\n    Front: B\n    deps:\n      requires: [arete_A]\n"
+            "---\n"
+        )
+        f = tmp_path / "test.md"
+        f.write_text(md)
+
+        result = get_subgraph_for_files(tmp_path, [str(f)])
+        assert len(result.cycles_involving_batch) == 1
