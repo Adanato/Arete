@@ -21,8 +21,8 @@ async def test_server_get_decks(mock_bridge_factory):
 
 
 @patch("arete.application.factory.get_anki_bridge")
-@patch("arete.application.queue.builder.build_simple_queue")
-@patch("arete.application.queue.graph_resolver.build_graph")
+@patch("arete.application.queue.service.build_simple_queue")
+@patch("arete.application.queue.service.build_graph")
 @pytest.mark.asyncio
 async def test_server_build_queue(mock_build_graph, mock_build_queue, mock_bridge_factory):
     # Mock Anki Bridge

@@ -4,7 +4,10 @@ Parses YAML frontmatter to extract deps.requires and deps.related,
 builds the full dependency graph, and provides traversal utilities.
 """
 
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import networkx as nx
@@ -12,6 +15,90 @@ import networkx as nx
 from arete.application.utils.fs import iter_markdown_files
 from arete.application.utils.text import parse_frontmatter
 from arete.domain.graph import CardNode, DependencyGraph, LocalGraphResult
+
+# ---------------------------------------------------------------------------
+# Result dataclasses
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CycleEntry:
+    """A single card participating in a cycle."""
+
+    card_id: str
+    title: str
+    file: str
+
+
+@dataclass
+class IsolatedEntry:
+    """An isolated card with no deps in or out."""
+
+    card_id: str
+    title: str
+    file: str
+
+
+@dataclass
+class UnresolvedEntry:
+    """A card with unresolved dependency references."""
+
+    card_id: str
+    title: str
+    file: str
+    missing_refs: list[str]
+
+
+@dataclass
+class GraphHealthResult:
+    """Structured result of a graph health check."""
+
+    ok: bool
+    total_nodes: int
+    total_edges: int
+    roots: int
+    components: int
+    cycles: list[list[CycleEntry]]
+    isolated_nodes: list[IsolatedEntry]
+    unresolved_refs: list[UnresolvedEntry]
+    deck_filter: str | None = None
+
+
+@dataclass
+class SubgraphNodeEntry:
+    """A card node in the subgraph with its relationships."""
+
+    id: str
+    title: str
+    file: str
+    basename: str
+    line: int
+    requires: list[str]
+    required_by: list[str]
+    related: list[str]
+    unresolved: list[str]
+
+
+@dataclass
+class ExternalNodeEntry:
+    """An external card referenced by the batch but not part of it."""
+
+    id: str
+    title: str
+    file: str
+    basename: str
+
+
+@dataclass
+class SubgraphResult:
+    """Structured result of a subgraph query for a batch of files."""
+
+    batch_cards: int
+    external_deps: int
+    cycles_involving_batch: list[list[str]]
+    nodes: list[SubgraphNodeEntry]
+    external_nodes: list[ExternalNodeEntry]
+
 
 logger = logging.getLogger(__name__)
 
@@ -242,11 +329,7 @@ def detect_cycles(graph: DependencyGraph) -> list[list[str]]:
     if nx.is_directed_acyclic_graph(graph._graph):
         return []
 
-    return [
-        list(scc)
-        for scc in nx.strongly_connected_components(graph._graph)
-        if len(scc) > 1
-    ]
+    return [list(scc) for scc in nx.strongly_connected_components(graph._graph) if len(scc) > 1]
 
 
 def detect_cycles_for_card(graph: DependencyGraph, card_id: str) -> list[list[str]]:
@@ -286,8 +369,7 @@ def find_connected_components(graph: DependencyGraph) -> list[set[str]]:
             g.add_node(nid)
 
     components = [
-        {n for n in comp if n in graph.nodes}
-        for comp in nx.weakly_connected_components(g)
+        {n for n in comp if n in graph.nodes} for comp in nx.weakly_connected_components(g)
     ]
     return sorted([c for c in components if c], key=len, reverse=True)
 
@@ -348,3 +430,240 @@ def topological_sort(
         # If there are cycles, fall back to partial ordering
         logger.warning("Cycle detected in card dependencies, using original order")
         return list(valid_ids)
+
+
+# ---------------------------------------------------------------------------
+# High-level analysis functions
+# ---------------------------------------------------------------------------
+
+
+def filter_graph_by_deck(graph: DependencyGraph, deck: str) -> DependencyGraph:
+    """Filter a dependency graph to only include cards matching a deck.
+
+    Checks both file-level ``deck`` frontmatter and card-level ``deck`` overrides.
+    Edges and unresolved refs are carried over for matching nodes.
+
+    Args:
+        graph: The full dependency graph.
+        deck: Deck name substring to match against.
+
+    Returns:
+        A new DependencyGraph containing only the matching nodes.
+
+    """
+    keep_ids: set[str] = set()
+
+    # Group nodes by file to avoid re-parsing
+    file_nodes: dict[str, list[str]] = {}
+    for cid, node in graph.nodes.items():
+        file_nodes.setdefault(node.file_path, []).append(cid)
+
+    for fpath, cids in file_nodes.items():
+        try:
+            text = Path(fpath).read_text(encoding="utf-8")
+            meta, _ = parse_frontmatter(text)
+            file_deck = (meta or {}).get("deck", "")
+            if file_deck and deck in file_deck:
+                keep_ids.update(cids)
+            else:
+                # Check card-level deck overrides
+                for card in (meta or {}).get("cards", []):
+                    if isinstance(card, dict):
+                        card_deck = card.get("deck", "")
+                        if card_deck and deck in card_deck:
+                            cid = card.get("id")
+                            if cid and cid in graph.nodes:
+                                keep_ids.add(cid)
+        except Exception:
+            continue
+
+    # Rebuild graph with only matching nodes
+    filtered = DependencyGraph()
+    for cid in keep_ids:
+        if cid in graph.nodes:
+            filtered.add_node(graph.nodes[cid])
+    for cid in keep_ids:
+        for prereq in graph.get_prerequisites(cid):
+            if prereq in keep_ids:
+                filtered.add_requires(cid, prereq)
+        for rel in graph.get_related(cid):
+            if rel in keep_ids:
+                filtered.add_related(cid, rel)
+    # Carry over unresolved refs
+    for cid in keep_ids:
+        for ref in graph.unresolved_refs.get(cid, []):
+            filtered.add_unresolved(cid, ref)
+
+    return filtered
+
+
+def check_graph_health(
+    vault_root: Path,
+    deck_filter: str | None = None,
+) -> GraphHealthResult:
+    """Build the dependency graph and run all health checks.
+
+    Args:
+        vault_root: Path to the vault root directory.
+        deck_filter: Optional deck name substring to restrict analysis to.
+
+    Returns:
+        A :class:`GraphHealthResult` with cycles, isolated nodes,
+        unresolved refs, and summary counts.
+
+    """
+    graph = build_graph(vault_root)
+
+    if deck_filter:
+        graph = filter_graph_by_deck(graph, deck_filter)
+
+    cycles_raw = detect_cycles(graph)
+    isolated_ids = find_isolated_nodes(graph)
+    components = find_connected_components(graph)
+
+    # Enrich cycles with titles/files
+    enriched_cycles: list[list[CycleEntry]] = []
+    for cycle in cycles_raw:
+        enriched_cycles.append(
+            [
+                CycleEntry(
+                    card_id=cid,
+                    title=graph.nodes[cid].title if cid in graph.nodes else cid,
+                    file=graph.nodes[cid].file_path if cid in graph.nodes else "unknown",
+                )
+                for cid in cycle
+            ]
+        )
+
+    # Isolated nodes
+    isolated_entries = [
+        IsolatedEntry(
+            card_id=cid,
+            title=graph.nodes[cid].title,
+            file=graph.nodes[cid].file_path,
+        )
+        for cid in isolated_ids
+    ]
+
+    # Unresolved refs
+    unresolved_entries: list[UnresolvedEntry] = []
+    for cid, refs in graph.unresolved_refs.items():
+        if refs and cid in graph.nodes:
+            node = graph.nodes[cid]
+            unresolved_entries.append(
+                UnresolvedEntry(
+                    card_id=cid,
+                    title=node.title,
+                    file=node.file_path,
+                    missing_refs=refs,
+                )
+            )
+
+    # Root nodes: have dependents but no prerequisites
+    roots = [
+        cid for cid in graph.nodes if not graph.get_prerequisites(cid) and graph.get_dependents(cid)
+    ]
+
+    ok = len(cycles_raw) == 0 and len(unresolved_entries) == 0
+
+    return GraphHealthResult(
+        ok=ok,
+        total_nodes=len(graph.nodes),
+        total_edges=graph.edge_count,
+        roots=len(roots),
+        components=len(components),
+        cycles=enriched_cycles,
+        isolated_nodes=isolated_entries,
+        unresolved_refs=unresolved_entries,
+        deck_filter=deck_filter,
+    )
+
+
+def get_subgraph_for_files(
+    vault_root: Path,
+    file_paths: list[str],
+) -> SubgraphResult:
+    """Build a dependency subgraph for a batch of files.
+
+    Returns all cards in the given files with their deps, plus edges
+    to/from cards outside the batch (external deps).
+
+    Args:
+        vault_root: Path to the vault root directory.
+        file_paths: Absolute paths to markdown files.
+
+    Returns:
+        A :class:`SubgraphResult` with batch nodes, external deps,
+        and batch-relevant cycles.
+
+    """
+    graph = build_graph(vault_root)
+    paths_set = set(file_paths)
+
+    # Identify cards in the batch
+    batch_ids: set[str] = set()
+    for cid, node in graph.nodes.items():
+        if node.file_path in paths_set:
+            batch_ids.add(cid)
+
+    if not batch_ids:
+        return SubgraphResult(
+            batch_cards=0,
+            external_deps=0,
+            cycles_involving_batch=[],
+            nodes=[],
+            external_nodes=[],
+        )
+
+    # Build node list with full info
+    nodes: list[SubgraphNodeEntry] = []
+    for cid in sorted(batch_ids):
+        node = graph.nodes[cid]
+        nodes.append(
+            SubgraphNodeEntry(
+                id=cid,
+                title=node.title,
+                file=node.file_path,
+                basename=Path(node.file_path).stem,
+                line=node.line_number,
+                requires=graph.get_prerequisites(cid),
+                required_by=graph.get_dependents(cid),
+                related=graph.get_related(cid),
+                unresolved=graph.unresolved_refs.get(cid, []),
+            )
+        )
+
+    # External deps: cards outside the batch that batch cards reference
+    external_ids: set[str] = set()
+    for cid in batch_ids:
+        for prereq in graph.get_prerequisites(cid):
+            if prereq not in batch_ids:
+                external_ids.add(prereq)
+        for dep in graph.get_dependents(cid):
+            if dep not in batch_ids:
+                external_ids.add(dep)
+
+    external_nodes: list[ExternalNodeEntry] = []
+    for cid in sorted(external_ids):
+        if cid in graph.nodes:
+            node = graph.nodes[cid]
+            external_nodes.append(
+                ExternalNodeEntry(
+                    id=cid,
+                    title=node.title,
+                    file=node.file_path,
+                    basename=Path(node.file_path).stem,
+                )
+            )
+
+    # Check for cycles within the batch
+    cycles_raw = detect_cycles(graph)
+    batch_cycles = [c for c in cycles_raw if any(cid in batch_ids for cid in c)]
+
+    return SubgraphResult(
+        batch_cards=len(nodes),
+        external_deps=len(external_nodes),
+        cycles_involving_batch=batch_cycles,
+        nodes=nodes,
+        external_nodes=external_nodes,
+    )

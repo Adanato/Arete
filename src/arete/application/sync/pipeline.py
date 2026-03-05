@@ -13,14 +13,13 @@ except ImportError:
 from arete.application.config import AppConfig
 from arete.application.sync.id_service import ensure_card_ids
 from arete.application.sync.parser import MarkdownParser
+from arete.application.sync.vault_service import VaultService
 from arete.application.utils.logging import RunRecorder
 from arete.application.utils.media import build_filename_index
 from arete.application.utils.text import parse_frontmatter, rebuild_markdown_with_frontmatter
-from arete.application.sync.vault_service import VaultService
 from arete.domain.constants import CONSUMER_BATCH_SIZE
-from arete.domain.interfaces import AnkiBridge
+from arete.domain.interfaces import AnkiBridge, ContentCache
 from arete.domain.models import AnkiDeck, UpdateItem, WorkItem
-from arete.domain.interfaces import ContentCache
 
 
 @dataclass

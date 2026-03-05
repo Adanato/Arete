@@ -22,9 +22,7 @@ def _parse_cids(cids: str) -> list[int]:
     return [int(n.strip()) for n in cids.split(",") if n.strip().isdigit()]
 
 
-def _run_anki_bridge_action(
-    action_fn, *, result_key: str | None = "ok", **config_kwargs
-) -> None:
+def _run_anki_bridge_action(action_fn, *, result_key: str | None = "ok", **config_kwargs) -> None:
     """Run an async AnkiBridge action with standard config/bridge setup.
 
     If *result_key* is given, the output is ``{result_key: value}``; when
@@ -95,12 +93,9 @@ def anki_stats(
             anki_base=anki_base,
         )
 
-        from arete.application.factory import get_stats_repo
-        from arete.application.stats.metrics_calculator import MetricsCalculator
-        from arete.application.stats.service import FsrsStatsService
+        from arete.application.factory import get_stats_service
 
-        repo = get_stats_repo(config)
-        service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
+        service = get_stats_service(config)
         return await service.get_enriched_stats(nids_list)
 
     stats = asyncio.run(run())

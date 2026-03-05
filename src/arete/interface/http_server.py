@@ -4,11 +4,10 @@ import signal
 import threading
 import time
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
-from importlib.metadata import version
 
 VERSION = version("arete")
 
@@ -295,12 +294,9 @@ async def get_stats(req: StatsRequest):
 
         config = resolve_config(overrides)
 
-        from arete.application.factory import get_stats_repo
-        from arete.application.stats.metrics_calculator import MetricsCalculator
-        from arete.application.stats.service import FsrsStatsService
+        from arete.application.factory import get_stats_service
 
-        repo = get_stats_repo(config)
-        service = FsrsStatsService(repo=repo, calculator=MetricsCalculator())
+        service = get_stats_service(config)
         stats = await service.get_enriched_stats(req.nids)
         return stats
     except Exception as e:
@@ -382,8 +378,7 @@ async def build_queue(req: QueueBuildRequest):
 
     from arete.application.config import resolve_config
     from arete.application.factory import get_anki_bridge
-    from arete.application.queue.graph_resolver import build_graph
-    from arete.application.queue.builder import build_simple_queue
+    from arete.application.queue.service import build_study_queue
 
     try:
         overrides = {
@@ -398,45 +393,33 @@ async def build_queue(req: QueueBuildRequest):
             raise HTTPException(status_code=400, detail="Vault root not configured.")
 
         anki = await get_anki_bridge(config)
-
-        # Get due cards from Anki
-        nids = await anki.get_due_cards(req.deck)
-        arete_ids = await anki.map_nids_to_arete_ids(nids)
-
-        if not arete_ids:
-            return {
-                "deck": req.deck or "All Decks",
-                "due_count": 0,
-                "total_with_prereqs": 0,
-                "queue": [],
-            }
-
-        # Build queue with prerequisites
         vault_root = Path(config.vault_root)
-        result = build_simple_queue(vault_root, arete_ids, req.depth, req.max_cards)
 
-        # Build response with card details
-        graph = build_graph(vault_root)
-        queue_items = []
-        all_cards = result.prereq_queue + result.main_queue
-
-        for idx, card_id in enumerate(all_cards, 1):
-            node = graph.nodes.get(card_id)
-            queue_items.append(
-                {
-                    "position": idx,
-                    "id": card_id,
-                    "title": node.title if node else card_id,
-                    "file": node.file_path if node else "",
-                    "is_prereq": card_id in result.prereq_queue,
-                }
-            )
+        result = await build_study_queue(
+            anki,
+            vault_root,
+            deck=req.deck,
+            depth=req.depth,
+            max_cards=req.max_cards,
+            algo="simple",
+            dry_run=True,  # /queue/build only plans; /queue/create-deck creates
+            enrich=True,
+        )
 
         return {
             "deck": req.deck or "All Decks",
-            "due_count": len(arete_ids),
-            "total_with_prereqs": len(all_cards),
-            "queue": queue_items,
+            "due_count": result.due_count - result.unmapped_count,
+            "total_with_prereqs": result.total_queued,
+            "queue": [
+                {
+                    "position": item.position,
+                    "id": item.id,
+                    "title": item.title,
+                    "file": item.file,
+                    "is_prereq": item.is_prereq,
+                }
+                for item in result.queue_items
+            ],
         }
     except HTTPException:
         # Re-raise HTTPExceptions (like the 400 validation error)

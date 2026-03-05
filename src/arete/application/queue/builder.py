@@ -284,7 +284,7 @@ def _dynamic_frontier_order(
     valid = [cid for cid in candidate_ids if cid in graph.nodes]
     valid_set = set(valid)
 
-    in_degree: dict[str, int] = {cid: 0 for cid in valid}
+    in_degree: dict[str, int] = dict.fromkeys(valid, 0)
     dependents: dict[str, list[str]] = {cid: [] for cid in valid}
 
     for cid in valid:

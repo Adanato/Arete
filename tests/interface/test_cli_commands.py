@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from typer.testing import CliRunner
 
+from arete.application.validation import humanize_error
 from arete.interface.cli import app
-from arete.interface.vault_commands import humanize_error
 
 runner = CliRunner()
 
@@ -74,7 +74,9 @@ def test_config_show_command(mock_resolve_config):
 def test_serve_daemon_command(mock_run):
     result = runner.invoke(app, ["serve", "daemon", "--port", "9000"])
     assert result.exit_code == 0
-    mock_run.assert_called_with("arete.interface.http_server:app", host="127.0.0.1", port=9000, reload=False)
+    mock_run.assert_called_with(
+        "arete.interface.http_server:app", host="127.0.0.1", port=9000, reload=False
+    )
 
 
 # --- Anki Subcommands ---
@@ -284,8 +286,8 @@ def test_anki_browse():
 
 @patch("arete.interface._common.resolve_config")
 @patch("arete.application.factory.get_anki_bridge")
-@patch("arete.application.queue.builder.build_dynamic_queue")
-@patch("arete.application.queue.builder.build_dependency_queue")
+@patch("arete.application.queue.service.build_dynamic_queue")
+@patch("arete.application.queue.service.build_dependency_queue")
 def test_queue_root_static_default(
     mock_build_static,
     mock_build_dynamic,
@@ -322,8 +324,8 @@ def test_queue_root_static_default(
 
 @patch("arete.interface._common.resolve_config")
 @patch("arete.application.factory.get_anki_bridge")
-@patch("arete.application.queue.builder.build_dynamic_queue")
-@patch("arete.application.queue.builder.build_dependency_queue")
+@patch("arete.application.queue.service.build_dynamic_queue")
+@patch("arete.application.queue.service.build_dependency_queue")
 def test_queue_dynamic_algo(
     mock_build_static,
     mock_build_dynamic,

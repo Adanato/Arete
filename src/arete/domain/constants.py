@@ -31,3 +31,18 @@ DEFAULT_MAX_QUEUE_SIZE = 50
 
 # ---------- Media Discovery ----------
 MEDIA_DIR_NAMES = ["attachments", "attach", "assets", ".assets", "images", "img", "media"]
+
+# ---------- Card Schema ----------
+CARD_KEY_ORDER = ["id", "model", "Front", "Back", "Text", "Extra", "deps", "anki"]
+ANKI_LEGACY_KEYS = ["nid", "cid", "note_id", "card_id"]
+PRIMARY_FIELD_NAMES = {
+    "Front",
+    "Text",
+    "Question",
+    "Term",
+    "Expression",
+    "front",
+    "text",
+    "question",
+    "term",
+}

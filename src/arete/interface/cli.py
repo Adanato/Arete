@@ -210,7 +210,7 @@ def queue(
     import asyncio
 
     from arete.application.factory import get_anki_bridge
-    from arete.application.queue.builder import build_dependency_queue, build_dynamic_queue
+    from arete.application.queue.service import build_study_queue
 
     config = _resolve_with_overrides(root_input=path)
     vault_root = config.root_input
@@ -225,70 +225,50 @@ def queue(
         )
         raise typer.Exit(2)
 
-    # When --deck is specified without --cross-deck, don't walk prerequisites
-    # outside the deck. This keeps the queue as an isolated set.
-    effective_depth = depth if (not deck or cross_deck) else 0
-
     async def run():
         anki = await get_anki_bridge(config)
 
-        nids = await anki.get_due_cards(deck, include_new=include_new)
-        if not nids:
+        result = await build_study_queue(
+            anki,
+            vault_root,
+            deck=deck,
+            depth=depth,
+            include_new=include_new,
+            include_related=include_related,
+            cross_deck=cross_deck,
+            algo=algo,
+            dry_run=dry_run,
+            enrich=False,
+        )
+
+        if result.due_count == 0:
             typer.secho("No cards found.", fg="yellow")
             return
 
-        arete_ids = await anki.map_nids_to_arete_ids(nids)
-        unmapped = len(nids) - len(arete_ids)
-
-        if unmapped > 0:
+        if result.unmapped_count > 0:
             typer.secho(
-                f"WARNING: {unmapped}/{len(nids)} cards have no Arete ID tag. "
+                f"WARNING: {result.unmapped_count}/{result.due_count} cards have no Arete ID tag. "
                 f"Run 'arete sync' to assign IDs and fix this.",
                 fg="yellow",
             )
 
-        if algo == "dynamic":
-            result = build_dynamic_queue(
-                vault_root,
-                arete_ids,
-                depth=effective_depth,
-                include_related=include_related,
-            )
-        else:
-            result = build_dependency_queue(
-                vault_root,
-                arete_ids,
-                depth=effective_depth,
-                include_related=include_related,
-            )
-
-        typer.echo(f"Due cards: {len(nids)} ({unmapped} without Arete IDs)")
+        typer.echo(f"Due cards: {result.due_count} ({result.unmapped_count} without Arete IDs)")
         typer.echo(f"Algorithm: {algo}")
-        if result.prereq_queue:
-            typer.echo(f"Weak prerequisites: {len(result.prereq_queue)}")
-        typer.echo(f"Main queue: {len(result.main_queue)}")
+        if result.prereq_count:
+            typer.echo(f"Weak prerequisites: {result.prereq_count}")
+        typer.echo(f"Main queue: {result.main_count}")
         if result.missing_prereqs:
             typer.secho(f"Missing prereqs: {result.missing_prereqs}", fg="yellow")
         if result.cycles:
             typer.secho(f"Cycles detected: {len(result.cycles)}", fg="yellow")
 
-        if not dry_run:
-            # Static mode keeps full topo sort. Dynamic mode uses its frontier order.
-            if algo == "dynamic" and result.ordered_queue:
-                combined = result.ordered_queue
-            else:
-                from arete.application.queue.graph_resolver import build_graph, topological_sort
-
-                all_ids = list(dict.fromkeys(result.prereq_queue + result.main_queue))
-                graph = build_graph(vault_root)
-                combined = topological_sort(graph, all_ids)
-            cids = await anki.get_card_ids_for_arete_ids(combined)
-            if cids:
-                ok = await anki.create_topo_deck("Arete::Queue", cids)
-                if ok:
-                    typer.secho(f"Created 'Arete::Queue' with {len(cids)} cards.", fg="green")
-                else:
-                    typer.secho("Failed to create filtered deck.", fg="red")
+        if not dry_run and result.deck_created:
+            typer.secho(
+                f"Created '{result.deck_name}' with {result.deck_card_count} cards.",
+                fg="green",
+            )
+        elif not dry_run and result.total_queued > 0 and not result.deck_created:
+            typer.secho("Failed to create filtered deck.", fg="red")
 
     asyncio.run(run())
 
@@ -323,8 +303,7 @@ def report(
         remaining = load_reports()
         remaining_cids = {r["cid"] for r in remaining if r.get("cid")}
         to_unsuspend = [
-            r["cid"] for r in cleared
-            if r.get("cid") and r["cid"] not in remaining_cids
+            r["cid"] for r in cleared if r.get("cid") and r["cid"] not in remaining_cids
         ]
 
         if to_unsuspend:
@@ -424,101 +403,55 @@ def graph_check(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
 ):
     """Check dependency graph health: cycles, isolated cards, missing refs, components."""
-    from arete.application.queue.graph_resolver import (
-        build_graph,
-        detect_cycles,
-        find_connected_components,
-        find_isolated_nodes,
-    )
+    from dataclasses import asdict
+
+    from arete.application.queue.graph_resolver import check_graph_health
 
     config = _resolve_with_overrides(root_input=path)
     vault_root = config.root_input
     if vault_root is None:
         typer.secho("No vault root configured. Pass a path or set O2A_ROOT_INPUT.", fg="red")
         raise typer.Exit(1)
-    graph = build_graph(vault_root)
 
-    cycles = detect_cycles(graph)
-    isolated = find_isolated_nodes(graph)
-    components = find_connected_components(graph)
-    unresolved = {cid: refs for cid, refs in graph.unresolved_refs.items() if refs}
-
-    total_nodes = len(graph.nodes)
-    total_edges = graph.edge_count
-    roots = [
-        cid
-        for cid in graph.nodes
-        if not graph.get_prerequisites(cid) and graph.get_dependents(cid)
-    ]
+    result = check_graph_health(vault_root)
 
     if json_output:
-        typer.echo(
-            json.dumps(
-                {
-                    "ok": not cycles and not unresolved,
-                    "nodes": total_nodes,
-                    "edges": total_edges,
-                    "roots": len(roots),
-                    "components": len(components),
-                    "cycles": cycles,
-                    "isolated": len(isolated),
-                    "isolated_cards": [
-                        {
-                            "id": cid,
-                            "title": graph.nodes[cid].title,
-                            "file": graph.nodes[cid].file_path,
-                        }
-                        for cid in isolated
-                    ],
-                    "unresolved": {cid: refs for cid, refs in unresolved.items()},
-                },
-                indent=2,
-            )
-        )
+        typer.echo(json.dumps(asdict(result), indent=2))
     else:
         typer.echo(
-            f"Nodes: {total_nodes}  Edges: {total_edges}"
-            f"  Components: {len(components)}  Roots: {len(roots)}"
+            f"Nodes: {result.total_nodes}  Edges: {result.total_edges}"
+            f"  Components: {result.components}  Roots: {result.roots}"
         )
 
-        if cycles:
-            typer.secho(f"\nCycles: {len(cycles)}", fg="red")
-            for cycle in cycles:
-                titles = [graph.nodes[c].title for c in cycle if c in graph.nodes]
+        if result.cycles:
+            typer.secho(f"\nCycles: {len(result.cycles)}", fg="red")
+            for cycle in result.cycles:
+                titles = [entry.title for entry in cycle]
                 typer.echo(f"  {' -> '.join(titles)}")
         else:
             typer.secho("Cycles: 0", fg="green")
 
-        if isolated:
+        if result.isolated_nodes:
             typer.secho(
-                f"\nIsolated cards (no deps in or out): {len(isolated)}", fg="yellow"
+                f"\nIsolated cards (no deps in or out): {len(result.isolated_nodes)}",
+                fg="yellow",
             )
-            for cid in isolated:
-                node = graph.nodes[cid]
-                typer.echo(f"  {node.title}  ({Path(node.file_path).name})")
+            for entry in result.isolated_nodes:
+                typer.echo(f"  {entry.title}  ({Path(entry.file).name})")
         else:
             typer.secho("Isolated: 0", fg="green")
 
-        if unresolved:
-            typer.secho(
-                f"\nUnresolved references: {sum(len(v) for v in unresolved.values())}",
-                fg="red",
-            )
-            for cid, refs in unresolved.items():
-                node = graph.nodes[cid]
-                for ref in refs:
-                    typer.echo(f"  {node.title} -> {ref}  (missing)")
+        if result.unresolved_refs:
+            total_refs = sum(len(e.missing_refs) for e in result.unresolved_refs)
+            typer.secho(f"\nUnresolved references: {total_refs}", fg="red")
+            for entry in result.unresolved_refs:
+                for ref in entry.missing_refs:
+                    typer.echo(f"  {entry.title} -> {ref}  (missing)")
         else:
             typer.secho("Unresolved: 0", fg="green")
 
-        if len(components) > 1:
-            typer.secho(f"\nConnected components: {len(components)}", fg="yellow")
-            for i, comp in enumerate(components):
-                sample = next(iter(comp))
-                sample_file = Path(graph.nodes[sample].file_path).name
-                typer.echo(f"  [{i + 1}] {len(comp)} cards (e.g. {sample_file})")
+        if result.components > 1:
+            typer.secho(f"\nConnected components: {result.components}", fg="yellow")
 
-        if cycles or unresolved:
+        if result.cycles or result.unresolved_refs:
             raise typer.Exit(1)
-
-

@@ -3,9 +3,15 @@ Centralizes construction of concrete infrastructure implementations.
 This is the ONLY application-layer module allowed to import from infrastructure.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from arete.application.config import AppConfig
+
+if TYPE_CHECKING:
+    from arete.application.stats.service import FsrsStatsService
 from arete.application.sync.vault_service import VaultService
 from arete.domain.interfaces import AnkiBridge, ContentCache
 from arete.domain.stats.ports import StatsRepository
@@ -57,3 +63,12 @@ def get_stats_repo(config: AppConfig) -> StatsRepository:
         url = config.anki_connect_url or "http://localhost:8765"
         return ConnectStatsRepository(url=url)
     return DirectStatsRepository(anki_base=config.anki_base)
+
+
+def get_stats_service(config: AppConfig) -> FsrsStatsService:
+    """Returns a fully wired FsrsStatsService instance."""
+    from arete.application.stats.metrics_calculator import MetricsCalculator
+    from arete.application.stats.service import FsrsStatsService
+
+    repo = get_stats_repo(config)
+    return FsrsStatsService(repo=repo, calculator=MetricsCalculator())

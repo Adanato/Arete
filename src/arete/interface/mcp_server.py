@@ -15,8 +15,8 @@ from mcp.server.fastmcp import FastMCP
 
 from arete.application.config import AppConfig, resolve_config
 from arete.application.factory import get_anki_bridge
-from arete.domain.interfaces import AnkiBridge
 from arete.application.orchestrator import execute_sync
+from arete.domain.interfaces import AnkiBridge
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +135,30 @@ def create_server() -> FastMCP:  # noqa: C901
     # ------------------------------------------------------------------
 
     @mcp.tool()
+    async def check_graph(vault_path: str = "", deck: str = "") -> str:
+        """Check dependency graph health: cycles, isolated cards, unresolved refs.
+
+        Scans the vault for all Arete cards, builds the dependency graph,
+        and reports structural issues. No Anki connection needed.
+
+        Args:
+            vault_path: Path to vault (optional, uses config default)
+            deck: Optional deck filter — only check cards in this deck
+
+        """
+        from dataclasses import asdict
+
+        from arete.application.queue.graph_resolver import check_graph_health
+
+        config = _config()
+        vault_root = Path(vault_path) if vault_path else config.vault_root
+        if vault_root is None:
+            return "Error: vault_root not configured"
+
+        result = check_graph_health(vault_root, deck_filter=deck or None)
+        return json.dumps(asdict(result), indent=2)
+
+    @mcp.tool()
     async def browse_concept(concept: str, deck: str = "CS::DSA") -> str:
         """Open the Anki card browser filtered to a concept's cards.
 
@@ -184,51 +208,19 @@ def create_server() -> FastMCP:  # noqa: C901
             deck: Optional deck filter -- only show cards in this deck
 
         """
-        from arete.application.utils.text import parse_frontmatter
+        from dataclasses import asdict
+
+        from arete.application.card_reader import get_concept_cards as _get_concept_cards
 
         config = _config()
         vault_root = config.vault_root
         if vault_root is None:
             return "Error: vault_root not configured"
 
-        # Search for the concept note
-        concept_path = _find_concept_file(vault_root, concept)
-        if concept_path is None:
-            return f"No vault note found for concept '{concept}'"
-
-        text = concept_path.read_text(encoding="utf-8", errors="replace")
-        meta, _ = parse_frontmatter(text)
-        if not meta or "__yaml_error__" in meta:
-            return f"Error parsing frontmatter in {concept_path.name}"
-
-        cards = meta.get("cards", [])
-        if not cards:
-            return f"No cards found in {concept_path.name}"
-
-        doc_deck = meta.get("deck", "")
-        results = []
-        for i, card in enumerate(cards, 1):
-            if not isinstance(card, dict):
-                continue
-            card_deck = card.get("deck", doc_deck)
-            if deck and card_deck and deck not in card_deck:
-                continue
-            results.append(_extract_card_entry(card, i, card_deck))
-
-        if not results:
-            return f"No cards matched in {concept_path.name}" + (
-                f" (deck filter: {deck})" if deck else ""
-            )
-
-        return json.dumps(
-            {
-                "concept": concept,
-                "file": concept_path.name,
-                "card_count": len(results),
-                "cards": results,
-            },
-            indent=2,
-        )
+        result = _get_concept_cards(vault_root, concept, deck_filter=deck)
+        if isinstance(result, str):
+            return result
+        return json.dumps(asdict(result), indent=2)
 
     @mcp.tool()
     async def get_due_cards(
@@ -288,7 +280,7 @@ def create_server() -> FastMCP:  # noqa: C901
             include_new: Whether to include new (unreviewed) cards
 
         """
-        from arete.application.queue.builder import build_simple_queue
+        from arete.application.queue.service import build_study_queue as _build_queue
 
         bridge = await _bridge()
         config = _config()
@@ -296,38 +288,27 @@ def create_server() -> FastMCP:  # noqa: C901
         if vault_root is None:
             return "Error: vault_root not configured"
 
-        # Get due cards
-        nids = await bridge.get_due_cards(deck_name=deck, include_new=include_new)
-        if not nids:
-            return f"No cards due in deck {deck}"
-
-        # Map to Arete IDs
-        arete_ids = await bridge.map_nids_to_arete_ids(nids)
-        valid_ids = [aid for aid in arete_ids if aid]
-        if not valid_ids:
-            return "Could not resolve any due cards to Arete IDs"
-
-        # Build queue
-        result = build_simple_queue(
-            vault_root=vault_root,
-            due_card_ids=valid_ids,
+        result = await _build_queue(
+            bridge,
+            vault_root,
+            deck=deck,
             depth=depth,
+            include_new=include_new,
+            algo="simple",
+            enrich=False,
         )
 
-        # Create filtered deck in Anki
-        all_ordered = result.prereq_queue + result.main_queue
-        if all_ordered:
-            cids = await bridge.get_card_ids_for_arete_ids(all_ordered)
-            valid_cids = [c for c in cids if c]
-            if valid_cids:
-                await bridge.create_topo_deck("Arete::Queue", valid_cids)
+        if result.due_count == 0:
+            return f"No cards due in deck {deck}"
+
+        all_ordered = [item.id for item in result.queue_items]
 
         return json.dumps(
             {
                 "deck": deck,
-                "due_cards": len(result.main_queue),
-                "prereq_cards": len(result.prereq_queue),
-                "total_queued": len(all_ordered),
+                "due_cards": result.main_count,
+                "prereq_cards": result.prereq_count,
+                "total_queued": result.total_queued,
                 "missing_prereqs": result.missing_prereqs,
                 "cycles": result.cycles,
                 "queue_order": all_ordered,
@@ -335,54 +316,73 @@ def create_server() -> FastMCP:  # noqa: C901
             indent=2,
         )
 
+    # ------------------------------------------------------------------
+    # Agent-support tools (structured data for dep-wirer, auditors)
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    async def get_note_body(file_path: str) -> str:
+        """Get only the markdown body of a note, stripping YAML frontmatter.
+
+        Use this instead of Read when you already have card data from
+        list_file_cards and only need the body content (definitions,
+        intuition, related concepts, etc.).
+
+        Args:
+            file_path: Absolute path to the markdown file
+
+        """
+        from arete.application.card_reader import get_note_body as _get_note_body
+
+        return _get_note_body(Path(file_path))
+
+    @mcp.tool()
+    async def list_file_cards(file_path: str) -> str:
+        """Extract all Arete cards from a markdown file as structured JSON.
+
+        Returns each card's id, front/back (or Text for Cloze), model, deck,
+        tags, and current deps. Agents should use this instead of reading
+        raw markdown and parsing YAML themselves.
+
+        Args:
+            file_path: Absolute path to the markdown file
+
+        """
+        from dataclasses import asdict
+
+        from arete.application.card_reader import list_file_cards as _list_file_cards
+
+        result = _list_file_cards(Path(file_path))
+        if isinstance(result, str):
+            return json.dumps({"error": result})
+        return json.dumps(asdict(result), indent=2)
+
+    @mcp.tool()
+    async def get_dep_subgraph(file_paths: str) -> str:
+        """Build a dependency subgraph for a batch of files.
+
+        Returns all cards in the given files with their deps, plus edges
+        to/from cards outside the batch (external deps). Useful for the
+        dep-wirer agent to see the full picture before editing.
+
+        Args:
+            file_paths: Comma-separated absolute paths to markdown files
+
+        """
+        from dataclasses import asdict
+
+        from arete.application.queue.graph_resolver import get_subgraph_for_files
+
+        config = _config()
+        vault_root = config.vault_root
+        if vault_root is None:
+            return json.dumps({"error": "vault_root not configured"})
+
+        paths = [p.strip() for p in file_paths.split(",") if p.strip()]
+        result = get_subgraph_for_files(vault_root, paths)
+        return json.dumps(asdict(result), indent=2)
+
     return mcp
-
-
-def _extract_card_entry(card: dict[str, Any], index: int, card_deck: str) -> dict[str, Any]:
-    """Extract a card's display fields into a summary dict."""
-    entry: dict[str, Any] = {"index": index}
-    if card.get("id"):
-        entry["arete_id"] = card["id"]
-    if card.get("model"):
-        entry["model"] = card["model"]
-    entry["deck"] = card_deck
-
-    # Content fields (case-insensitive first letter)
-    for key in ("Front", "Back", "Text", "Back Extra"):
-        value = card.get(key) or card.get(key.lower())
-        if value:
-            entry[key] = value
-
-    deps = card.get("deps", {})
-    if deps:
-        entry["deps"] = deps
-    return entry
-
-
-def _find_concept_file(vault_root: Path, concept: str) -> Path | None:
-    """Find a concept note in the vault by name.
-
-    Tries exact match first, then case-insensitive search.
-    """
-    # Exact match
-    exact = vault_root / f"{concept}.md"
-    if exact.exists():
-        return exact
-
-    # Case-insensitive search in vault root
-    concept_lower = concept.lower()
-    for p in vault_root.iterdir():
-        if p.suffix == ".md" and p.stem.lower() == concept_lower:
-            return p
-
-    # Search subdirectories (one level deep)
-    for d in vault_root.iterdir():
-        if d.is_dir() and not d.name.startswith("."):
-            for p in d.iterdir():
-                if p.suffix == ".md" and p.stem.lower() == concept_lower:
-                    return p
-
-    return None
 
 
 # Module-level server instance for the entry point

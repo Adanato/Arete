@@ -18,6 +18,7 @@ class CardNode:
         title: Display name (typically the Front field or filename)
         file_path: Path to source markdown file
         line_number: Line number in source file for navigation
+
     """
 
     id: str

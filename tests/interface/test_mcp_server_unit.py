@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from arete.interface.mcp_server import _find_concept_file, create_server
+from arete.application.card_reader import find_concept_file
+from arete.interface.mcp_server import create_server
 
 
 @pytest.fixture
@@ -135,9 +136,7 @@ async def test_browse_concept_failure(mcp_server):
         mock_bridge.gui_browse.return_value = False
         mock_get.return_value = mock_bridge
 
-        result = await mcp_server.call_tool(
-            "browse_concept", {"concept": "Hash Table"}
-        )
+        result = await mcp_server.call_tool("browse_concept", {"concept": "Hash Table"})
         assert "Failed" in _text(result)
 
 
@@ -194,9 +193,7 @@ Body text here.
     mock_config.vault_root = tmp_path
 
     with patch("arete.interface.mcp_server.resolve_config", return_value=mock_config):
-        result = await mcp_server.call_tool(
-            "get_concept_cards", {"concept": "Hash Table"}
-        )
+        result = await mcp_server.call_tool("get_concept_cards", {"concept": "Hash Table"})
         data = json.loads(_text(result))
         assert data["card_count"] == 2
         assert data["cards"][0]["Front"] == "What is a hash table?"
@@ -209,9 +206,7 @@ async def test_get_concept_cards_not_found(mcp_server, tmp_path):
     mock_config.vault_root = tmp_path
 
     with patch("arete.interface.mcp_server.resolve_config", return_value=mock_config):
-        result = await mcp_server.call_tool(
-            "get_concept_cards", {"concept": "Nonexistent"}
-        )
+        result = await mcp_server.call_tool("get_concept_cards", {"concept": "Nonexistent"})
         assert "No vault note found" in _text(result)
 
 
@@ -249,39 +244,37 @@ async def test_get_due_cards_none(mcp_server):
         mock_bridge.get_due_cards.return_value = []
         mock_get.return_value = mock_bridge
 
-        result = await mcp_server.call_tool(
-            "get_due_cards", {"deck": "CS::DSA"}
-        )
+        result = await mcp_server.call_tool("get_due_cards", {"deck": "CS::DSA"})
         assert "No cards due" in _text(result)
 
 
 # ------------------------------------------------------------------
-# _find_concept_file
+# find_concept_file
 # ------------------------------------------------------------------
 
 
-def test_find_concept_file_exact(tmp_path):
+def testfind_concept_file_exact(tmp_path):
     (tmp_path / "Hash Table.md").touch()
-    result = _find_concept_file(tmp_path, "Hash Table")
+    result = find_concept_file(tmp_path, "Hash Table")
     assert result is not None
     assert result.name == "Hash Table.md"
 
 
-def test_find_concept_file_case_insensitive(tmp_path):
+def testfind_concept_file_case_insensitive(tmp_path):
     (tmp_path / "hash table.md").touch()
-    result = _find_concept_file(tmp_path, "Hash Table")
+    result = find_concept_file(tmp_path, "Hash Table")
     assert result is not None
 
 
-def test_find_concept_file_subdirectory(tmp_path):
+def testfind_concept_file_subdirectory(tmp_path):
     subdir = tmp_path / "concepts"
     subdir.mkdir()
     (subdir / "Binary Search.md").touch()
-    result = _find_concept_file(tmp_path, "Binary Search")
+    result = find_concept_file(tmp_path, "Binary Search")
     assert result is not None
     assert result.name == "Binary Search.md"
 
 
-def test_find_concept_file_not_found(tmp_path):
-    result = _find_concept_file(tmp_path, "Nonexistent")
+def testfind_concept_file_not_found(tmp_path):
+    result = find_concept_file(tmp_path, "Nonexistent")
     assert result is None
