@@ -61,6 +61,8 @@ dev = [
     "coverage-badge>=1.1.2",
     "pyinstrument>=5.1.2",
     "pytest-deduplicate>=0.1.6",
+    "docker>=7.1.0",
+    "hypothesis>=6.151.9",
 ]
 
 [tool.importlinter]
