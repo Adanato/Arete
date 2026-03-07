@@ -5,12 +5,12 @@ import pytest
 
 from arete.application.config import AppConfig
 from arete.application.sync.pipeline import RunStats
-from arete.application.orchestrator import run_sync_logic
+from arete.application.orchestrator import SyncFailedError, run_sync_logic
 
 
 @pytest.mark.asyncio
 async def test_run_sync_logic_failure_exit():
-    """Test that run_sync_logic sys.exit(1) if stats.total_errors > 0."""
+    """Test that run_sync_logic raises SyncFailedError if stats.total_errors > 0."""
     # root_input must be set to pass assertion in main.py
     # We use valid Path objects
     config = AppConfig(
@@ -39,9 +39,8 @@ async def test_run_sync_logic_failure_exit():
             mock_instance.is_responsive = AsyncMock(return_value=True)
             mock_instance.close = AsyncMock()
 
-            with pytest.raises(SystemExit) as exc:
+            with pytest.raises(SyncFailedError):
                 await run_sync_logic(config)
-            assert exc.value.code == 1
 
 
 def test_main_module_invoke():

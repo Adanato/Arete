@@ -123,9 +123,12 @@ def sync(
 
     import asyncio
 
-    from arete.application.orchestrator import run_sync_logic
+    from arete.application.orchestrator import SyncFailedError, run_sync_logic
 
-    asyncio.run(run_sync_logic(config))
+    try:
+        asyncio.run(run_sync_logic(config))
+    except SyncFailedError as e:
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -227,48 +230,50 @@ def queue(
 
     async def run():
         anki = await get_anki_bridge(config)
-
-        result = await build_study_queue(
-            anki,
-            vault_root,
-            deck=deck,
-            depth=depth,
-            include_new=include_new,
-            include_related=include_related,
-            cross_deck=cross_deck,
-            algo=algo,
-            dry_run=dry_run,
-            enrich=False,
-        )
-
-        if result.due_count == 0:
-            typer.secho("No cards found.", fg="yellow")
-            return
-
-        if result.unmapped_count > 0:
-            typer.secho(
-                f"WARNING: {result.unmapped_count}/{result.due_count} cards have no Arete ID tag. "
-                f"Run 'arete sync' to assign IDs and fix this.",
-                fg="yellow",
+        try:
+            result = await build_study_queue(
+                anki,
+                vault_root,
+                deck=deck,
+                depth=depth,
+                include_new=include_new,
+                include_related=include_related,
+                cross_deck=cross_deck,
+                algo=algo,
+                dry_run=dry_run,
+                enrich=False,
             )
 
-        typer.echo(f"Due cards: {result.due_count} ({result.unmapped_count} without Arete IDs)")
-        typer.echo(f"Algorithm: {algo}")
-        if result.prereq_count:
-            typer.echo(f"Weak prerequisites: {result.prereq_count}")
-        typer.echo(f"Main queue: {result.main_count}")
-        if result.missing_prereqs:
-            typer.secho(f"Missing prereqs: {result.missing_prereqs}", fg="yellow")
-        if result.cycles:
-            typer.secho(f"Cycles detected: {len(result.cycles)}", fg="yellow")
+            if result.due_count == 0:
+                typer.secho("No cards found.", fg="yellow")
+                return
 
-        if not dry_run and result.deck_created:
-            typer.secho(
-                f"Created '{result.deck_name}' with {result.deck_card_count} cards.",
-                fg="green",
-            )
-        elif not dry_run and result.total_queued > 0 and not result.deck_created:
-            typer.secho("Failed to create filtered deck.", fg="red")
+            if result.unmapped_count > 0:
+                typer.secho(
+                    f"WARNING: {result.unmapped_count}/{result.due_count} cards have no Arete ID tag. "
+                    f"Run 'arete sync' to assign IDs and fix this.",
+                    fg="yellow",
+                )
+
+            typer.echo(f"Due cards: {result.due_count} ({result.unmapped_count} without Arete IDs)")
+            typer.echo(f"Algorithm: {algo}")
+            if result.prereq_count:
+                typer.echo(f"Weak prerequisites: {result.prereq_count}")
+            typer.echo(f"Main queue: {result.main_count}")
+            if result.missing_prereqs:
+                typer.secho(f"Missing prereqs: {result.missing_prereqs}", fg="yellow")
+            if result.cycles:
+                typer.secho(f"Cycles detected: {len(result.cycles)}", fg="yellow")
+
+            if not dry_run and result.deck_created:
+                typer.secho(
+                    f"Created '{result.deck_name}' with {result.deck_card_count} cards.",
+                    fg="green",
+                )
+            elif not dry_run and result.total_queued > 0 and not result.deck_created:
+                typer.secho("Failed to create filtered deck.", fg="red")
+        finally:
+            await anki.close()
 
     asyncio.run(run())
 
@@ -315,7 +320,10 @@ def report(
 
             async def unsuspend():
                 anki = await get_anki_bridge(config)
-                return await anki.unsuspend_cards(to_unsuspend)
+                try:
+                    return await anki.unsuspend_cards(to_unsuspend)
+                finally:
+                    await anki.close()
 
             try:
                 asyncio.run(unsuspend())

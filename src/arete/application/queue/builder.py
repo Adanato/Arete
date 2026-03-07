@@ -38,7 +38,7 @@ def build_simple_queue(
 ) -> "QueueBuildResult":
     """Build a simple study queue from due cards.
 
-    MVP: Collects prerequisites up to depth, then topological sort.
+    Collects prerequisites up to depth, then topological sort.
 
     Args:
         vault_root: Path to the Obsidian vault
@@ -50,7 +50,7 @@ def build_simple_queue(
         QueueBuildResult with ordered queues and diagnostics
 
     """
-    from arete.application.queue.graph_resolver import build_graph, detect_cycles, topological_sort
+    from arete.application.queue.graph_resolver import detect_cycles
 
     graph = build_graph(vault_root)
 

@@ -84,7 +84,7 @@ class MarkdownParser:
                         "Back": sanitize(b_val),
                     }
                     if not fields["Front"] or not fields["Back"]:
-                        self.logger.debug(
+                        self.logger.warning(
                             f"[skip] {md_path} card#{idx}: Basic requires Front & Back"
                         )
                         skipped_indices.append(idx)
@@ -104,7 +104,7 @@ class MarkdownParser:
                         "Back Extra": sanitize(e_val),
                     }
                     if not fields["Text"]:
-                        self.logger.debug(f"[skip] {md_path} card#{idx}: Cloze requires Text")
+                        self.logger.warning(f"[skip] {md_path} card#{idx}: Cloze requires Text")
                         skipped_indices.append(idx)
                         continue
                 else:
@@ -113,7 +113,7 @@ class MarkdownParser:
                     fields = {k: sanitize(v) for k, v in card.items() if k not in _exclude}
 
                     if not fields:
-                        self.logger.debug(
+                        self.logger.warning(
                             f"[skip] {md_path} card#{idx}: custom model '{model}' has no fields"
                         )
                         skipped_indices.append(idx)

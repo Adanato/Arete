@@ -173,7 +173,10 @@ async def suspend_cards(req: CardsRequest):
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        return {"ok": await anki.suspend_cards(req.cids)}
+        try:
+            return {"ok": await anki.suspend_cards(req.cids)}
+        finally:
+            await anki.close()
     except Exception as e:
         logger.error(f"Suspend failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -193,7 +196,10 @@ async def unsuspend_cards(req: CardsRequest):
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        return {"ok": await anki.unsuspend_cards(req.cids)}
+        try:
+            return {"ok": await anki.unsuspend_cards(req.cids)}
+        finally:
+            await anki.close()
     except Exception as e:
         logger.error(f"Unsuspend failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -217,8 +223,11 @@ async def get_model_styling(
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        css = await anki.get_model_styling(name)
-        return {"css": css}
+        try:
+            css = await anki.get_model_styling(name)
+            return {"css": css}
+        finally:
+            await anki.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -241,8 +250,11 @@ async def get_model_templates(
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        templates = await anki.get_model_templates(name)
-        return templates
+        try:
+            templates = await anki.get_model_templates(name)
+            return templates
+        finally:
+            await anki.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -325,7 +337,10 @@ async def browse_anki(req: BrowseRequest):
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        return {"ok": await anki.gui_browse(req.query)}
+        try:
+            return {"ok": await anki.gui_browse(req.query)}
+        finally:
+            await anki.close()
     except Exception as e:
         logger.error(f"Browse failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -354,8 +369,11 @@ async def get_decks(req: DecksRequest):
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
-        decks = await anki.get_deck_names()
-        return {"decks": decks}
+        try:
+            decks = await anki.get_deck_names()
+            return {"decks": decks}
+        finally:
+            await anki.close()
     except Exception as e:
         logger.error(f"Get decks failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -393,34 +411,37 @@ async def build_queue(req: QueueBuildRequest):
             raise HTTPException(status_code=400, detail="Vault root not configured.")
 
         anki = await get_anki_bridge(config)
-        vault_root = Path(config.vault_root)
+        try:
+            vault_root = Path(config.vault_root)
 
-        result = await build_study_queue(
-            anki,
-            vault_root,
-            deck=req.deck,
-            depth=req.depth,
-            max_cards=req.max_cards,
-            algo="simple",
-            dry_run=True,  # /queue/build only plans; /queue/create-deck creates
-            enrich=True,
-        )
+            result = await build_study_queue(
+                anki,
+                vault_root,
+                deck=req.deck,
+                depth=req.depth,
+                max_cards=req.max_cards,
+                algo="simple",
+                dry_run=True,  # /queue/build only plans; /queue/create-deck creates
+                enrich=True,
+            )
 
-        return {
-            "deck": req.deck or "All Decks",
-            "due_count": result.due_count - result.unmapped_count,
-            "total_with_prereqs": result.total_queued,
-            "queue": [
-                {
-                    "position": item.position,
-                    "id": item.id,
-                    "title": item.title,
-                    "file": item.file,
-                    "is_prereq": item.is_prereq,
-                }
-                for item in result.queue_items
-            ],
-        }
+            return {
+                "deck": req.deck or "All Decks",
+                "due_count": result.due_count - result.unmapped_count,
+                "total_with_prereqs": result.total_queued,
+                "queue": [
+                    {
+                        "position": item.position,
+                        "id": item.id,
+                        "title": item.title,
+                        "file": item.file,
+                        "is_prereq": item.is_prereq,
+                    }
+                    for item in result.queue_items
+                ],
+            }
+        finally:
+            await anki.close()
     except HTTPException:
         # Re-raise HTTPExceptions (like the 400 validation error)
         raise
@@ -454,23 +475,25 @@ async def create_queue_deck(req: QueueCreateDeckRequest):
         }
         config = resolve_config({k: v for k, v in overrides.items() if v is not None})
         anki = await get_anki_bridge(config)
+        try:
+            # 1. Resolve to CIDs
+            cids = await anki.get_card_ids_for_arete_ids(req.card_ids)
+            if not cids:
+                # Maybe the user hasn't synced?
+                return {"ok": False, "message": "No matching Anki cards found. Have you synced?"}
 
-        # 1. Resolve to CIDs
-        cids = await anki.get_card_ids_for_arete_ids(req.card_ids)
-        if not cids:
-            # Maybe the user hasn't synced?
-            return {"ok": False, "message": "No matching Anki cards found. Have you synced?"}
+            # 2. Create Deck
+            success = await anki.create_topo_deck(req.deck_name, cids, reschedule=req.reschedule)
 
-        # 2. Create Deck
-        success = await anki.create_topo_deck(req.deck_name, cids, reschedule=req.reschedule)
-
-        if success:
-            return {
-                "ok": True,
-                "message": f"Created deck '{req.deck_name}' with {len(cids)} cards.",
-            }
-        else:
-            return {"ok": False, "message": "Failed to create deck (check logs)."}
+            if success:
+                return {
+                    "ok": True,
+                    "message": f"Created deck '{req.deck_name}' with {len(cids)} cards.",
+                }
+            else:
+                return {"ok": False, "message": "Failed to create deck (check logs)."}
+        finally:
+            await anki.close()
 
     except HTTPException:
         raise

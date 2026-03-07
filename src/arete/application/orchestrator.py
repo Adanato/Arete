@@ -36,11 +36,14 @@ async def execute_sync(config: AppConfig) -> RunStats:
         logger.info("Clearing content cache as requested...")
         cache.clear()
 
-    assert config.root_input is not None
+    if config.root_input is None:
+        raise ValueError("config.root_input must be set before sync")
     vault_service = VaultService(config.root_input, cache, ignore_cache=config.force)
 
-    assert config.vault_root is not None
-    assert config.anki_media_dir is not None
+    if config.vault_root is None:
+        raise ValueError("config.vault_root must be set before sync")
+    if config.anki_media_dir is None:
+        raise ValueError("config.anki_media_dir must be set before sync")
 
     parser = MarkdownParser(
         config.vault_root,
@@ -60,6 +63,10 @@ async def execute_sync(config: AppConfig) -> RunStats:
         await anki_bridge.close()
 
 
+class SyncFailedError(Exception):
+    """Raised when sync completes with errors and keep_going is False."""
+
+
 async def run_sync_logic(config: AppConfig):
     """Orchestrates the sync process using the provided config."""
     stats = await execute_sync(config)
@@ -71,4 +78,4 @@ async def run_sync_logic(config: AppConfig):
     )
 
     if stats.total_errors and not config.keep_going:
-        sys.exit(1)
+        raise SyncFailedError(f"{stats.total_errors} errors during sync")
