@@ -126,12 +126,18 @@ def migrate_cmd(
     final_verbose = max(verbose, bonus) if verbose or bonus else 1
     config = _resolve_with_overrides(verbose=final_verbose)
 
+    skipped = 0
+    already_ok = 0
+    errors = 0
     for p in files:
         scanned += 1
         try:
             original_content = p.read_text(encoding="utf-8")
             content = _migrate_single_file(p, config, ensure_card_ids, text_utils)
             if content is None:
+                skipped += 1
+                if config.verbose >= 2:
+                    typer.echo(f"  [Skip] {p}: not an arete note or YAML error")
                 continue
 
             if content != original_content:
@@ -141,17 +147,20 @@ def migrate_cmd(
                 else:
                     p.write_text(content, encoding="utf-8")
                     typer.echo(f"Migrated: {p}")
-            elif config.verbose >= 2:
-                typer.echo(f"  [Equal] {p}: Already normalized.")
+            else:
+                already_ok += 1
+                if config.verbose >= 2:
+                    typer.echo(f"  [Equal] {p}: Already normalized.")
         except Exception as e:
+            errors += 1
             if config.verbose >= 1:
                 typer.secho(f"Error reading {p}: {e}", fg="red")
 
+    summary = f"Scanned {scanned} files: {migrated} migrated, {already_ok} already ok, {skipped} skipped, {errors} errors."
     if dry_run:
-        msg = f"\n[DRY RUN] Scanned {scanned} files. Found {migrated} to migrate."
-        typer.secho(msg, fg="yellow")
+        typer.secho(f"\n[DRY RUN] {summary}", fg="yellow")
     else:
-        typer.secho(f"\nScanned {scanned} files. Migrated {migrated}.", fg="green")
+        typer.secho(f"\n{summary}", fg="green")
 
     typer.echo("\n--- ID Generation (Milestone 1) ---")
     ids_assigned = assign_arete_ids(path, dry_run=dry_run)
