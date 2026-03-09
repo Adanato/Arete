@@ -160,14 +160,17 @@ class AnkiDirectAdapter(AnkiBridge):
                 return []
 
             deck_filter = f'deck:"{deck_name}" ' if deck_name else ""
-            query = (
-                f"{deck_filter}(is:due OR is:new)"
-                if include_new
-                else f"{deck_filter}(is:due)"
-            )
+            query = f"{deck_filter}(is:due OR is:new)" if include_new else f"{deck_filter}(is:due)"
 
             nids = repo.find_notes(query)
             return nids
+
+    async def find_all_arete_nids(self) -> list[int]:
+        """Find all note IDs that have arete tags."""
+        with AnkiRepository(self.anki_base) as repo:
+            if not repo.col:
+                return []
+            return repo.find_notes("tag:arete_*")
 
     async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
         """Map Anki note IDs to Arete card IDs.

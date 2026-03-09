@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from arete.domain.stats.models import FsrsMemoryState
 from arete.infrastructure.adapters.stats import ConnectStatsRepository
 
 

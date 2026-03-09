@@ -22,7 +22,6 @@ from httpx import Response
 from arete.domain.models import AnkiNote, WorkItem
 from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

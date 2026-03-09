@@ -67,7 +67,12 @@ export default class AretePlugin extends Plugin {
 			this.templateRenderer.setMode(this.settings.renderer_mode);
 			this.syncService = new SyncService(this.app, this.settings, this.manifest);
 			this.checkService = new CheckService(this.app, this.settings);
-			this.statsService = new StatsService(this.app, this.settings, this.areteClient, this.statsCache);
+			this.statsService = new StatsService(
+				this.app,
+				this.settings,
+				this.areteClient,
+				this.statsCache,
+			);
 			this.graphService = new GraphService(this.app, this.settings);
 
 			// Initialize New Dashboard Services

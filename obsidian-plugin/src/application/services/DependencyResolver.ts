@@ -7,7 +7,14 @@
 
 import { App } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
-import { CardNode, DependencyEdge, DependencyGraphBuilder, FileNode, GlobalGraphResult, LocalGraphResult } from '@/domain/graph/types';
+import {
+	CardNode,
+	DependencyEdge,
+	DependencyGraphBuilder,
+	FileNode,
+	GlobalGraphResult,
+	LocalGraphResult,
+} from '@/domain/graph/types';
 
 export class DependencyResolver {
 	private app: App;
@@ -116,7 +123,6 @@ export class DependencyResolver {
 				}
 			}
 		}
-
 	}
 
 	/**
@@ -157,7 +163,8 @@ export class DependencyResolver {
 		const fileMap = new Map<string, FileNode>();
 		for (const node of allNodes) {
 			if (!fileMap.has(node.filePath)) {
-				const basename = node.filePath.replace(/\.md$/, '').split('/').pop() || node.filePath;
+				const basename =
+					node.filePath.replace(/\.md$/, '').split('/').pop() || node.filePath;
 				fileMap.set(node.filePath, {
 					path: node.filePath,
 					basename,
@@ -280,11 +287,7 @@ export class DependencyResolver {
 	/**
 	 * BFS traversal to collect prerequisites up to set depth.
 	 */
-	private walkPrereqs(
-		startCardId: string,
-		maxDepth: number,
-		collected: Set<string>,
-	): void {
+	private walkPrereqs(startCardId: string, maxDepth: number, collected: Set<string>): void {
 		if (maxDepth <= 0) return;
 
 		// Queue: { id, depth } (depth is distance from start)
@@ -315,11 +318,7 @@ export class DependencyResolver {
 	/**
 	 * BFS traversal to collect dependents up to set depth.
 	 */
-	private walkDependents(
-		startCardId: string,
-		maxDepth: number,
-		collected: Set<string>,
-	): void {
+	private walkDependents(startCardId: string, maxDepth: number, collected: Set<string>): void {
 		if (maxDepth <= 0) return;
 
 		const queue: Array<{ id: string; distance: number }> = [{ id: startCardId, distance: 0 }];

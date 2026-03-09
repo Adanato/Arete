@@ -63,7 +63,7 @@ def test_ensure_ids_preserves_existing(cards):
     meta = {"cards": cards}
     assigned = ensure_card_ids(meta)
     assert assigned == 0
-    for card, orig_id in zip(meta["cards"], original_ids):
+    for card, orig_id in zip(meta["cards"], original_ids, strict=False):
         assert card["id"] == orig_id
 
 
@@ -97,5 +97,5 @@ def test_ensure_ids_empty_meta():
 
 
 def test_ensure_ids_non_list_cards():
-    """cards not a list -> returns 0."""
+    """Cards not a list -> returns 0."""
     assert ensure_card_ids({"cards": "not a list"}) == 0

@@ -4,7 +4,6 @@ import pytest
 
 from arete.domain.graph import CardNode, DependencyGraph, LocalGraphResult
 
-
 # ---------------------------------------------------------------------------
 # CardNode
 # ---------------------------------------------------------------------------
@@ -168,7 +167,8 @@ class TestDependencyGraphRequires:
     def test_add_requires_with_nonexistent_nodes(self):
         """Adding requires for nodes not added via add_node still works in nx.
         The graph implicitly creates the node ids, though they won't be in
-        the nodes dict."""
+        the nodes dict.
+        """
         g = DependencyGraph()
         # No add_node calls
         g.add_requires("X", "Y")

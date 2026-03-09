@@ -18,7 +18,7 @@ def parser_fixture(tmp_path):
 
 
 def parse_card(parser, vault, frontmatter_cards):
-    """Helper to parse a simulated file"""
+    """Helper to parse a simulated file."""
     md_file = vault / "consistency.md"
     meta = {"cards": frontmatter_cards, "deck": "Default"}
     cache = MagicMock()
@@ -29,7 +29,7 @@ def parse_card(parser, vault, frontmatter_cards):
 
 
 def test_consistency_basic_formatting(parser_fixture):
-    """Verify standard Markdown elements (Bold, Italic, Code)"""
+    """Verify standard Markdown elements (Bold, Italic, Code)."""
     parser, vault = parser_fixture
 
     card = {"model": "Basic", "Front": "This is **bold** and *italic*", "Back": "`code_inline`"}
@@ -45,7 +45,7 @@ def test_consistency_basic_formatting(parser_fixture):
 
 
 def test_consistency_math_blocks(parser_fixture):
-    """Verify MathJax protection (the most critical consistency requirement)"""
+    """Verify MathJax protection (the most critical consistency requirement)."""
     parser, vault = parser_fixture
 
     # Input uses Obsidian style ($, $$) or Anki style \(...)?
@@ -74,7 +74,7 @@ def test_consistency_math_blocks(parser_fixture):
 
 
 def test_consistency_multiline_code(parser_fixture):
-    """Verify fenced code blocks (should be pre/code tags)"""
+    """Verify fenced code blocks (should be pre/code tags)."""
     parser, vault = parser_fixture
 
     code_block = """
@@ -92,7 +92,7 @@ def foo():
 
 
 def test_consistency_lists(parser_fixture):
-    """Verify list parsing"""
+    """Verify list parsing."""
     parser, vault = parser_fixture
 
     card = {"model": "Basic", "Front": "- Item 1\n- Item 2", "Back": "List"}
@@ -104,7 +104,7 @@ def test_consistency_lists(parser_fixture):
 
 
 def test_consistency_tables(parser_fixture):
-    """Verify table parsing extension"""
+    """Verify table parsing extension."""
     parser, vault = parser_fixture
 
     table = """

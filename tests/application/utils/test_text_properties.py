@@ -86,7 +86,7 @@ def test_roundtrip_with_cards(meta, body):
 
     assert "cards" in clean2
     assert len(clean2["cards"]) == len(meta["cards"])
-    for orig, parsed in zip(meta["cards"], clean2["cards"]):
+    for orig, parsed in zip(meta["cards"], clean2["cards"], strict=False):
         assert parsed["Front"] == orig["Front"]
         assert parsed["Back"] == orig["Back"]
         if "id" in orig:

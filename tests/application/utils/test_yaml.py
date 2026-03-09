@@ -3,8 +3,7 @@
 import pytest
 import yaml
 
-from arete.application.utils.yaml import _LiteralDumper, _str_representer
-
+from arete.application.utils.yaml import _LiteralDumper
 
 # ---------- _LiteralDumper behavior ----------
 

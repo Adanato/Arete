@@ -324,5 +324,4 @@ describe('AreteClient', () => {
 			expect(templates).toEqual({ Basic: { Front: 'F', Back: 'B' } });
 		});
 	});
-
 });

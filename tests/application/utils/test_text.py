@@ -16,7 +16,6 @@ from arete.application.utils.text import (
     validate_frontmatter,
 )
 
-
 # ---------- Math Conversion Tests ----------
 
 

@@ -15,7 +15,6 @@ from httpx import Response
 from arete.domain.models import AnkiNote, WorkItem
 from arete.infrastructure.adapters.anki_connect import AnkiConnectAdapter
 
-
 # ---------------------------------------------------------------------------
 # Fixtures & helpers (mock-_invoke style)
 # ---------------------------------------------------------------------------
@@ -328,7 +327,7 @@ async def test_cid_fetching_on_heal(adapter):
 @pytest.mark.asyncio
 @respx.mock
 async def test_healing_failure_respx(adapter_respx):
-    """addNote fails with 'duplicate', findNotes returns empty — error propagates."""
+    """AddNote fails with 'duplicate', findNotes returns empty — error propagates."""
     sample_note = AnkiNote(
         model="Basic",
         deck="Default",

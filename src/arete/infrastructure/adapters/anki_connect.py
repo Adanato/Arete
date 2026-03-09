@@ -92,9 +92,7 @@ class AnkiConnectAdapter(AnkiBridge):
             payload = {"action": "version", "version": 6}
             if self._client is None:
                 self._client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT)
-            resp = await self._client.post(
-                self.url, json=payload, timeout=RESPONSIVENESS_TIMEOUT
-            )
+            resp = await self._client.post(self.url, json=payload, timeout=RESPONSIVENESS_TIMEOUT)
             if resp.status_code == 200:
                 data = resp.json()
                 return int(data.get("result", 0)) >= 6
@@ -204,9 +202,7 @@ class AnkiConnectAdapter(AnkiBridge):
         self, item: WorkItem, note: Any, html_fields: dict, target_nid: int, info: Any
     ) -> UpdateItem:
         """Update fields, tags, and deck for an existing note."""
-        await self._invoke(
-            "updateNoteFields", note={"id": target_nid, "fields": html_fields}
-        )
+        await self._invoke("updateNoteFields", note={"id": target_nid, "fields": html_fields})
 
         if info and "tags" in info[0]:
             current_tags = set(info[0]["tags"])
@@ -216,9 +212,7 @@ class AnkiConnectAdapter(AnkiBridge):
             if to_add:
                 await self._invoke("addTags", notes=[target_nid], tags=" ".join(to_add))
             if to_remove:
-                await self._invoke(
-                    "removeTags", notes=[target_nid], tags=" ".join(to_remove)
-                )
+                await self._invoke("removeTags", notes=[target_nid], tags=" ".join(to_remove))
 
         if info and "cards" in info[0]:
             await self._invoke("changeDeck", cards=info[0]["cards"], deck=note.deck)
@@ -227,9 +221,7 @@ class AnkiConnectAdapter(AnkiBridge):
                 f"[anki] Cannot move cards for nid={target_nid}. Info missing cards: {info}"
             )
 
-        self.logger.debug(
-            f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}"
-        )
+        self.logger.debug(f"[update] {item.source_file} #{item.source_index} -> nid={target_nid}")
         return UpdateItem(
             source_file=item.source_file,
             source_index=item.source_index,
@@ -239,17 +231,13 @@ class AnkiConnectAdapter(AnkiBridge):
             note=note,
         )
 
-    async def _add_or_heal_note(
-        self, item: WorkItem, note: Any, html_fields: dict
-    ) -> UpdateItem:
+    async def _add_or_heal_note(self, item: WorkItem, note: Any, html_fields: dict) -> UpdateItem:
         """Add a new note or heal by matching existing content."""
         existing_nid = await self._find_existing_note(note, html_fields)
 
         if existing_nid:
             new_id = existing_nid
-            await self._invoke(
-                "updateNoteFields", note={"id": new_id, "fields": html_fields}
-            )
+            await self._invoke("updateNoteFields", note={"id": new_id, "fields": html_fields})
         else:
             params = {
                 "note": {
@@ -268,8 +256,7 @@ class AnkiConnectAdapter(AnkiBridge):
         await self._populate_nid_field(note, new_id)
 
         self.logger.info(
-            f"[create] {item.source_file} #{item.source_index} -> "
-            f"nid={new_id} cid={new_cid_val}"
+            f"[create] {item.source_file} #{item.source_index} -> nid={new_id} cid={new_cid_val}"
         )
         return UpdateItem(
             source_file=item.source_file,
@@ -432,6 +419,14 @@ class AnkiConnectAdapter(AnkiBridge):
             self.logger.error(f"Failed to get due cards: {e}")
             return []
 
+    async def find_all_arete_nids(self) -> list[int]:
+        """Find all note IDs that have arete tags."""
+        try:
+            return await self._invoke("findNotes", query="tag:arete_*")
+        except Exception as e:
+            self.logger.error(f"Failed to find arete nids: {e}")
+            return []
+
     async def map_nids_to_arete_ids(self, nids: list[int]) -> list[str]:
         """Convert NIDs to Arete IDs via tags."""
         if not nids:
@@ -581,9 +576,7 @@ class AnkiConnectAdapter(AnkiBridge):
             return {
                 item["cardId"]: item["difficulty"] / FSRS_DIFFICULTY_SCALE
                 for item in fsrs_results
-                if "cardId" in item
-                and "difficulty" in item
-                and item["difficulty"] is not None
+                if "cardId" in item and "difficulty" in item and item["difficulty"] is not None
             }
         except Exception:
             return {}
@@ -665,8 +658,7 @@ class AnkiConnectAdapter(AnkiBridge):
             for start in range(0, len(arete_ids), CHUNK):
                 chunk = arete_ids[start : start + CHUNK]
                 actions = [
-                    {"action": "findCards", "params": {"query": f"tag:{aid}"}}
-                    for aid in chunk
+                    {"action": "findCards", "params": {"query": f"tag:{aid}"}} for aid in chunk
                 ]
                 results = await self._invoke("multi", actions=actions)
                 for result in results:

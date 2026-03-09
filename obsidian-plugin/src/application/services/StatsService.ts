@@ -2,12 +2,7 @@ import { App, TFile } from 'obsidian';
 import { AretePluginSettings } from '@/domain/settings';
 import { AreteClient } from '@/infrastructure/arete/AreteClient';
 
-import type {
-	AnkiCardStats,
-	ConceptStats,
-	StatsNode,
-	StatsCache,
-} from '@/domain/stats';
+import type { AnkiCardStats, ConceptStats, StatsNode, StatsCache } from '@/domain/stats';
 
 export class StatsService {
 	app: App;
@@ -15,7 +10,12 @@ export class StatsService {
 	cache: StatsCache;
 	private client: AreteClient;
 
-	constructor(app: App, settings: AretePluginSettings, client: AreteClient, initialCache?: StatsCache) {
+	constructor(
+		app: App,
+		settings: AretePluginSettings,
+		client: AreteClient,
+		initialCache?: StatsCache,
+	) {
 		this.app = app;
 		this.settings = settings;
 		this.client = client;

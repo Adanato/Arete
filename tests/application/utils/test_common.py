@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from arete.application.utils.common import detect_anki_paths, sanitize, to_list
 
-
 # ---------- to_list edge cases ----------
 
 

@@ -19,7 +19,7 @@ def mock_graph_deps():
     A -> B (A requires B)
     B -> C (B requires C)
     D (independent)
-    E <-> F (Cycle)
+    E <-> F (Cycle).
     """
     graph = DependencyGraph()
 
@@ -213,7 +213,7 @@ def test_build_dynamic_queue_isolated_due_cards(mock_build_graph):
 
 @pytest.fixture
 def diamond_graph():
-    """Diamond dependency graph:
+    r"""Diamond dependency graph:
          A
         / \\
        B   C

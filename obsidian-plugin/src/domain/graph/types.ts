@@ -34,10 +34,10 @@ export interface DependencyEdge {
 
 /** A file node representing a markdown file containing cards. */
 export interface FileNode {
-	path: string;           // Vault-relative path
-	basename: string;       // File stem without .md
-	cardCount: number;      // Number of cards in this file
-	cardIds: string[];      // Card IDs in this file
+	path: string; // Vault-relative path
+	basename: string; // File stem without .md
+	cardCount: number; // Number of cards in this file
+	cardIds: string[]; // Card IDs in this file
 }
 
 /** Result of a global graph query across the entire vault. */
@@ -123,5 +123,4 @@ export class DependencyGraphBuilder {
 	getAllNodes(): CardNode[] {
 		return Array.from(this.nodes.values());
 	}
-
 }

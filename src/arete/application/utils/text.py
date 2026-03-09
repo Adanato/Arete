@@ -182,7 +182,7 @@ def validate_frontmatter(md_text: str) -> dict[str, Any]:
 
 
 def scrub_internal_keys(d: Any) -> Any:
-    """Recursively remove keys starting with __"""
+    """Recursively remove keys starting with __."""
     if isinstance(d, dict):
         return {k: scrub_internal_keys(v) for k, v in d.items() if not k.startswith("__")}
     elif isinstance(d, list):
@@ -297,7 +297,7 @@ def apply_fixes(md_text: str) -> str:
 
 
 def fix_mathjax_escapes(md_text: str) -> str:
-    """Finds double-quoted strings in frontmatter that contain common MathJax
+    r"""Finds double-quoted strings in frontmatter that contain common MathJax
     escapes like \\in or \\mathbb and ensures they are double-escaped so
     PyYAML can parse them. This allows us to migrate broken files to |- blocks.
     """

@@ -95,7 +95,7 @@ async def take_snapshot(
 
     # 3. Map NIDs → arete IDs
     arete_ids = await anki.map_nids_to_arete_ids(all_nids)
-    nid_to_arete = {nid: aid for nid, aid in zip(all_nids, arete_ids) if aid}
+    nid_to_arete = {nid: aid for nid, aid in zip(all_nids, arete_ids, strict=False) if aid}
 
     # 4. Get stats for all NIDs
     raw_stats = await anki.get_card_stats(all_nids)

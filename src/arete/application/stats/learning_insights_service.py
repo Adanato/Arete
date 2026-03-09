@@ -19,7 +19,7 @@ class LearningInsightsService:
     @staticmethod
     def clean_note_name(raw_name: str) -> str:
         """Cleans raw _obsidian_source strings.
-        Example: 'Obsidian Vault|My Note.md|89' -> 'My Note'
+        Example: 'Obsidian Vault|My Note.md|89' -> 'My Note'.
         """
         import re
 

@@ -21,7 +21,7 @@ export const GLOBAL_GRAPH_VIEW_TYPE = 'arete-global-graph';
 // --- D3 node/link interfaces ---
 
 interface FileGraphNode extends d3.SimulationNodeDatum {
-	id: string;       // filePath
+	id: string; // filePath
 	basename: string;
 	cardCount: number;
 	cardIds: string[];
@@ -30,7 +30,7 @@ interface FileGraphNode extends d3.SimulationNodeDatum {
 }
 
 interface CardGraphNode extends d3.SimulationNodeDatum {
-	id: string;       // card arete ID
+	id: string; // card arete ID
 	title: string;
 	filePath: string;
 	lineNumber: number;
@@ -45,7 +45,7 @@ interface GlobalLink extends d3.SimulationLinkDatum<GlobalNode> {
 	source: string | GlobalNode;
 	target: string | GlobalNode;
 	edgeType: 'requires' | 'related';
-	weight: number;   // For file mode aggregation
+	weight: number; // For file mode aggregation
 }
 
 export class GlobalGraphView extends ItemView {
@@ -158,7 +158,10 @@ export class GlobalGraphView extends ItemView {
 			cls: 'clickable-icon' + (this.viewMode === 'card' ? ' is-active' : ''),
 		});
 		setIcon(viewToggle, this.viewMode === 'file' ? 'folder' : 'layers');
-		viewToggle.setAttribute('title', this.viewMode === 'file' ? 'Switch to Card Mode' : 'Switch to File Mode');
+		viewToggle.setAttribute(
+			'title',
+			this.viewMode === 'file' ? 'Switch to Card Mode' : 'Switch to File Mode',
+		);
 		if (this.viewMode === 'card') viewToggle.style.color = 'var(--interactive-accent)';
 		viewToggle.addEventListener('click', () => {
 			this.viewMode = this.viewMode === 'file' ? 'card' : 'file';
@@ -328,7 +331,9 @@ export class GlobalGraphView extends ItemView {
 		}));
 
 		// Card-level edges
-		let edges = requiresEdges.filter((e) => cardNodeSet.has(e.fromId) && cardNodeSet.has(e.toId));
+		const edges = requiresEdges.filter(
+			(e) => cardNodeSet.has(e.fromId) && cardNodeSet.has(e.toId),
+		);
 		const cardLinks: GlobalLink[] = edges.map((e) => ({
 			source: e.fromId,
 			target: e.toId,
@@ -337,7 +342,9 @@ export class GlobalGraphView extends ItemView {
 		}));
 
 		if (this.showRelated) {
-			const relEdges = relatedEdges.filter((e) => cardNodeSet.has(e.fromId) && cardNodeSet.has(e.toId));
+			const relEdges = relatedEdges.filter(
+				(e) => cardNodeSet.has(e.fromId) && cardNodeSet.has(e.toId),
+			);
 			for (const e of relEdges) {
 				cardLinks.push({
 					source: e.fromId,
@@ -407,13 +414,17 @@ export class GlobalGraphView extends ItemView {
 			.forceSimulation(nodes as any[])
 			.force(
 				'link',
-				d3.forceLink(links as any[])
+				d3
+					.forceLink(links as any[])
 					.id((d: any) => d.id)
 					.distance(isFileMode ? 200 : 100),
 			)
 			.force('charge', d3.forceManyBody().strength(isFileMode ? -300 : -150))
 			.force('center', d3.forceCenter(width / 2, height / 2))
-			.force('collide', d3.forceCollide().radius((d: any) => (d.radius || 5) + 4));
+			.force(
+				'collide',
+				d3.forceCollide().radius((d: any) => (d.radius || 5) + 4),
+			);
 
 		this.simulation = sim;
 
@@ -668,7 +679,11 @@ export class GlobalGraphView extends ItemView {
 				.attr('fill', 'var(--text-muted)')
 				.attr('opacity', 0.6)
 				.style('pointer-events', 'none')
-				.text(group.basename.length > 25 ? group.basename.slice(0, 23) + '...' : group.basename);
+				.text(
+					group.basename.length > 25
+						? group.basename.slice(0, 23) + '...'
+						: group.basename,
+				);
 		}
 	}
 
@@ -835,11 +850,17 @@ export class GlobalGraphView extends ItemView {
 			this.graph3D
 				.d3Force(
 					'clusterX',
-					d3.forceX<any>().x((d: any) => centroids.get(d.filePath)?.x || 0).strength(0.3),
+					d3
+						.forceX<any>()
+						.x((d: any) => centroids.get(d.filePath)?.x || 0)
+						.strength(0.3),
 				)
 				.d3Force(
 					'clusterY',
-					d3.forceY<any>().y((d: any) => centroids.get(d.filePath)?.y || 0).strength(0.3),
+					d3
+						.forceY<any>()
+						.y((d: any) => centroids.get(d.filePath)?.y || 0)
+						.strength(0.3),
 				);
 		}
 	}
@@ -1095,7 +1116,9 @@ export class GlobalGraphView extends ItemView {
 		}
 
 		nodeGroup.select('circle').attr('opacity', (d) => (connected.has(d.id) ? 1 : 0.1));
-		nodeGroup.selectAll('text:not(.arete-global-graph-card-label)').attr('opacity', (d: any) => (connected.has(d.id) ? 1 : 0.1));
+		nodeGroup
+			.selectAll('text:not(.arete-global-graph-card-label)')
+			.attr('opacity', (d: any) => (connected.has(d.id) ? 1 : 0.1));
 		linkSel.attr('stroke-opacity', (d: any) => {
 			const srcId = typeof d.source === 'string' ? d.source : d.source.id;
 			const tgtId = typeof d.target === 'string' ? d.target : d.target.id;
@@ -1111,11 +1134,17 @@ export class GlobalGraphView extends ItemView {
 		const centroids = this.getClusterCentroids2D(nodes);
 		simulation.force(
 			'clusterX',
-			d3.forceX<any>().x((d: any) => centroids.get(d.filePath)?.x || 0).strength(strength),
+			d3
+				.forceX<any>()
+				.x((d: any) => centroids.get(d.filePath)?.x || 0)
+				.strength(strength),
 		);
 		simulation.force(
 			'clusterY',
-			d3.forceY<any>().y((d: any) => centroids.get(d.filePath)?.y || 0).strength(strength),
+			d3
+				.forceY<any>()
+				.y((d: any) => centroids.get(d.filePath)?.y || 0)
+				.strength(strength),
 		);
 	}
 
@@ -1136,7 +1165,9 @@ export class GlobalGraphView extends ItemView {
 		return centroids;
 	}
 
-	private getClusterCentroids3D(cards: CardNode[]): Map<string, { x: number; y: number; z: number }> {
+	private getClusterCentroids3D(
+		cards: CardNode[],
+	): Map<string, { x: number; y: number; z: number }> {
 		const files = new Set(cards.map((c) => c.filePath));
 		const centroids = new Map<string, { x: number; y: number; z: number }>();
 		let i = 0;

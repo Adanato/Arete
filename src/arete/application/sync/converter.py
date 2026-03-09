@@ -13,7 +13,7 @@ from markdown.preprocessors import Preprocessor
 
 
 class MathProtectExtension(Extension):
-    """Extension to avoid converting markdown within math blocks"""
+    """Extension to avoid converting markdown within math blocks."""
 
     def __init__(self, markdown_latex_mode: str = "mathjax") -> None:
         super().__init__()

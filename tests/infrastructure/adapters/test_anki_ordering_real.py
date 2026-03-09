@@ -152,7 +152,7 @@ class TestAnkiOrderingReal:
 
         col = Collection(str(col_path))
         try:
-            did = col.decks.id("Queue", create=False)
+            col.decks.id("Queue", create=False)
             c0 = col.get_card(cids[0])
             c1 = col.get_card(cids[1])
             c2 = col.get_card(cids[2])

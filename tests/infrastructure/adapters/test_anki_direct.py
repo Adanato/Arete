@@ -14,7 +14,6 @@ import pytest
 from arete.domain.models import AnkiDeck, AnkiNote, WorkItem
 from arete.infrastructure.adapters.anki_direct import AnkiDirectAdapter
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

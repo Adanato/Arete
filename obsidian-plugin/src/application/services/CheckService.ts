@@ -86,15 +86,19 @@ export class CheckService {
 		const resolved = resolvePythonCommand(this.settings);
 		const cmd = `${rawSettings} -c "import arete; print('Arete module found')"`;
 
-		exec(cmd, { cwd: resolved.cwd, env: resolved.env }, (error: any, stdout: string, stderr: string) => {
-			if (error) {
-				console.error('Test Config Failed:', error);
-				const msg = stderr || stdout || error.message;
-				new Notice(`Error: Command failed. ${msg.substring(0, 200)}`);
-			} else {
-				new Notice(`Success: Python found & Arete module available.`);
-			}
-		});
+		exec(
+			cmd,
+			{ cwd: resolved.cwd, env: resolved.env },
+			(error: any, stdout: string, stderr: string) => {
+				if (error) {
+					console.error('Test Config Failed:', error);
+					const msg = stderr || stdout || error.message;
+					new Notice(`Error: Command failed. ${msg.substring(0, 200)}`);
+				} else {
+					new Notice(`Success: Python found & Arete module available.`);
+				}
+			},
+		);
 	}
 
 	async checkVaultIntegrity() {

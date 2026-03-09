@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from arete.application.config import AppConfig
-from arete.application.sync.pipeline import RunStats
 from arete.application.orchestrator import SyncFailedError, run_sync_logic
+from arete.application.sync.pipeline import RunStats
 
 
 @pytest.mark.asyncio

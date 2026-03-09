@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from arete.domain.stats.models import FsrsMemoryState
 from arete.infrastructure.adapters.stats import DirectStatsRepository
 
 

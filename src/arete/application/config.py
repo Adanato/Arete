@@ -17,7 +17,7 @@ class AppConfig(BaseSettings):
     Supports loading from:
     1. Environment variables (O2A_*)
     2. Config file (~/.config/arete/config.toml)
-    3. Manual overrides (CLI)
+    3. Manual overrides (CLI).
     """
 
     model_config = SettingsConfigDict(
@@ -128,7 +128,7 @@ def resolve_config(
     1. Defaults in AppConfig
     2. ~/.config/arete/config.toml (if exists) OR explicit config_file
     3. Environment variables (O2A_*)
-    4. cli_overrides (passed from Typer)
+    4. cli_overrides (passed from Typer).
     """
     init_kwargs = cli_overrides or {}
 

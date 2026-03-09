@@ -1,12 +1,4 @@
-import {
-	ItemView,
-	WorkspaceLeaf,
-	MarkdownView,
-	Menu,
-	setIcon,
-	Notice,
-	parseYaml,
-} from 'obsidian';
+import { ItemView, WorkspaceLeaf, MarkdownView, Menu, setIcon, Notice, parseYaml } from 'obsidian';
 import { EditorView, lineNumbers, keymap } from '@codemirror/view';
 import { EditorState, Annotation } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
