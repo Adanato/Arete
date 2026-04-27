@@ -13,7 +13,7 @@ from pathlib import Path
 import networkx as nx
 
 from arete.application.utils.fs import iter_markdown_files
-from arete.application.utils.text import parse_frontmatter
+from arete.application.utils.text import normalize_filename, parse_frontmatter
 from arete.domain.graph import CardNode, DependencyGraph, LocalGraphResult
 
 # ---------------------------------------------------------------------------
@@ -133,8 +133,9 @@ def build_graph(vault_root: Path) -> DependencyGraph:
             if not isinstance(cards, list):
                 continue
 
-            # Get file basename for index
-            basename = md_path.stem  # "algebra.md" -> "algebra"
+            # Get file basename for index. Normalize to NFC so user-typed
+            # YAML refs (NFC) match macOS filesystem basenames (NFD).
+            basename = normalize_filename(md_path.stem)  # "algebra.md" -> "algebra"
             if basename not in file_index:
                 file_index[basename] = []
 
@@ -203,7 +204,7 @@ def build_graph(vault_root: Path) -> DependencyGraph:
                     # Skip same-file cards when resolving basename deps
                     if target_id == card_id:
                         continue
-                    if not ref.startswith("arete_") and own_basename and ref == own_basename:
+                    if not ref.startswith("arete_") and own_basename and normalize_filename(ref) == own_basename:
                         continue
                     graph.add_requires(card_id, target_id)
 
@@ -213,7 +214,7 @@ def build_graph(vault_root: Path) -> DependencyGraph:
                 for target_id in resolved:
                     if target_id == card_id:
                         continue
-                    if not ref.startswith("arete_") and own_basename and ref == own_basename:
+                    if not ref.startswith("arete_") and own_basename and normalize_filename(ref) == own_basename:
                         continue
                     graph.add_related(card_id, target_id)
 
@@ -242,9 +243,11 @@ def _resolve_reference(
             graph.add_unresolved(card_id, ref)
             return []
     else:
-        # Note basename -> all cards in that file
-        if ref in file_index:
-            return file_index[ref]
+        # Note basename -> all cards in that file. Normalize to match
+        # the NFC-normalized keys in file_index.
+        ref_normalized = normalize_filename(ref)
+        if ref_normalized in file_index:
+            return file_index[ref_normalized]
         else:
             logger.warning(f"Dependency reference '{ref}' - no file with basename '{ref}' found")
             graph.add_unresolved(card_id, ref)

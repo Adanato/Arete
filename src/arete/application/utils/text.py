@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from typing import Any
 
 import yaml  # type: ignore
@@ -8,6 +9,23 @@ import yaml.scanner  # type: ignore
 
 from .common import sanitize
 from .yaml import _LiteralDumper
+
+
+# ---------- Filename normalization ----------
+
+
+def normalize_filename(name: str) -> str:
+    """Normalize a filename string to NFC for cross-platform comparison.
+
+    macOS APFS/HFS+ stores filenames in NFD (decomposed: e.g., 'é' = 'e' + U+0301),
+    while user-typed strings in YAML frontmatter are typically NFC (composed: 'é' = U+00E9).
+    Both forms render identically but compare as unequal at the byte level.
+
+    Apply this to any string used as a key for filename-based lookup so that
+    `Cramér-Rao Lower Bound` typed by the user matches the on-disk filename
+    regardless of the form macOS hands back via pathlib.
+    """
+    return unicodedata.normalize("NFC", name)
 
 # ---------- Math: Normalize to \( \) and \[ \] delimiters ----------
 

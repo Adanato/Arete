@@ -135,6 +135,64 @@ cards:
         assert "c1" in graph.nodes
         assert graph.nodes["c1"].title == "c1"  # Fallback to card_id
 
+    def test_build_graph_resolves_nfd_filename_with_nfc_ref(self, tmp_path: Path):
+        """Regression: macOS APFS/HFS+ stores filenames in NFD; user-typed YAML
+        refs are NFC. Both render identically but compare unequal byte-wise.
+        The dep resolver must NFC-normalize both sides so refs to accented
+        filenames (e.g., 'Cramér-Rao Lower Bound') resolve correctly.
+        """
+        import unicodedata
+
+        # Create the target file with an NFD-encoded filename (simulates how
+        # macOS pathlib hands back filenames after the OS stores them).
+        target_name_nfd = unicodedata.normalize("NFD", "Cramér-Rao Lower Bound")
+        target_md = f"""---
+arete: true
+deck: Test
+cards:
+  - id: arete_target
+    model: Basic
+    fields:
+      Front: "What is the CRLB?"
+      Back: "A lower bound on variance of an unbiased estimator."
+---
+"""
+        (tmp_path / f"{target_name_nfd}.md").write_text(target_md)
+
+        # Create the dependent file with an NFC-encoded ref (how the YAML
+        # loader hands back user-typed accented strings).
+        ref_nfc = unicodedata.normalize("NFC", "Cramér-Rao Lower Bound")
+        dependent_md = f"""---
+arete: true
+deck: Test
+cards:
+  - id: arete_dependent
+    model: Basic
+    fields:
+      Front: "What is UMVUE?"
+      Back: "An unbiased estimator achieving the CRLB."
+    deps:
+      requires: ["{ref_nfc}"]
+---
+"""
+        (tmp_path / "UMVUE.md").write_text(dependent_md)
+
+        # Sanity check the test setup actually exercises the bug — the two
+        # forms must be byte-distinct, otherwise the test is vacuous.
+        assert target_name_nfd != ref_nfc, "NFD and NFC must differ for this test to be meaningful"
+
+        graph = build_graph(tmp_path)
+
+        # The dep should resolve cleanly — no unresolved refs anywhere.
+        # (unresolved_refs is pre-populated with empty lists per card; we check
+        # that every list is empty.)
+        unresolved_total = sum(len(refs) for refs in graph.unresolved_refs.values())
+        assert unresolved_total == 0, (
+            f"NFC-typed ref '{ref_nfc}' did not match NFD-stored "
+            f"basename '{target_name_nfd}'. Got unresolved: {graph.unresolved_refs}"
+        )
+        assert "arete_target" in graph.get_prerequisites("arete_dependent")
+
 
 class TestLocalGraph:
     """Tests for local graph queries."""

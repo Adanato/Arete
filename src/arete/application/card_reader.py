@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from arete.application.utils.text import parse_frontmatter
+from arete.application.utils.text import normalize_filename, parse_frontmatter
 
 # ---------------------------------------------------------------------------
 # Result dataclasses
@@ -84,22 +84,26 @@ def find_concept_file(vault_root: Path, concept: str) -> Path | None:
 
     Tries exact match first, then case-insensitive search (root + one level deep).
     """
-    # Exact match
-    exact = vault_root / f"{concept}.md"
+    # Exact match (Path comparison handles NFC↔NFD on macOS, but we normalize
+    # the concept input so `vault_root / "Cramér.md"` finds the file regardless
+    # of which form the user typed).
+    exact = vault_root / f"{normalize_filename(concept)}.md"
     if exact.exists():
         return exact
 
-    # Case-insensitive search in vault root
-    concept_lower = concept.lower()
+    # Case-insensitive search in vault root. Normalize both sides to NFC before
+    # lowercasing so accented filenames match regardless of the form macOS
+    # returns from pathlib.
+    concept_key = normalize_filename(concept).lower()
     for p in vault_root.iterdir():
-        if p.suffix == ".md" and p.stem.lower() == concept_lower:
+        if p.suffix == ".md" and normalize_filename(p.stem).lower() == concept_key:
             return p
 
     # Search subdirectories (one level deep)
     for d in vault_root.iterdir():
         if d.is_dir() and not d.name.startswith("."):
             for p in d.iterdir():
-                if p.suffix == ".md" and p.stem.lower() == concept_lower:
+                if p.suffix == ".md" and normalize_filename(p.stem).lower() == concept_key:
                     return p
 
     return None
